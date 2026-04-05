@@ -14,6 +14,9 @@ from app.presentation.api.v1.routers.workshops import router as workshops_router
 from app.presentation.api.v1.routers.technicians import router as technicians_router
 from app.presentation.api.v1.routers.ai_processing import router as ai_processing_router
 from app.presentation.api.v1.routers.incidents import router as incidents_router
+from app.presentation.api.v1.routers.assignments import router as assignments_router
+from app.presentation.api.v1.routers.notifications import router as notifications_router
+from app.presentation.api.v1.routers.payments import router as payments_router
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,9 @@ app.include_router(workshops_router)
 app.include_router(technicians_router)
 app.include_router(ai_processing_router)
 app.include_router(incidents_router)
+app.include_router(assignments_router)
+app.include_router(notifications_router)
+app.include_router(payments_router)
 
 _evidencias_dir = Path(settings.UPLOADS_DIR) / "evidencias"
 _evidencias_dir.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.models import EVIDENCIAS, INCIDENTES
+from app.application.use_cases.assignment_service import asignar_taller_automaticamente
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,15 @@ def ejecutar_pipeline_procesamiento_incidente(db: Session, id_incidente: UUID) -
         db.add(inc)
         db.commit()
         db.refresh(inc)
+
+        # Llamar automáticamente al motor de asignación inteligente
+        try:
+            logger.info("Iniciando asignación automática para incidente %s", id_incidente)
+            asignar_taller_automaticamente(db, id_incidente)
+        except Exception:
+            logger.exception("Asignación automática falló para incidente %s", id_incidente)
+            # No propagar el error; el incidente ya está clasificado
+
         return inc
     except Exception:
         logger.exception("Pipeline IA falló para incidente %s", id_incidente)

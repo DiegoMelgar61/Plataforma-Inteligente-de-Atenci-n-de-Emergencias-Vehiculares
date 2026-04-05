@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Plataforma inteligente de atención de emergencias vehiculares - Cliente móvil">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Emergencias Vehiculares">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Emergencias Vehiculares</title>
+  <link rel="manifest" href="manifest.json">
+
+  <meta name="theme-color" content="#2196F3">
+
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    var serviceWorkerVersion = null;
+    var scriptLoaded = false;
+    function loadScript(url, callback) {
+      var xhrObj = new XMLHttpRequest();
+      xhrObj.addEventListener("loadend", function() {
+        if (xhrObj.status == 200) {
+          callback(xhrObj.responseText);
+        } else {
+          callback(null);
+        }
+      });
+      xhrObj.open("GET", url, true);
+      xhrObj.send();
+    }
+
+    if (!scriptLoaded) {
+      loadScript(("flutter_service_worker.js?" + new Date().getTime()), function(script) {
+        if (script == null) {
+          console.log("Failed to load flutter_service_worker.js");
+          return;
+        }
+        scriptLoaded = true;
+        try {
+          eval(script);
+        } catch(e) {
+          console.log("Exception while loading flutter_service_worker.js", e);
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <!-- This script adds the flutter initialization JS code -->
+  <script src="flutter.js" defer></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function() {
+      document.body.style.opacity = '1';
+    });
+  </script>
+</body>
+</html>
