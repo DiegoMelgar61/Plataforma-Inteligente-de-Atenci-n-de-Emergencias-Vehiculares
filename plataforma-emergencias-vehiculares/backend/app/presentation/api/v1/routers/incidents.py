@@ -303,6 +303,52 @@ async def reportar_incidente_multimodal(
 
 
 @router.get(
+    "",
+    response_model=list[IncidentListResponse],
+    summary="Listar todos los incidentes (Taller/Admin)",
+    description="Lista todos los incidentes. Solo para roles TALLER y ADMIN.",
+)
+def listar_todos_incidentes(
+    estado: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden listar todos los incidentes")
+    q = db.query(INCIDENTES)
+    if estado:
+        q = q.filter(INCIDENTES.ESTADO == estado)
+    filas = q.order_by(INCIDENTES.FECHA_CREACION.desc()).all()
+    return [_a_lista(inc) for inc in filas]
+
+
+@router.patch(
+    "/{id_incidente}/estado",
+    response_model=IncidentListResponse,
+    summary="Actualizar estado de incidente (Taller)",
+)
+def actualizar_estado_incidente(
+    id_incidente: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres pueden actualizar el estado")
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+    nuevo_estado = body.get("estado")
+    if nuevo_estado:
+        inc.ESTADO = nuevo_estado
+    db.commit()
+    db.refresh(inc)
+    return _a_lista(inc)
+
+
+@router.get(
     "/my",
     response_model=list[IncidentListResponse],
     summary="Mis incidentes",
@@ -326,18 +372,18 @@ def listar_mis_incidentes(
     "/{id_incidente}",
     response_model=IncidentResponse,
     summary="Detalle de incidente",
-    description="Incluye evidencias. Solo el cliente dueño puede consultarlo.",
+    description="Incluye evidencias. El cliente dueño o un TALLER/ADMIN puede consultarlo.",
 )
 def obtener_incidente(
     id_incidente: UUID,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    _solo_cliente(usuario)
+    rol = _rol_texto(usuario)
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
-    if inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
         raise HTTPException(status_code=403, detail="No autorizado a ver este incidente")
 
     evs = (

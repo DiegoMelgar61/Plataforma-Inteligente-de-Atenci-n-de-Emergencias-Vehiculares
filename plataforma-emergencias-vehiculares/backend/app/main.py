@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
@@ -38,6 +39,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(vehicles_router)
@@ -49,6 +58,12 @@ app.include_router(assignments_router)
 app.include_router(notifications_router)
 app.include_router(payments_router)
 
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "environment": settings.ENVIRONMENT}
+
+
 _evidencias_dir = Path(settings.UPLOADS_DIR) / "evidencias"
 _evidencias_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
@@ -56,8 +71,3 @@ app.mount(
     StaticFiles(directory=str(_evidencias_dir)),
     name="evidencias_estaticas",
 )
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "environment": settings.ENVIRONMENT}

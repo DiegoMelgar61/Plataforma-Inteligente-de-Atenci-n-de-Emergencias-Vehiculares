@@ -18,7 +18,7 @@ from app.application.use_cases.notification_service import (
     enviar_notificacion_cliente,
     enviar_notificacion_taller,
 )
-from app.models.models import INCIDENTES, TECNICOS, USUARIOS
+from app.models.models import ASIGNACIONES, INCIDENTES, TALLERES, TECNICOS, USUARIOS
 from app.presentation.api.v1.dependencies.auth import (
     get_current_active_user,
     get_current_user,
@@ -149,3 +149,111 @@ def obtener_talleres_disponibles(
         total_candidatos=len(candidatos_dto),
         candidatos=candidatos_dto,
     )
+
+
+def _rol_texto(usuario: USUARIOS) -> str:
+    r = usuario.ROL
+    return r.value if hasattr(r, "value") else str(r)
+
+
+@router.get(
+    "/my",
+    summary="Mis asignaciones (Taller)",
+    description="Lista las asignaciones del taller autenticado con detalle del incidente.",
+)
+def listar_mis_asignaciones(
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    if _rol_texto(usuario) != "TALLER":
+        raise HTTPException(status_code=403, detail="Solo talleres pueden consultar sus asignaciones")
+
+    taller = db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
+    if not taller:
+        raise HTTPException(status_code=404, detail="Taller no encontrado para este usuario")
+
+    asignaciones = (
+        db.query(ASIGNACIONES)
+        .filter(ASIGNACIONES.ID_TALLER == taller.ID_TALLER)
+        .order_by(ASIGNACIONES.FECHA_ASIGNACION.desc())
+        .all()
+    )
+
+    result = []
+    for a in asignaciones:
+        inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == a.ID_INCIDENTE).first()
+        tec = db.query(TECNICOS).filter(TECNICOS.ID_TECNICO == a.ID_TECNICO).first() if a.ID_TECNICO else None
+
+        inc_data = None
+        if inc:
+            from geoalchemy2.shape import to_shape as _to_shape
+            lat, lon = None, None
+            try:
+                if inc.UBICACION:
+                    p = _to_shape(inc.UBICACION)
+                    lat, lon = float(p.y), float(p.x)
+            except Exception:
+                pass
+            inc_data = {
+                "id_incidente": str(inc.ID_INCIDENTE),
+                "estado": str(inc.ESTADO.value if hasattr(inc.ESTADO, 'value') else inc.ESTADO),
+                "prioridad": str(inc.PRIORIDAD.value if hasattr(inc.PRIORIDAD, 'value') else inc.PRIORIDAD),
+                "clasificacion": str(inc.CLASIFICACION.value if hasattr(inc.CLASIFICACION, 'value') else inc.CLASIFICACION),
+                "resumen_ia": inc.RESUMEN_IA,
+                "latitud": lat,
+                "longitud": lon,
+                "fecha_creacion": inc.FECHA_CREACION.isoformat() if inc.FECHA_CREACION else None,
+            }
+
+        tec_data = None
+        if tec:
+            tec_data = {
+                "id_tecnico": str(tec.ID_TECNICO),
+                "nombre_completo": tec.NOMBRE_COMPLETO,
+                "telefono": tec.TELEFONO,
+                "disponible": tec.DISPONIBLE,
+            }
+
+        result.append({
+            "id_asignacion": str(a.ID_ASIGNACION),
+            "id_incidente": str(a.ID_INCIDENTE),
+            "id_taller": str(a.ID_TALLER),
+            "id_tecnico": str(a.ID_TECNICO) if a.ID_TECNICO else None,
+            "fecha_asignacion": a.FECHA_ASIGNACION.isoformat() if a.FECHA_ASIGNACION else None,
+            "fecha_aceptacion": a.FECHA_ACEPTACION.isoformat() if a.FECHA_ACEPTACION else None,
+            "fecha_rechazo": a.FECHA_RECHAZO.isoformat() if a.FECHA_RECHAZO else None,
+            "motivo_rechazo": a.MOTIVO_RECHAZO,
+            "incidente": inc_data,
+            "tecnico": tec_data,
+        })
+
+    return result
+
+
+@router.post(
+    "/incidents/{id_incidente}/reject",
+    summary="Rechazar asignación (Taller)",
+)
+def rechazar_asignacion(
+    id_incidente: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    if _rol_texto(usuario) != "TALLER":
+        raise HTTPException(status_code=403, detail="Solo talleres pueden rechazar asignaciones")
+
+    from datetime import datetime, timezone
+    asignacion = db.query(ASIGNACIONES).filter(ASIGNACIONES.ID_INCIDENTE == id_incidente).first()
+    if not asignacion:
+        raise HTTPException(status_code=404, detail="Asignación no encontrada")
+
+    asignacion.FECHA_RECHAZO = datetime.now(timezone.utc)
+    asignacion.MOTIVO_RECHAZO = body.get("motivo_rechazo", "Rechazado por el taller")
+
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if inc:
+        inc.ESTADO = "CANCELADO"
+
+    db.commit()
+    return {"detail": "Asignación rechazada"}
