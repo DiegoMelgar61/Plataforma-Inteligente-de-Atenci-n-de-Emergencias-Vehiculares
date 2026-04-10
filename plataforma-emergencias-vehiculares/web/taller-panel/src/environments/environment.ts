@@ -1,5 +1,5 @@
 export const environment = {
-  production: false,
-  apiUrl: 'http://127.0.0.1:8002',
-  wsUrl: 'ws://127.0.0.1:8002',
+  production: true,
+  apiUrl: 'https://plataforma-inteligente-de-atenci-n-de-emergencia-production.up.railway.app',
+  wsUrl: 'wss://plataforma-inteligente-de-atenci-n-de-emergencia-production.up.railway.app',
 };
