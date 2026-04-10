@@ -1,0 +1,395 @@
+"""
+Reporte y consulta de incidentes (solo rol CLIENTE).
+Ubicación + evidencias multimodales (imágenes, audio opcional, texto).
+"""
+import logging
+import re
+import shutil
+import uuid
+from pathlib import Path
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from geoalchemy2.elements import WKTElement
+from geoalchemy2.shape import to_shape
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
+from app.models.models import EVIDENCIAS, INCIDENTES, USUARIOS, VEHICULOS
+from app.presentation.api.v1.dependencies.auth import get_current_user
+from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
+from app.presentation.api.v1.schemas.incident import (
+    EvidenceItemResponse,
+    IncidentListResponse,
+    IncidentResponse,
+    ReporteIncidenteResponse,
+)
+
+router = APIRouter(prefix="/incidents", tags=["Incidentes"])
+
+logger = logging.getLogger(__name__)
+
+MIME_IMAGENES = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/gif", "image/jpg"}
+)
+MIME_AUDIO = frozenset(
+    {
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/webm",
+        "audio/ogg",
+        "audio/opus",
+    }
+)
+
+
+def _rol_texto(usuario: USUARIOS) -> str:
+    r = usuario.ROL
+    return r.value if hasattr(r, "value") else str(r)
+
+
+def _solo_cliente(usuario: USUARIOS) -> None:
+    if _rol_texto(usuario) != "CLIENTE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los clientes pueden usar este módulo de incidentes",
+        )
+
+
+def _coords_desde_orm(inc: INCIDENTES) -> tuple[float | None, float | None]:
+    if inc.UBICACION is None:
+        return None, None
+    try:
+        punto = to_shape(inc.UBICACION)
+        return float(punto.y), float(punto.x)
+    except Exception:
+        return None, None
+
+
+def _nombre_seguro(nombre: str | None) -> str:
+    base = Path(nombre or "archivo").name
+    if not base or ".." in base:
+        return "archivo"
+    return re.sub(r"[^a-zA-Z0-9._-]", "_", base)[:120]
+
+
+def _url_temporal_evidencia(id_evidencia: UUID) -> str:
+    """URL lógica provisional (reemplazar por bucket/CDN en producción)."""
+    return f"temporal:/evidencias/{id_evidencia}"
+
+
+def _a_lista(inc: INCIDENTES) -> IncidentListResponse:
+    lat, lon = _coords_desde_orm(inc)
+    base = IncidentListResponse.model_validate(inc)
+    return base.model_copy(update={"latitud": lat, "longitud": lon})
+
+
+def _a_detalle(inc: INCIDENTES, evidencias: list[EVIDENCIAS]) -> IncidentResponse:
+    lat, lon = _coords_desde_orm(inc)
+    evs = [EvidenceItemResponse.model_validate(e) for e in evidencias]
+    base = IncidentResponse.model_validate(inc)
+    return base.model_copy(update={"latitud": lat, "longitud": lon, "evidencias": evs})
+
+
+@router.post(
+    "/report",
+    response_model=ReporteIncidenteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Reportar incidente multimodal",
+    description=(
+        "Cliente autenticado envía **multipart/form-data**: `latitud`, `longitud`, campos opcionales, "
+        "varias imágenes (`imagenes`) y opcionalmente un `audio`. "
+        "Ejemplo numérico: La Paz aprox. latitud `-16.5`, longitud `-68.15`."
+    ),
+    response_description="ID del incidente y evidencias con URL temporal",
+)
+async def reportar_incidente_multimodal(
+    latitud: Annotated[
+        float,
+        Form(
+            description="Latitud WGS84 (grados decimales, -90..90)",
+            examples=[-16.5],
+        ),
+    ],
+    longitud: Annotated[
+        float,
+        Form(
+            description="Longitud WGS84 (grados decimales, -180..180)",
+            examples=[-68.15],
+        ),
+    ],
+    id_vehiculo: Annotated[
+        UUID | None,
+        Form(description="UUID del vehículo registrado del cliente; omitir si no aplica"),
+    ] = None,
+    prioridad: Annotated[str | None, Form(description="BAJA | MEDIA | ALTA")] = "MEDIA",
+    clasificacion: Annotated[
+        str | None,
+        Form(description="BATERIA | LLANTA | CHOQUE | MOTOR | OTROS | INCIERTO"),
+    ] = "OTROS",
+    texto_descripcion: Annotated[
+        str | None,
+        Form(description="Descripción textual si no hay archivos"),
+    ] = None,
+    imagenes: Annotated[
+        list[UploadFile] | None,
+        File(description="Una o más imágenes (JPEG, PNG, WEBP, GIF)"),
+    ] = None,
+    audio: Annotated[
+        UploadFile | None,
+        File(description="Un solo archivo de audio opcional (MP3, WAV, WEBM, OGG, …)"),
+    ] = None,
+    usuario: USUARIOS = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Crea **INCIDENTES** y registros en **EVIDENCIAS** con **URL temporal** (`temporal:/evidencias/{id}`).
+    Los archivos se guardan en disco bajo `UPLOADS_DIR` para procesamiento interno (IA, antivirus, etc.).
+    """
+    _solo_cliente(usuario)
+
+    if id_vehiculo is not None:
+        v = (
+            db.query(VEHICULOS)
+            .filter(
+                VEHICULOS.ID_VEHICULO == id_vehiculo,
+                VEHICULOS.ID_USUARIO_CLIENTE == usuario.ID_USUARIO,
+            )
+            .first()
+        )
+        if not v:
+            raise HTTPException(status_code=400, detail="El vehículo no existe o no le pertenece")
+
+    imgs = imagenes or []
+    tiene_archivos = bool(imgs) or (audio is not None and bool(audio.filename))
+    tiene_texto = bool(texto_descripcion and texto_descripcion.strip())
+    if not tiene_archivos and not tiene_texto:
+        raise HTTPException(
+            status_code=400,
+            detail="Debe incluir al menos una imagen, un audio o una descripción en texto",
+        )
+
+    punto = WKTElement(f"POINT({longitud} {latitud})", srid=4326)
+    incidente = INCIDENTES(
+        ID_USUARIO_CLIENTE=usuario.ID_USUARIO,
+        ID_VEHICULO=id_vehiculo,
+        UBICACION=punto,
+        PRIORIDAD=prioridad or "MEDIA",
+        CLASIFICACION=clasificacion or "OTROS",
+    )
+    db.add(incidente)
+    db.flush()
+
+    destino_dir = settings.UPLOADS_DIR / "evidencias" / str(incidente.ID_INCIDENTE)
+    destino_dir.mkdir(parents=True, exist_ok=True)
+    subidas: list[EvidenceUploadResponse] = []
+
+    try:
+        for img in imgs:
+            if not img.filename:
+                continue
+            ct = (img.content_type or "").split(";")[0].strip().lower()
+            if ct not in MIME_IMAGENES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Tipo de imagen no permitido: {ct or 'desconocido'}",
+                )
+            eid = uuid.uuid4()
+            nombre_disco = f"{eid.hex}_{_nombre_seguro(img.filename)}"
+            ruta = destino_dir / nombre_disco
+            contenido = await img.read()
+            ruta.write_bytes(contenido)
+            url_tmp = _url_temporal_evidencia(eid)
+            ev = EVIDENCIAS(
+                ID_EVIDENCIA=eid,
+                ID_INCIDENTE=incidente.ID_INCIDENTE,
+                TIPO="IMAGEN",
+                URL_ARCHIVO=url_tmp,
+                CLAVE_ARCHIVO=f"evidencias/{incidente.ID_INCIDENTE}/{nombre_disco}",
+            )
+            db.add(ev)
+            db.flush()
+            subidas.append(
+                EvidenceUploadResponse(
+                    id_evidencia=eid,
+                    tipo="IMAGEN",
+                    url_archivo=url_tmp,
+                    nombre_original=img.filename,
+                )
+            )
+
+        if audio is not None and audio.filename:
+            ct = (audio.content_type or "").split(";")[0].strip().lower()
+            if ct not in MIME_AUDIO:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Tipo de audio no permitido: {ct or 'desconocido'}",
+                )
+            eid = uuid.uuid4()
+            nombre_disco = f"{eid.hex}_{_nombre_seguro(audio.filename)}"
+            ruta = destino_dir / nombre_disco
+            contenido = await audio.read()
+            ruta.write_bytes(contenido)
+            url_tmp = _url_temporal_evidencia(eid)
+            ev = EVIDENCIAS(
+                ID_EVIDENCIA=eid,
+                ID_INCIDENTE=incidente.ID_INCIDENTE,
+                TIPO="AUDIO",
+                URL_ARCHIVO=url_tmp,
+                CLAVE_ARCHIVO=f"evidencias/{incidente.ID_INCIDENTE}/{nombre_disco}",
+            )
+            db.add(ev)
+            db.flush()
+            subidas.append(
+                EvidenceUploadResponse(
+                    id_evidencia=eid,
+                    tipo="AUDIO",
+                    url_archivo=url_tmp,
+                    nombre_original=audio.filename,
+                )
+            )
+
+        if tiene_texto:
+            eid = uuid.uuid4()
+            url_tmp = _url_temporal_evidencia(eid)
+            ev_txt = EVIDENCIAS(
+                ID_EVIDENCIA=eid,
+                ID_INCIDENTE=incidente.ID_INCIDENTE,
+                TIPO="TEXTO",
+                URL_ARCHIVO=url_tmp,
+                CLAVE_ARCHIVO=None,
+                TEXTO_TRANSCRITO=texto_descripcion.strip(),
+            )
+            db.add(ev_txt)
+            db.flush()
+            subidas.append(
+                EvidenceUploadResponse(
+                    id_evidencia=eid,
+                    tipo="TEXTO",
+                    url_archivo=url_tmp,
+                    nombre_original=None,
+                )
+            )
+
+        db.commit()
+        db.refresh(incidente)
+        try:
+            ejecutar_pipeline_procesamiento_incidente(db, incidente.ID_INCIDENTE)
+        except Exception:
+            logger.exception(
+                "Procesamiento IA automático falló tras el reporte; incidente %s persistido.",
+                incidente.ID_INCIDENTE,
+            )
+    except HTTPException:
+        db.rollback()
+        if destino_dir.exists():
+            shutil.rmtree(destino_dir, ignore_errors=True)
+        raise
+    except Exception:
+        db.rollback()
+        if destino_dir.exists():
+            shutil.rmtree(destino_dir, ignore_errors=True)
+        raise
+
+    return ReporteIncidenteResponse(
+        incidente_id=incidente.ID_INCIDENTE,
+        evidencias_subidas=subidas,
+    )
+
+
+@router.get(
+    "",
+    response_model=list[IncidentListResponse],
+    summary="Listar todos los incidentes (Taller/Admin)",
+    description="Lista todos los incidentes. Solo para roles TALLER y ADMIN.",
+)
+def listar_todos_incidentes(
+    estado: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden listar todos los incidentes")
+    q = db.query(INCIDENTES)
+    if estado:
+        q = q.filter(INCIDENTES.ESTADO == estado)
+    filas = q.order_by(INCIDENTES.FECHA_CREACION.desc()).all()
+    return [_a_lista(inc) for inc in filas]
+
+
+@router.patch(
+    "/{id_incidente}/estado",
+    response_model=IncidentListResponse,
+    summary="Actualizar estado de incidente (Taller)",
+)
+def actualizar_estado_incidente(
+    id_incidente: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres pueden actualizar el estado")
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+    nuevo_estado = body.get("estado")
+    if nuevo_estado:
+        inc.ESTADO = nuevo_estado
+    db.commit()
+    db.refresh(inc)
+    return _a_lista(inc)
+
+
+@router.get(
+    "/my",
+    response_model=list[IncidentListResponse],
+    summary="Mis incidentes",
+    description="Lista cronológica de incidentes del cliente autenticado (sin evidencias).",
+)
+def listar_mis_incidentes(
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    _solo_cliente(usuario)
+    filas = (
+        db.query(INCIDENTES)
+        .filter(INCIDENTES.ID_USUARIO_CLIENTE == usuario.ID_USUARIO)
+        .order_by(INCIDENTES.FECHA_CREACION.desc())
+        .all()
+    )
+    return [_a_lista(inc) for inc in filas]
+
+
+@router.get(
+    "/{id_incidente}",
+    response_model=IncidentResponse,
+    summary="Detalle de incidente",
+    description="Incluye evidencias. El cliente dueño o un TALLER/ADMIN puede consultarlo.",
+)
+def obtener_incidente(
+    id_incidente: UUID,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    rol = _rol_texto(usuario)
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(status_code=403, detail="No autorizado a ver este incidente")
+
+    evs = (
+        db.query(EVIDENCIAS)
+        .filter(EVIDENCIAS.ID_INCIDENTE == id_incidente)
+        .order_by(EVIDENCIAS.FECHA_CREACION)
+        .all()
+    )
+    return _a_detalle(inc, evs)

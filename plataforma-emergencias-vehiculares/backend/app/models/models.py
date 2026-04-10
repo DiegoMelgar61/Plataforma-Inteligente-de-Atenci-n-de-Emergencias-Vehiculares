@@ -19,127 +19,127 @@ EstadoPagoEnum = Enum('PENDIENTE', 'PAGADO', 'RECHAZADO', name='estado_pago_enum
 # ==================== MODELOS ====================
 
 class USUARIOS(Base):
-    __tablename__ = "USUARIOS"
+    __tablename__ = "usuarios"
 
-    ID_USUARIO = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    CORREO_ELECTRONICO = Column(String(255), unique=True, nullable=False)
-    HASH_CONTRASENA = Column(Text, nullable=False)
-    NOMBRE_COMPLETO = Column(String(255), nullable=False)
-    TELEFONO = Column(String(20))
-    ROL = Column(RolEnum, nullable=False)
-    ACTIVO = Column(Boolean, default=True)
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column(DateTime(timezone=True), onupdate=func.now())
-    FECHA_ELIMINACION = Column(DateTime(timezone=True), nullable=True)
+    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    CORREO_ELECTRONICO = Column("correo_electronico", String(255), unique=True, nullable=False)
+    HASH_CONTRASENA = Column("hash_contrasena", Text, nullable=False)
+    NOMBRE_COMPLETO = Column("nombre_completo", String(255), nullable=False)
+    TELEFONO = Column("telefono", String(20))
+    ROL = Column("rol", RolEnum, nullable=False)
+    ACTIVO = Column("activo", Boolean, default=True)
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
+    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
+    FECHA_ELIMINACION = Column("fecha_eliminacion", DateTime(timezone=True), nullable=True)
 
 
 class CLIENTES(Base):
-    __tablename__ = "CLIENTES"
+    __tablename__ = "clientes"
 
-    ID_USUARIO = Column(UUID(as_uuid=True), ForeignKey("USUARIOS.ID_USUARIO", ondelete="CASCADE"), primary_key=True)
+    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), primary_key=True)
 
 
 class TALLERES(Base):
-    __tablename__ = "TALLERES"
+    __tablename__ = "talleres"
 
-    ID_TALLER = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO = Column(UUID(as_uuid=True), ForeignKey("USUARIOS.ID_USUARIO", ondelete="CASCADE"), unique=True)
-    NOMBRE_NEGOCIO = Column(String(255), nullable=False)
-    NIT = Column(String(50), unique=True)
-    DIRECCION = Column(Text)
-    TASA_COMISION = Column(DECIMAL(5, 2), default=10.00)
-    ACTIVO = Column(Boolean, default=True)
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column(DateTime(timezone=True), onupdate=func.now())
+    ID_TALLER = Column("id_taller", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), unique=True)
+    NOMBRE_NEGOCIO = Column("nombre_negocio", String(255), nullable=False)
+    NIT = Column("nit", String(50), unique=True)
+    DIRECCION = Column("direccion", Text)
+    TASA_COMISION = Column("tasa_comision", DECIMAL(5, 2), default=10.00)
+    ACTIVO = Column("activo", Boolean, default=True)
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
+    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
 
 
 class TECNICOS(Base):
-    __tablename__ = "TECNICOS"
+    __tablename__ = "tecnicos"
 
-    ID_TECNICO = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_TALLER = Column(UUID(as_uuid=True), ForeignKey("TALLERES.ID_TALLER", ondelete="CASCADE"), nullable=False)
-    NOMBRE_COMPLETO = Column(String(255), nullable=False)
-    TELEFONO = Column(String(20))
-    DISPONIBLE = Column(Boolean, default=True)
-    UBICACION_ACTUAL = Column(Geography(geometry_type='POINT', srid=4326))
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column(DateTime(timezone=True), onupdate=func.now())
+    ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller", ondelete="CASCADE"), nullable=False)
+    NOMBRE_COMPLETO = Column("nombre_completo", String(255), nullable=False)
+    TELEFONO = Column("telefono", String(20))
+    DISPONIBLE = Column("disponible", Boolean, default=True)
+    UBICACION_ACTUAL = Column("ubicacion_actual", Geography(geometry_type='POINT', srid=4326))
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
+    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
 
 
 class VEHICULOS(Base):
-    __tablename__ = "VEHICULOS"
+    __tablename__ = "vehiculos"
 
-    ID_VEHICULO = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO_CLIENTE = Column(UUID(as_uuid=True), ForeignKey("USUARIOS.ID_USUARIO", ondelete="CASCADE"), nullable=False)
-    MARCA = Column(String(100))
-    MODELO = Column(String(100))
-    ANIO = Column(Integer)
-    PLACA = Column(String(20), unique=True)
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column(DateTime(timezone=True), onupdate=func.now())
+    ID_VEHICULO = Column("id_vehiculo", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), nullable=False)
+    MARCA = Column("marca", String(100))
+    MODELO = Column("modelo", String(100))
+    ANIO = Column("anio", Integer)
+    PLACA = Column("placa", String(20), unique=True)
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
+    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
 
 
 class INCIDENTES(Base):
-    __tablename__ = "INCIDENTES"
+    __tablename__ = "incidentes"
 
-    ID_INCIDENTE = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO_CLIENTE = Column(UUID(as_uuid=True), ForeignKey("USUARIOS.ID_USUARIO"), nullable=False)
-    ID_VEHICULO = Column(UUID(as_uuid=True), ForeignKey("VEHICULOS.ID_VEHICULO"))
-    UBICACION = Column(Geography(geometry_type='POINT', srid=4326), nullable=False)
-    ESTADO = Column(EstadoIncidenteEnum, default="PENDIENTE")
-    PRIORIDAD = Column(PrioridadEnum, default="MEDIA")
-    CLASIFICACION = Column(ClasificacionEnum, default="OTROS")
-    RESUMEN_IA = Column(Text)
-    TIEMPO_ESTIMADO_LLEGADA_MINUTOS = Column(Integer)
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column(DateTime(timezone=True), onupdate=func.now())
+    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"), nullable=False)
+    ID_VEHICULO = Column("id_vehiculo", UUID(as_uuid=True), ForeignKey("vehiculos.id_vehiculo"))
+    UBICACION = Column("ubicacion", Geography(geometry_type='POINT', srid=4326), nullable=False)
+    ESTADO = Column("estado", EstadoIncidenteEnum, default="PENDIENTE")
+    PRIORIDAD = Column("prioridad", PrioridadEnum, default="MEDIA")
+    CLASIFICACION = Column("clasificacion", ClasificacionEnum, default="OTROS")
+    RESUMEN_IA = Column("resumen_ia", Text)
+    TIEMPO_ESTIMADO_LLEGADA_MINUTOS = Column("tiempo_estimado_llegada_minutos", Integer)
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
+    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
 
 
 class EVIDENCIAS(Base):
-    __tablename__ = "EVIDENCIAS"
+    __tablename__ = "evidencias"
 
-    ID_EVIDENCIA = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column(UUID(as_uuid=True), ForeignKey("INCIDENTES.ID_INCIDENTE", ondelete="CASCADE"), nullable=False)
-    TIPO = Column(TipoEvidenciaEnum, nullable=False)
-    URL_ARCHIVO = Column(Text, nullable=False)
-    CLAVE_ARCHIVO = Column(Text)
-    TEXTO_TRANSCRITO = Column(Text)
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
+    ID_EVIDENCIA = Column("id_evidencia", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente", ondelete="CASCADE"), nullable=False)
+    TIPO = Column("tipo", TipoEvidenciaEnum, nullable=False)
+    URL_ARCHIVO = Column("url_archivo", Text, nullable=False)
+    CLAVE_ARCHIVO = Column("clave_archivo", Text)
+    TEXTO_TRANSCRITO = Column("texto_transcrito", Text)
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
 
 
 class HISTORIAL_INCIDENTES(Base):
-    __tablename__ = "HISTORIAL_INCIDENTES"
+    __tablename__ = "historial_incidentes"
 
-    ID_HISTORIAL = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column(UUID(as_uuid=True), ForeignKey("INCIDENTES.ID_INCIDENTE", ondelete="CASCADE"), nullable=False)
-    ESTADO = Column(EstadoIncidenteEnum, nullable=False)
-    NOTAS = Column(Text)
-    ID_USUARIO_CAMBIO = Column(UUID(as_uuid=True), ForeignKey("USUARIOS.ID_USUARIO"))
-    FECHA_CAMBIO = Column(DateTime(timezone=True), server_default=func.now())
+    ID_HISTORIAL = Column("id_historial", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente", ondelete="CASCADE"), nullable=False)
+    ESTADO = Column("estado", EstadoIncidenteEnum, nullable=False)
+    NOTAS = Column("notas", Text)
+    ID_USUARIO_CAMBIO = Column("id_usuario_cambio", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"))
+    FECHA_CAMBIO = Column("fecha_cambio", DateTime(timezone=True), server_default=func.now())
 
 
 class ASIGNACIONES(Base):
-    __tablename__ = "ASIGNACIONES"
+    __tablename__ = "asignaciones"
 
-    ID_ASIGNACION = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column(UUID(as_uuid=True), ForeignKey("INCIDENTES.ID_INCIDENTE"), unique=True)
-    ID_TALLER = Column(UUID(as_uuid=True), ForeignKey("TALLERES.ID_TALLER"))
-    ID_TECNICO = Column(UUID(as_uuid=True), ForeignKey("TECNICOS.ID_TECNICO"))
-    FECHA_ASIGNACION = Column(DateTime(timezone=True), server_default=func.now())
-    FECHA_ACEPTACION = Column(DateTime(timezone=True))
-    FECHA_RECHAZO = Column(DateTime(timezone=True))
-    MOTIVO_RECHAZO = Column(Text)
+    ID_ASIGNACION = Column("id_asignacion", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente"), unique=True)
+    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller"))
+    ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), ForeignKey("tecnicos.id_tecnico"))
+    FECHA_ASIGNACION = Column("fecha_asignacion", DateTime(timezone=True), server_default=func.now())
+    FECHA_ACEPTACION = Column("fecha_aceptacion", DateTime(timezone=True))
+    FECHA_RECHAZO = Column("fecha_rechazo", DateTime(timezone=True))
+    MOTIVO_RECHAZO = Column("motivo_rechazo", Text)
 
 
 class PAGOS(Base):
-    __tablename__ = "PAGOS"
+    __tablename__ = "pagos"
 
-    ID_PAGO = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column(UUID(as_uuid=True), ForeignKey("INCIDENTES.ID_INCIDENTE"))
-    ID_USUARIO_CLIENTE = Column(UUID(as_uuid=True), ForeignKey("USUARIOS.ID_USUARIO"))
-    MONTO = Column(DECIMAL(10, 2), nullable=False)
-    COMISION_PLATAFORMA = Column(DECIMAL(10, 2), nullable=False)
-    ESTADO = Column(EstadoPagoEnum, default="PENDIENTE")
-    METODO_PAGO = Column(String(50))
-    ID_TRANSACCION = Column(String(255))
-    FECHA_CREACION = Column(DateTime(timezone=True), server_default=func.now())
+    ID_PAGO = Column("id_pago", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente"))
+    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"))
+    MONTO = Column("monto", DECIMAL(10, 2), nullable=False)
+    COMISION_PLATAFORMA = Column("comision_plataforma", DECIMAL(10, 2), nullable=False)
+    ESTADO = Column("estado", EstadoPagoEnum, default="PENDIENTE")
+    METODO_PAGO = Column("metodo_pago", String(50))
+    ID_TRANSACCION = Column("id_transaccion", String(255))
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())

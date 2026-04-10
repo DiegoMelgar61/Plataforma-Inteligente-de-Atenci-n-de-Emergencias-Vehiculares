@@ -32,4 +32,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
 
+    # Almacenamiento local de evidencias (imágenes / audio)
+    UPLOADS_DIR: Path = _BACKEND_DIR / "uploads"
+    """Directorio raíz donde se guardan archivos subidos (se crea al arrancar)."""
+    EVIDENCIAS_URL_PREFIX: str = "/static/evidencias"
+    """Prefijo URL público para servir archivos vía StaticFiles en main."""
+
 settings = Settings()
