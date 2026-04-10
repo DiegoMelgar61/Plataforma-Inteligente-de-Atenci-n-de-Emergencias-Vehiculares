@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Siempre cargar backend/.env aunque ejecutes python desde la raíz del monorepo
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 
+#BASE
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
