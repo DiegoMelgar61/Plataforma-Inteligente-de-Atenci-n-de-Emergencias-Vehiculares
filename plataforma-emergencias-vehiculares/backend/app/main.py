@@ -42,12 +42,15 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://plataforma-inteligente-de-atenci-n-de-vercel.app",
+        "https://plataforma-inteligente-de-atenci-n.vercel.app",
         "http://localhost:4200",
+        "http://localhost:4201",
     ],
+    allow_origin_regex=r"https://plataforma-inteligente-de-atenci-n.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(auth_router)
