@@ -4,12 +4,6 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
 
-# Patch de compatibilidad: bcrypt 4.x eliminó el atributo __about__
-# que passlib 1.7.4 intenta leer en el arranque.
-import bcrypt
-if not hasattr(bcrypt, '__about__'):
-    bcrypt.__about__ = type('about', (), {'__version__': bcrypt.__version__})()
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verificar_contrasena(contrasena_plana: str, hash_contrasena: str) -> bool:
