@@ -1,16 +1,19 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verificar_contrasena(contrasena_plana: str, hash_contrasena: str) -> bool:
-    return pwd_context.verify(contrasena_plana, hash_contrasena)
+    return bcrypt.checkpw(
+        contrasena_plana.encode("utf-8"),
+        hash_contrasena.encode("utf-8"),
+    )
 
 def hashear_contrasena(contrasena: str) -> str:
-    return pwd_context.hash(contrasena)
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(contrasena.encode("utf-8"), salt).decode("utf-8")
 
 def crear_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
