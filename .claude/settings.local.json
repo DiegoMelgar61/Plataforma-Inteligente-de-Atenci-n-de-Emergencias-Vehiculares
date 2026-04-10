@@ -45,7 +45,27 @@
       "Bash(sed -i \"s/\\\\.replace\\(\\\\/_\\\\/g,' '\\)/\\\\.split\\('_'\\).join\\(' '\\)/g\" assignments/assignments.component.ts history/history.component.ts map/map.component.ts requests/request-detail.component.ts requests/requests-list.component.ts)",
       "Bash(sed -i \"s/\\\\.replace\\(\\\\/_\\\\/g, ' '\\)/\\\\.split\\('_'\\).join\\(' '\\)/g\" requests/request-detail.component.ts requests/requests-list.component.ts)",
       "Bash(awk '{print $5}')",
-      "Bash(xargs -r taskkill /F /PID)"
+      "Bash(xargs -r taskkill /F /PID)",
+      "Bash(xargs -r taskkill /F /PID netstat -ano)",
+      "Bash(xargs -r taskkill /F /PID echo \"Processes stopped\")",
+      "Bash(flutter doctor:*)",
+      "Bash(flutter create:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter --version)",
+      "Bash(wmic logicaldisk:*)",
+      "Bash(flutter clean:*)",
+      "Bash(awk '{print $1/1024/1024 \" GB\"}' du -s \"/c/Users/PC/AppData/Local/Android/sdk/build-tools/\")",
+      "Bash(awk '{print $1/1024/1024 \" GB\"}')",
+      "Bash(rm -rf /c/Users/PC/.gradle/caches/build-cache-1/)",
+      "Bash(rm -rf /c/Users/PC/.gradle/caches/jars-9/)",
+      "Bash(rm -rf /c/Users/PC/.gradle/caches/8.14/)",
+      "Bash(rm -rf /c/Users/PC/.gradle/caches/transforms-3/)",
+      "Bash(./android/gradlew --stop)",
+      "Bash(pkill -f \"GradleWorkerMain\")",
+      "Bash(pkill -f \"gradle-daemon\")",
+      "Bash(adb devices:*)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter install:*)"
     ]
   }
 }

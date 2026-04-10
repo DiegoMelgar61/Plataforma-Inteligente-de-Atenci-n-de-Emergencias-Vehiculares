@@ -10,126 +10,109 @@ import { Incident } from '../../models';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div>
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Historial de incidentes</h1>
-        <p class="text-gray-500 text-sm">Todos los incidentes atendidos por tu taller</p>
+    <div class="space-y-5 fade-in">
+      <div>
+        <h1 class="page-title">Historial de incidentes</h1>
+        <p class="page-subtitle">Registro completo de emergencias atendidas</p>
       </div>
 
-      <!-- Search & Filter -->
-      <div class="flex gap-3 mb-6">
-        <div class="flex-1 relative">
-          <input
-            type="search"
-            [(ngModel)]="search"
-            class="input-field pl-9"
-            placeholder="Buscar por ID o clasificación..."
-          />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+      <!-- Search & Filters -->
+      <div class="surface p-3 flex flex-wrap items-center gap-3">
+        <div class="relative flex-1 min-w-48">
+          <input [(ngModel)]="search" class="input pl-8 py-2 text-sm" placeholder="Buscar por ID o tipo..." />
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">🔍</span>
         </div>
-        <select [(ngModel)]="filterEstado" class="input-field w-44">
+        <select [(ngModel)]="filterEstado" class="input text-sm w-40">
           <option value="">Todos los estados</option>
           <option value="ATENDIDO">Atendidos</option>
           <option value="CANCELADO">Cancelados</option>
           <option value="INCIERTO">Inciertos</option>
         </select>
-        <select [(ngModel)]="filterClasificacion" class="input-field w-40">
-          <option value="">Todas las clases</option>
-          <option value="BATERIA">Batería</option>
-          <option value="LLANTA">Llanta</option>
-          <option value="CHOQUE">Choque</option>
-          <option value="MOTOR">Motor</option>
-          <option value="OTROS">Otros</option>
+        <select [(ngModel)]="filterClasif" class="input text-sm w-40">
+          <option value="">Todos los tipos</option>
+          @for (c of clasifs; track c) {
+            <option [value]="c">{{ c }}</option>
+          }
         </select>
+        @if (search || filterEstado || filterClasif) {
+          <button (click)="clearFilters()" class="btn-ghost text-xs">✕ Limpiar</button>
+        }
       </div>
 
-      <!-- Stats -->
-      <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="card text-center">
-          <p class="text-2xl font-bold text-gray-700">{{ total() }}</p>
-          <p class="text-xs text-gray-500 mt-1">Total</p>
-        </div>
-        <div class="card text-center">
-          <p class="text-2xl font-bold text-green-600">{{ atendidos() }}</p>
-          <p class="text-xs text-gray-500 mt-1">Atendidos</p>
-        </div>
-        <div class="card text-center">
-          <p class="text-2xl font-bold text-red-500">{{ cancelados() }}</p>
-          <p class="text-xs text-gray-500 mt-1">Cancelados</p>
-        </div>
-        <div class="card text-center">
-          <p class="text-2xl font-bold text-blue-600">{{ conIA() }}</p>
-          <p class="text-xs text-gray-500 mt-1">Con análisis IA</p>
-        </div>
+      <!-- Stats row -->
+      <div class="grid grid-cols-4 gap-3">
+        @for (s of stats(); track s.label) {
+          <div class="surface p-4 flex items-center gap-3">
+            <span class="text-xl">{{ s.icon }}</span>
+            <div>
+              <p class="text-xl font-bold" [style.color]="s.color">{{ s.value }}</p>
+              <p class="text-xs" style="color: var(--text-muted);">{{ s.label }}</p>
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Table -->
       @if (loading()) {
-        <div class="space-y-3">
+        <div class="space-y-2">
           @for (_ of [1,2,3,4,5]; track $index) {
-            <div class="h-16 bg-gray-100 rounded-xl animate-pulse"></div>
+            <div class="h-14 shimmer rounded-xl"></div>
           }
         </div>
       } @else if (filtered().length === 0) {
-        <div class="card text-center py-16">
-          <div class="text-5xl mb-4">📜</div>
-          <p class="text-gray-500">No se encontraron incidentes</p>
-          @if (search || filterEstado || filterClasificacion) {
-            <button (click)="clearFilters()" class="btn-secondary mt-4">Limpiar filtros</button>
-          }
+        <div class="surface p-16 text-center">
+          <span class="text-5xl block mb-3">📜</span>
+          <p class="text-sm" style="color: var(--text-muted);">Sin resultados para esta búsqueda</p>
         </div>
       } @else {
-        <div class="card p-0 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-gray-50 border-b border-gray-100">
+        <div class="table-wrap">
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Prioridad</th>
+                <th>Análisis IA</th>
+                <th>Fecha</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (inc of filtered(); track inc.id_incidente) {
                 <tr>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Estado</th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Prioridad</th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Análisis IA</th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                  <th class="text-right py-3 px-4"></th>
+                  <td class="font-mono text-xs" style="color: var(--text-muted);">
+                    #{{ inc.id_incidente.substring(0,8).toUpperCase() }}
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <span>{{ classIcon(inc.clasificacion) }}</span>
+                      <span class="font-medium text-sm" style="color: var(--text-primary);">{{ inc.clasificacion }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span [class]="'badge ' + estadoBadge(inc.estado)">{{ inc.estado.split('_').join(' ') }}</span>
+                  </td>
+                  <td>
+                    <span [class]="'badge ' + prioridadBadge(inc.prioridad)">{{ inc.prioridad }}</span>
+                  </td>
+                  <td class="max-w-xs">
+                    @if (inc.resumen_ia) {
+                      <p class="text-xs truncate" style="color: var(--text-muted);">🤖 {{ inc.resumen_ia }}</p>
+                    } @else {
+                      <span style="color: var(--text-muted);">—</span>
+                    }
+                  </td>
+                  <td class="text-xs" style="color: var(--text-muted);">{{ formatDate(inc.fecha_creacion) }}</td>
+                  <td>
+                    <a [routerLink]="['/requests', inc.id_incidente]" class="text-xs" style="color: var(--accent);">Ver →</a>
+                  </td>
                 </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-50">
-                @for (inc of filtered(); track inc.id_incidente) {
-                  <tr class="hover:bg-gray-50 transition-colors">
-                    <td class="py-3 px-4 font-mono text-xs text-gray-400">
-                      #{{ inc.id_incidente.substring(0,8).toUpperCase() }}
-                    </td>
-                    <td class="py-3 px-4">
-                      <span class="flex items-center gap-1.5">
-                        {{ classIcon(inc.clasificacion) }}
-                        <span class="font-medium text-gray-700">{{ inc.clasificacion }}</span>
-                      </span>
-                    </td>
-                    <td class="py-3 px-4">
-                      <span [class]="'badge ' + estadoBadge(inc.estado)">{{ inc.estado.split('_').join(' ') }}</span>
-                    </td>
-                    <td class="py-3 px-4">
-                      <span [class]="priorityColor(inc.prioridad)">{{ inc.prioridad }}</span>
-                    </td>
-                    <td class="py-3 px-4 max-w-xs">
-                      @if (inc.resumen_ia) {
-                        <p class="text-gray-500 truncate text-xs">🤖 {{ inc.resumen_ia }}</p>
-                      } @else {
-                        <span class="text-gray-300 text-xs">—</span>
-                      }
-                    </td>
-                    <td class="py-3 px-4 text-gray-400 text-xs">{{ formatDate(inc.fecha_creacion) }}</td>
-                    <td class="py-3 px-4 text-right">
-                      <a [routerLink]="['/requests', inc.id_incidente]"
-                         class="text-blue-600 hover:underline text-xs">Ver →</a>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-          <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
-            Mostrando {{ filtered().length }} de {{ incidents().length }} registros
+              }
+            </tbody>
+          </table>
+          <div class="px-4 py-3" style="border-top: 1px solid var(--border);">
+            <p class="text-xs" style="color: var(--text-muted);">{{ filtered().length }} de {{ incidents().length }} registros</p>
           </div>
         </div>
       }
@@ -143,63 +126,50 @@ export class HistoryComponent implements OnInit {
   incidents = signal<Incident[]>([]);
   search = '';
   filterEstado = '';
-  filterClasificacion = '';
+  filterClasif = '';
+  clasifs = ['BATERIA', 'LLANTA', 'CHOQUE', 'MOTOR', 'OTROS', 'INCIERTO'];
 
-  total = computed(() => this.incidents().length);
-  atendidos = computed(() => this.incidents().filter(i => i.estado === 'ATENDIDO').length);
-  cancelados = computed(() => this.incidents().filter(i => i.estado === 'CANCELADO').length);
-  conIA = computed(() => this.incidents().filter(i => !!i.resumen_ia).length);
+  filtered = computed(() => this.incidents().filter(inc => {
+    const s = this.search.toLowerCase();
+    return (!s || inc.id_incidente.toLowerCase().includes(s) || inc.clasificacion.toLowerCase().includes(s))
+      && (!this.filterEstado || inc.estado === this.filterEstado)
+      && (!this.filterClasif || inc.clasificacion === this.filterClasif);
+  }));
 
-  filtered = computed(() => {
-    return this.incidents().filter(inc => {
-      const matchSearch = !this.search ||
-        inc.id_incidente.toLowerCase().includes(this.search.toLowerCase()) ||
-        inc.clasificacion.toLowerCase().includes(this.search.toLowerCase());
-      const matchEstado = !this.filterEstado || inc.estado === this.filterEstado;
-      const matchClasif = !this.filterClasificacion || inc.clasificacion === this.filterClasificacion;
-      return matchSearch && matchEstado && matchClasif;
-    });
+  stats = computed(() => {
+    const list = this.incidents();
+    return [
+      { label: 'Total', value: list.length, icon: '📊', color: 'var(--text-primary)' },
+      { label: 'Atendidos', value: list.filter(i => i.estado === 'ATENDIDO').length, icon: '✅', color: 'var(--success)' },
+      { label: 'Cancelados', value: list.filter(i => i.estado === 'CANCELADO').length, icon: '❌', color: 'var(--danger)' },
+      { label: 'Con análisis IA', value: list.filter(i => !!i.resumen_ia).length, icon: '🤖', color: 'var(--accent)' },
+    ];
   });
 
   ngOnInit(): void {
     this.loading.set(true);
     this.incidentsService.getAll().subscribe({
-      next: (list) => {
-        // History = completed/cancelled
-        const history = list.filter(i => ['ATENDIDO', 'CANCELADO', 'INCIERTO'].includes(i.estado));
-        this.incidents.set(history.length > 0 ? history : list);
-        this.loading.set(false);
-      },
+      next: (list) => { this.incidents.set(list); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
 
-  clearFilters(): void {
-    this.search = '';
-    this.filterEstado = '';
-    this.filterClasificacion = '';
-  }
+  clearFilters(): void { this.search = ''; this.filterEstado = ''; this.filterClasif = ''; }
 
   classIcon(c: string): string {
     return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
   }
 
   estadoBadge(e: string): string {
-    const map: Record<string, string> = {
-      ATENDIDO: 'bg-green-100 text-green-700',
-      CANCELADO: 'bg-red-100 text-red-700',
-      INCIERTO: 'bg-gray-100 text-gray-600',
-      PENDIENTE: 'bg-orange-100 text-orange-700',
-      CLASIFICADO: 'bg-blue-100 text-blue-700',
-    };
-    return map[e] || 'bg-gray-100 text-gray-600';
+    const m: Record<string,string> = { ATENDIDO: 'badge-green', CANCELADO: 'badge-red', INCIERTO: 'badge-gray', PENDIENTE: 'badge-orange', CLASIFICADO: 'badge-blue' };
+    return m[e] || 'badge-gray';
   }
 
-  priorityColor(p: string): string {
-    return { ALTA: 'text-red-600 font-medium', MEDIA: 'text-amber-600', BAJA: 'text-green-600' }[p] || 'text-gray-500';
+  prioridadBadge(p: string): string {
+    return { ALTA: 'badge-red', MEDIA: 'badge-amber', BAJA: 'badge-green' }[p] || 'badge-gray';
   }
 
   formatDate(d: string): string {
-    return new Date(d).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(d).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 }

@@ -1,9 +1,10 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IncidentsService } from '../../core/services/incidents.service';
 import { WebSocketService } from '../../core/services/websocket.service';
+import { NotificationStore } from '../../core/services/notification-store.service';
 import { Incident } from '../../models';
 
 @Component({
@@ -11,78 +12,83 @@ import { Incident } from '../../models';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div>
-      <div class="mb-6 flex items-center justify-between">
+    <div class="space-y-5 fade-in">
+      <div class="flex items-start justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Solicitudes de emergencia</h1>
-          <p class="text-gray-500 text-sm">Incidentes vehiculares que requieren atención</p>
+          <h1 class="page-title">Solicitudes de emergencia</h1>
+          <p class="page-subtitle">{{ filtered().length }} incidentes · Actualización en tiempo real</p>
         </div>
-        <button (click)="reload()" class="btn-secondary flex items-center gap-2">
-          <span class="text-lg">🔄</span> Actualizar
-        </button>
+        <button (click)="reload()" class="btn-ghost text-xs">🔄 Actualizar</button>
       </div>
 
       <!-- Filters -->
-      <div class="flex gap-2 mb-6 flex-wrap">
-        @for (f of filters; track f.value) {
-          <button
-            (click)="setFilter(f.value)"
-            [class]="activeFilter() === f.value
-              ? 'px-4 py-2 rounded-full text-sm font-medium bg-blue-600 text-white'
-              : 'px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:border-blue-300'">
-            {{ f.label }}
-          </button>
-        }
+      <div class="surface p-3 flex flex-wrap items-center gap-3">
+        <div class="relative flex-1 min-w-48">
+          <input [(ngModel)]="search" class="input pl-8 py-2 text-sm" placeholder="Buscar por ID o tipo..." />
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">🔍</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          @for (f of filters; track f.value) {
+            <button (click)="activeFilter.set(f.value)"
+                    [class]="'filter-tab ' + (activeFilter() === f.value ? 'active' : '')">
+              {{ f.label }}
+            </button>
+          }
+        </div>
       </div>
 
       <!-- List -->
       @if (loading()) {
-        <div class="space-y-3">
+        <div class="space-y-2">
           @for (_ of [1,2,3,4,5]; track $index) {
-            <div class="h-20 bg-gray-100 rounded-xl animate-pulse"></div>
+            <div class="h-20 shimmer rounded-xl"></div>
           }
         </div>
       } @else if (filtered().length === 0) {
-        <div class="card text-center py-16">
-          <div class="text-5xl mb-4">📭</div>
-          <p class="text-gray-500">No hay solicitudes {{ activeFilter() !== 'ALL' ? 'con este estado' : '' }}</p>
+        <div class="surface p-16 text-center">
+          <span class="text-5xl block mb-3">📭</span>
+          <p class="font-medium text-sm" style="color: var(--text-secondary);">Sin solicitudes</p>
+          <p class="text-xs mt-1" style="color: var(--text-muted);">
+            {{ activeFilter() !== 'ALL' ? 'Prueba con otro filtro' : 'No hay incidentes registrados' }}
+          </p>
         </div>
       } @else {
-        <div class="space-y-3">
+        <div class="space-y-2">
           @for (inc of filtered(); track inc.id_incidente) {
             <a [routerLink]="['/requests', inc.id_incidente]"
-               class="card flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer p-4">
-              <!-- Priority indicator -->
-              <div [class]="'w-1 h-16 rounded-full flex-shrink-0 ' + priorityBar(inc.prioridad)"></div>
+               class="surface flex items-center gap-4 p-4 hover:border-blue-500/30 transition-all group cursor-pointer"
+               style="display: flex; text-decoration: none;">
+              <!-- Priority bar -->
+              <div class="w-0.5 h-12 rounded-full flex-shrink-0" [class]="priorityBar(inc.prioridad)"></div>
 
               <!-- Icon -->
-              <div [class]="'w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ' + iconBg(inc.clasificacion)">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                   [style]="iconStyle(inc.clasificacion)">
                 {{ classIcon(inc.clasificacion) }}
               </div>
 
-              <!-- Info -->
+              <!-- Content -->
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                  <h3 class="font-semibold text-gray-900">{{ inc.clasificacion }}</h3>
-                  <span [class]="'badge ' + prioridadBadge(inc.prioridad)">{{ inc.prioridad }}</span>
+                <div class="flex items-center gap-2 mb-0.5">
+                  <span class="text-sm font-semibold" style="color: var(--text-primary);">{{ inc.clasificacion }}</span>
+                  <span [class]="'badge text-xs ' + prioridadBadge(inc.prioridad)">{{ inc.prioridad }}</span>
                 </div>
-                <p class="text-xs text-gray-400"># {{ inc.id_incidente.substring(0,8).toUpperCase() }}</p>
+                <p class="text-xs font-mono" style="color: var(--text-muted);">#{{ inc.id_incidente.substring(0,8).toUpperCase() }}</p>
                 @if (inc.resumen_ia) {
-                  <p class="text-sm text-gray-500 truncate mt-1">🤖 {{ inc.resumen_ia }}</p>
+                  <p class="text-xs mt-1 truncate max-w-md" style="color: var(--text-muted);">🤖 {{ inc.resumen_ia }}</p>
                 }
               </div>
 
-              <!-- Estado + fecha -->
-              <div class="text-right flex-shrink-0">
-                <span [class]="'badge block mb-1 ' + estadoBadge(inc.estado)">
-                  {{ inc.estado.split('_').join(' ') }}
-                </span>
-                <p class="text-xs text-gray-400">{{ formatDate(inc.fecha_creacion) }}</p>
+              <!-- Right side -->
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <div class="text-right hidden sm:block">
+                  <span [class]="'badge ' + estadoBadge(inc.estado)">{{ inc.estado.split('_').join(' ') }}</span>
+                  <p class="text-xs mt-1" style="color: var(--text-muted);">{{ formatDate(inc.fecha_creacion) }}</p>
+                </div>
+                <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-muted);">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
               </div>
-
-              <svg class="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
             </a>
           }
         </div>
@@ -93,10 +99,12 @@ import { Incident } from '../../models';
 export class RequestsListComponent implements OnInit {
   private incidentsService = inject(IncidentsService);
   private ws = inject(WebSocketService);
+  private notifStore = inject(NotificationStore);
 
   loading = signal(true);
   incidents = signal<Incident[]>([]);
   activeFilter = signal('ALL');
+  search = '';
 
   filters = [
     { label: 'Todos', value: 'ALL' },
@@ -108,15 +116,20 @@ export class RequestsListComponent implements OnInit {
     { label: 'Atendidos', value: 'ATENDIDO' },
   ];
 
-  filtered = () => {
+  filtered = computed(() => {
     const f = this.activeFilter();
-    const list = this.incidents();
-    return f === 'ALL' ? list : list.filter(i => i.estado === f);
-  };
+    const s = this.search.toLowerCase();
+    return this.incidents()
+      .filter(i => f === 'ALL' || i.estado === f)
+      .filter(i => !s || i.clasificacion.toLowerCase().includes(s) || i.id_incidente.toLowerCase().includes(s));
+  });
 
   ngOnInit(): void {
     this.reload();
-    this.ws.messages$.subscribe(() => this.reload());
+    this.ws.messages$.subscribe((msg) => {
+      this.notifStore.push(msg.data?.message || 'Nuevo incidente actualizado', 'info');
+      this.reload();
+    });
   }
 
   reload(): void {
@@ -127,36 +140,37 @@ export class RequestsListComponent implements OnInit {
     });
   }
 
-  setFilter(v: string): void { this.activeFilter.set(v); }
-
   priorityBar(p: string): string {
-    return { ALTA: 'bg-red-500', MEDIA: 'bg-amber-400', BAJA: 'bg-green-400' }[p] || 'bg-gray-300';
+    return { ALTA: 'bg-red-500', MEDIA: 'bg-amber-400', BAJA: 'bg-green-500' }[p] || 'bg-gray-600';
   }
 
   prioridadBadge(p: string): string {
-    return { ALTA: 'bg-red-100 text-red-700', MEDIA: 'bg-amber-100 text-amber-700', BAJA: 'bg-green-100 text-green-700' }[p] || 'bg-gray-100 text-gray-500';
+    return { ALTA: 'badge-red', MEDIA: 'badge-amber', BAJA: 'badge-green' }[p] || 'badge-gray';
   }
 
   estadoBadge(e: string): string {
-    const map: Record<string, string> = {
-      PENDIENTE: 'bg-orange-100 text-orange-700',
-      EN_PROCESO_IA: 'bg-indigo-100 text-indigo-700',
-      CLASIFICADO: 'bg-blue-100 text-blue-700',
-      ASIGNADO: 'bg-purple-100 text-purple-700',
-      EN_CAMINO: 'bg-amber-100 text-amber-700',
-      EN_PROCESO: 'bg-teal-100 text-teal-700',
-      ATENDIDO: 'bg-green-100 text-green-700',
-      CANCELADO: 'bg-red-100 text-red-700',
+    const m: Record<string,string> = {
+      PENDIENTE: 'badge-orange', EN_PROCESO_IA: 'badge-purple', CLASIFICADO: 'badge-blue',
+      ASIGNADO: 'badge-purple', EN_CAMINO: 'badge-amber', EN_PROCESO: 'badge-teal',
+      ATENDIDO: 'badge-green', CANCELADO: 'badge-red',
     };
-    return map[e] || 'bg-gray-100 text-gray-600';
+    return m[e] || 'badge-gray';
   }
 
   classIcon(c: string): string {
     return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
   }
 
-  iconBg(c: string): string {
-    return { BATERIA: 'bg-yellow-100', LLANTA: 'bg-blue-100', CHOQUE: 'bg-red-100', MOTOR: 'bg-gray-100', OTROS: 'bg-purple-100', INCIERTO: 'bg-gray-100' }[c] || 'bg-gray-100';
+  iconStyle(c: string): string {
+    const styles: Record<string,string> = {
+      BATERIA: 'background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)',
+      LLANTA: 'background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2)',
+      CHOQUE: 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)',
+      MOTOR: 'background:rgba(100,116,139,0.1);border:1px solid rgba(100,116,139,0.2)',
+      OTROS: 'background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2)',
+      INCIERTO: 'background:rgba(100,116,139,0.1);border:1px solid rgba(100,116,139,0.2)',
+    };
+    return styles[c] || 'background:rgba(100,116,139,0.1);';
   }
 
   formatDate(d: string): string {

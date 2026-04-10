@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
+import { authGuard, adminGuard } from './core/guards/auth.guard';
 import { LoginComponent } from './features/auth/login.component';
 import { MainLayoutComponent } from './layout/main-layout.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
@@ -9,6 +9,8 @@ import { AssignmentsComponent } from './features/assignments/assignments.compone
 import { TechniciansComponent } from './features/technicians/technicians.component';
 import { MapComponent } from './features/map/map.component';
 import { HistoryComponent } from './features/history/history.component';
+import { AdminUsersComponent } from './features/admin/admin-users.component';
+import { AdminWorkshopsComponent } from './features/admin/admin-workshops.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -25,6 +27,15 @@ export const routes: Routes = [
       { path: 'technicians', component: TechniciansComponent },
       { path: 'map', component: MapComponent },
       { path: 'history', component: HistoryComponent },
+      {
+        path: 'admin',
+        canActivate: [adminGuard],
+        children: [
+          { path: 'users', component: AdminUsersComponent },
+          { path: 'workshops', component: AdminWorkshopsComponent },
+          { path: '', redirectTo: 'users', pathMatch: 'full' },
+        ],
+      },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },

@@ -12,71 +12,75 @@ import { Incident, Tecnico } from '../../models';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div class="max-w-4xl mx-auto">
-      <!-- Back -->
-      <a routerLink="/requests" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-6">
-        ← Volver a solicitudes
-      </a>
+    <div class="space-y-5 fade-in max-w-5xl">
+      <div class="flex items-center gap-3">
+        <a routerLink="/requests" class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+           style="color: var(--text-muted); border: 1px solid var(--border);"
+           onmouseenter="this.style.background='var(--bg-elevated)'"
+           onmouseleave="this.style.background='transparent'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </a>
+        <div>
+          <h1 class="page-title">Detalle del incidente</h1>
+          @if (incident()) {
+            <p class="page-subtitle font-mono">#{{ incident()!.id_incidente.substring(0,8).toUpperCase() }}</p>
+          }
+        </div>
+      </div>
 
       @if (loading()) {
-        <div class="space-y-4">
+        <div class="grid grid-cols-3 gap-4">
           @for (_ of [1,2,3]; track $index) {
-            <div class="h-32 bg-gray-100 rounded-xl animate-pulse"></div>
+            <div class="h-48 shimmer rounded-xl"></div>
           }
         </div>
       } @else if (incident()) {
-        <!-- Status Banner -->
-        <div [class]="'rounded-xl p-5 mb-6 border ' + bannerClass(incident()!.estado)">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="text-3xl">{{ stateIcon(incident()!.estado) }}</span>
-              <div>
-                <p class="text-xs font-medium opacity-70 uppercase tracking-wide">Estado actual</p>
-                <p class="text-xl font-bold">{{ incident()!.estado.split('_').join(' ') }}</p>
-              </div>
+        <!-- Status banner -->
+        <div class="rounded-xl p-5 flex items-center justify-between"
+             [style]="bannerStyle(incident()!.estado)">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                 style="background: rgba(0,0,0,0.15);">
+              {{ stateIcon(incident()!.estado) }}
             </div>
-            <span [class]="'badge text-sm ' + prioridadBadge(incident()!.prioridad)">
-              Prioridad {{ incident()!.prioridad }}
-            </span>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-widest opacity-70">Estado actual</p>
+              <p class="text-xl font-bold">{{ incident()!.estado.split('_').join(' ') }}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-xs opacity-70 mb-1">Prioridad</p>
+            <span [class]="'badge text-sm ' + prioridadBadge(incident()!.prioridad)">{{ incident()!.prioridad }}</span>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Main info -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <!-- Left: main info -->
           <div class="lg:col-span-2 space-y-4">
-            <!-- Incident info -->
-            <div class="card">
-              <h2 class="font-semibold text-gray-900 mb-4">Información del incidente</h2>
+            <!-- Details card -->
+            <div class="surface p-5">
+              <h2 class="text-sm font-semibold mb-4" style="color: var(--text-primary);">Información del incidente</h2>
               <dl class="space-y-3">
-                <div class="flex gap-4">
-                  <dt class="text-sm text-gray-500 w-32 flex-shrink-0">ID</dt>
-                  <dd class="text-sm font-mono font-medium"># {{ incident()!.id_incidente.substring(0,8).toUpperCase() }}</dd>
-                </div>
-                <div class="flex gap-4">
-                  <dt class="text-sm text-gray-500 w-32 flex-shrink-0">Clasificación</dt>
-                  <dd class="text-sm font-medium flex items-center gap-2">
-                    <span>{{ classIcon(incident()!.clasificacion) }}</span>
-                    {{ incident()!.clasificacion }}
-                  </dd>
-                </div>
-                <div class="flex gap-4">
-                  <dt class="text-sm text-gray-500 w-32 flex-shrink-0">Fecha</dt>
-                  <dd class="text-sm">{{ formatDate(incident()!.fecha_creacion) }}</dd>
-                </div>
-                @if (incident()!.latitud && incident()!.longitud) {
-                  <div class="flex gap-4">
-                    <dt class="text-sm text-gray-500 w-32 flex-shrink-0">Ubicación</dt>
-                    <dd class="text-sm">
-                      {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
-                      <a [href]="mapsUrl(incident()!)" target="_blank"
-                         class="ml-2 text-blue-600 hover:underline text-xs">Ver en mapa →</a>
-                    </dd>
+                @for (row of detailRows(); track row.label) {
+                  <div class="flex items-start gap-3">
+                    <dt class="text-xs w-28 flex-shrink-0 pt-0.5" style="color: var(--text-muted);">{{ row.label }}</dt>
+                    <dd class="text-sm flex-1" style="color: var(--text-secondary);">{{ row.value }}</dd>
                   </div>
                 }
-                @if (incident()!.tiempo_estimado_llegada_minutos) {
-                  <div class="flex gap-4">
-                    <dt class="text-sm text-gray-500 w-32 flex-shrink-0">ETA</dt>
-                    <dd class="text-sm font-medium">{{ incident()!.tiempo_estimado_llegada_minutos }} minutos</dd>
+                @if (incident()!.latitud && incident()!.longitud) {
+                  <div class="flex items-start gap-3">
+                    <dt class="text-xs w-28 flex-shrink-0 pt-0.5" style="color: var(--text-muted);">Ubicación</dt>
+                    <dd class="flex items-center gap-2">
+                      <span class="text-sm" style="color: var(--text-secondary);">
+                        {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
+                      </span>
+                      <a [href]="mapsUrl()" target="_blank" class="text-xs px-2 py-0.5 rounded"
+                         style="color: var(--accent); background: var(--accent-glow);">
+                        Maps →
+                      </a>
+                    </dd>
                   </div>
                 }
               </dl>
@@ -84,35 +88,39 @@ import { Incident, Tecnico } from '../../models';
 
             <!-- AI Summary -->
             @if (incident()!.resumen_ia) {
-              <div class="card border-l-4 border-blue-500">
+              <div class="surface p-5" style="border-left: 3px solid var(--accent);">
                 <div class="flex items-center gap-2 mb-3">
-                  <span class="text-xl">🤖</span>
-                  <h2 class="font-semibold text-gray-900">Análisis de IA</h2>
+                  <span class="text-lg">🤖</span>
+                  <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Análisis de IA</h2>
+                  <span class="badge-blue badge text-xs">Clasificación automática</span>
                 </div>
-                <p class="text-gray-700 text-sm leading-relaxed">{{ incident()!.resumen_ia }}</p>
+                <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">{{ incident()!.resumen_ia }}</p>
               </div>
             }
 
             <!-- Evidence -->
             @if (incident()!.evidencias && incident()!.evidencias!.length > 0) {
-              <div class="card">
-                <h2 class="font-semibold text-gray-900 mb-4">Evidencias ({{ incident()!.evidencias!.length }})</h2>
+              <div class="surface p-5">
+                <h2 class="text-sm font-semibold mb-4" style="color: var(--text-primary);">
+                  Evidencias <span class="text-xs font-normal ml-1" style="color: var(--text-muted);">({{ incident()!.evidencias!.length }})</span>
+                </h2>
                 <div class="space-y-3">
                   @for (ev of incident()!.evidencias!; track ev.id_evidencia) {
-                    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div [class]="'w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 ' + evidenceBg(ev.tipo)">
+                    <div class="flex items-start gap-3 p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                      <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                           style="background: var(--bg-base);">
                         {{ evidenceIcon(ev.tipo) }}
                       </div>
                       <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium text-gray-600 uppercase">{{ ev.tipo }}</p>
+                        <span [class]="'badge text-xs mb-1.5 block w-fit ' + evidenceBadge(ev.tipo)">{{ ev.tipo }}</span>
                         @if (ev.texto_transcrito) {
-                          <p class="text-sm text-gray-700 mt-1">{{ ev.texto_transcrito }}</p>
+                          <p class="text-sm" style="color: var(--text-secondary);">{{ ev.texto_transcrito }}</p>
                         }
                         @if (ev.url_archivo && ev.tipo === 'IMAGEN') {
-                          <img [src]="ev.url_archivo" alt="Evidencia" class="mt-2 rounded-lg max-h-40 object-cover" />
+                          <img [src]="ev.url_archivo" alt="Evidencia" class="mt-2 rounded-lg max-h-48 object-cover" />
                         }
                         @if (ev.url_archivo && ev.tipo !== 'IMAGEN') {
-                          <a [href]="ev.url_archivo" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 block">
+                          <a [href]="ev.url_archivo" target="_blank" class="text-xs" style="color: var(--accent);">
                             Ver archivo →
                           </a>
                         }
@@ -123,18 +131,19 @@ import { Incident, Tecnico } from '../../models';
               </div>
             }
 
-            <!-- Map placeholder -->
+            <!-- Location card -->
             @if (incident()!.latitud && incident()!.longitud) {
-              <div class="card p-0 overflow-hidden">
-                <div class="bg-gray-100 h-48 flex items-center justify-center relative">
+              <div class="surface p-5">
+                <h2 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Ubicación GPS</h2>
+                <div class="rounded-xl flex items-center justify-center h-40"
+                     style="background: var(--bg-elevated); border: 1px solid var(--border);">
                   <div class="text-center">
                     <div class="text-4xl mb-2">📍</div>
-                    <p class="text-gray-600 text-sm font-medium">
+                    <p class="text-sm font-mono" style="color: var(--text-secondary);">
                       {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
                     </p>
-                    <a [href]="mapsUrl(incident()!)" target="_blank"
-                       class="mt-2 btn-primary inline-block text-xs py-1.5 px-3">
-                      Abrir en Google Maps
+                    <a [href]="mapsUrl()" target="_blank" class="btn-primary text-xs py-1.5 px-4 inline-flex mt-3">
+                      Abrir Google Maps
                     </a>
                   </div>
                 </div>
@@ -142,47 +151,48 @@ import { Incident, Tecnico } from '../../models';
             }
           </div>
 
-          <!-- Sidebar actions -->
+          <!-- Right: Actions -->
           <div class="space-y-4">
-            <!-- Assign -->
+            <!-- Accept / Reject -->
             @if (canAssign()) {
-              <div class="card">
-                <h3 class="font-semibold text-gray-900 mb-3">Asignar técnico</h3>
+              <div class="surface p-5">
+                <h3 class="text-sm font-semibold mb-4" style="color: var(--text-primary);">Tomar acción</h3>
+
                 @if (actionError()) {
-                  <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 mb-3 text-xs">
+                  <div class="text-xs rounded-lg px-3 py-2 mb-3"
+                       style="background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2);">
                     {{ actionError() }}
                   </div>
                 }
                 @if (actionSuccess()) {
-                  <div class="bg-green-50 border border-green-200 text-green-700 rounded-lg p-2 mb-3 text-xs">
+                  <div class="text-xs rounded-lg px-3 py-2 mb-3"
+                       style="background: rgba(16,185,129,0.1); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2);">
                     {{ actionSuccess() }}
                   </div>
                 }
-                <select [(ngModel)]="selectedTecnico" class="input-field mb-3">
-                  <option value="">Sin técnico asignado</option>
+
+                <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">Técnico asignado</label>
+                <select [(ngModel)]="selectedTecnico" class="input mb-4 text-sm">
+                  <option value="">Sin técnico específico</option>
                   @for (t of tecnicos(); track t.id_tecnico) {
                     <option [value]="t.id_tecnico" [disabled]="!t.disponible">
-                      {{ t.nombre_completo }} {{ t.disponible ? '' : '(Ocupado)' }}
+                      {{ t.nombre_completo }}{{ t.disponible ? '' : ' (Ocupado)' }}
                     </option>
                   }
                 </select>
+
                 <button (click)="accept()" [disabled]="actionLoading()" class="btn-success w-full mb-2">
                   @if (actionLoading()) { Procesando... } @else { ✅ Aceptar y asignar }
                 </button>
-                <button (click)="showReject.set(true)" class="btn-danger w-full">
-                  ❌ Rechazar
+                <button (click)="showReject.set(!showReject())" class="btn-ghost w-full text-sm">
+                  ❌ Rechazar solicitud
                 </button>
 
                 @if (showReject()) {
-                  <div class="mt-3">
-                    <textarea
-                      [(ngModel)]="rejectReason"
-                      class="input-field resize-none"
-                      rows="3"
-                      placeholder="Motivo del rechazo..."
-                    ></textarea>
-                    <button (click)="reject()" [disabled]="!rejectReason || actionLoading()"
-                      class="btn-danger w-full mt-2">
+                  <div class="mt-3 space-y-2">
+                    <textarea [(ngModel)]="rejectReason" class="input resize-none text-sm" rows="3"
+                              placeholder="Motivo del rechazo..."></textarea>
+                    <button (click)="reject()" [disabled]="!rejectReason || actionLoading()" class="btn-danger w-full text-sm">
                       Confirmar rechazo
                     </button>
                   </div>
@@ -190,44 +200,37 @@ import { Incident, Tecnico } from '../../models';
               </div>
             }
 
-            <!-- Status update -->
+            <!-- Status updates -->
             @if (canUpdateStatus()) {
-              <div class="card">
-                <h3 class="font-semibold text-gray-900 mb-3">Actualizar estado</h3>
+              <div class="surface p-5">
+                <h3 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Actualizar estado</h3>
                 @for (s of nextStates(); track s.value) {
                   <button (click)="updateStatus(s.value)" [disabled]="actionLoading()"
-                    [class]="'w-full mb-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ' + s.cls">
+                          class="w-full mb-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-left flex items-center gap-2"
+                          [style]="s.style">
                     {{ s.label }}
                   </button>
                 }
               </div>
             }
 
-            <!-- Quick info -->
-            <div class="card">
-              <h3 class="font-semibold text-gray-900 mb-3">Resumen rápido</h3>
-              <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Estado</span>
-                  <span class="font-medium">{{ incident()!.estado.split('_').join(' ') }}</span>
+            <!-- Quick summary -->
+            <div class="surface p-4 space-y-3">
+              <h3 class="text-xs font-semibold uppercase tracking-widest" style="color: var(--text-muted);">Resumen</h3>
+              @for (row of summaryRows(); track row.key) {
+                <div class="flex items-center justify-between">
+                  <span class="text-xs" style="color: var(--text-muted);">{{ row.key }}</span>
+                  <span class="text-xs font-semibold" style="color: var(--text-secondary);">{{ row.val }}</span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Prioridad</span>
-                  <span [class]="'font-medium ' + priorityColor(incident()!.prioridad)">{{ incident()!.prioridad }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Clasificación</span>
-                  <span class="font-medium">{{ incident()!.clasificacion }}</span>
-                </div>
-              </div>
+              }
             </div>
           </div>
         </div>
       } @else {
-        <div class="card text-center py-16">
-          <div class="text-5xl mb-4">⚠️</div>
-          <p class="text-gray-500">No se pudo cargar el incidente</p>
-          <a routerLink="/requests" class="btn-primary mt-4 inline-block">Volver</a>
+        <div class="surface p-16 text-center">
+          <span class="text-5xl mb-3 block">⚠️</span>
+          <p style="color: var(--text-muted);">No se pudo cargar el incidente</p>
+          <a routerLink="/requests" class="btn-ghost text-sm mt-4 inline-flex">← Volver</a>
         </div>
       }
     </div>
@@ -269,6 +272,28 @@ export class RequestDetailComponent implements OnInit {
     });
   }
 
+  detailRows() {
+    const inc = this.incident();
+    if (!inc) return [];
+    return [
+      { label: 'Clasificación', value: inc.clasificacion },
+      { label: 'Prioridad', value: inc.prioridad },
+      { label: 'Fecha', value: new Date(inc.fecha_creacion).toLocaleString('es-BO') },
+      ...(inc.tiempo_estimado_llegada_minutos ? [{ label: 'ETA', value: `${inc.tiempo_estimado_llegada_minutos} minutos` }] : []),
+    ];
+  }
+
+  summaryRows() {
+    const inc = this.incident();
+    if (!inc) return [];
+    return [
+      { key: 'Estado', val: inc.estado.split('_').join(' ') },
+      { key: 'Prioridad', val: inc.prioridad },
+      { key: 'Tipo', val: inc.clasificacion },
+      { key: 'Evidencias', val: String(inc.evidencias?.length ?? 0) },
+    ];
+  }
+
   canAssign(): boolean {
     return ['CLASIFICADO', 'PENDIENTE'].includes(this.incident()?.estado || '');
   }
@@ -277,30 +302,25 @@ export class RequestDetailComponent implements OnInit {
     return ['ASIGNADO', 'EN_CAMINO', 'EN_PROCESO'].includes(this.incident()?.estado || '');
   }
 
-  nextStates(): { value: string; label: string; cls: string }[] {
-    const estado = this.incident()?.estado;
-    if (estado === 'ASIGNADO') return [{ value: 'EN_CAMINO', label: '🚗 En camino', cls: 'bg-amber-100 text-amber-700 hover:bg-amber-200' }];
-    if (estado === 'EN_CAMINO') return [{ value: 'EN_PROCESO', label: '🔧 En proceso', cls: 'bg-teal-100 text-teal-700 hover:bg-teal-200' }];
-    if (estado === 'EN_PROCESO') return [{ value: 'ATENDIDO', label: '✅ Atendido', cls: 'bg-green-100 text-green-700 hover:bg-green-200' }];
+  nextStates() {
+    const e = this.incident()?.estado;
+    if (e === 'ASIGNADO') return [{ value: 'EN_CAMINO', label: '🚗 Marcar en camino', style: 'background:rgba(245,158,11,0.1);color:#fcd34d;border:1px solid rgba(245,158,11,0.2)' }];
+    if (e === 'EN_CAMINO') return [{ value: 'EN_PROCESO', label: '🔧 Iniciar servicio', style: 'background:rgba(20,184,166,0.1);color:#5eead4;border:1px solid rgba(20,184,166,0.2)' }];
+    if (e === 'EN_PROCESO') return [{ value: 'ATENDIDO', label: '✅ Marcar como atendido', style: 'background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.2)' }];
     return [];
   }
 
   accept(): void {
     this.actionLoading.set(true);
     this.actionError.set(null);
-    this.incidentsService.assign(this.incidentId, {
-      id_tecnico: this.selectedTecnico || undefined,
-    }).subscribe({
+    this.incidentsService.assign(this.incidentId, { id_tecnico: this.selectedTecnico || undefined }).subscribe({
       next: () => {
-        this.actionSuccess.set('Incidente aceptado y asignado correctamente');
+        this.actionSuccess.set('Incidente aceptado correctamente');
         this.actionLoading.set(false);
         this.loadData();
         setTimeout(() => this.actionSuccess.set(null), 3000);
       },
-      error: (err) => {
-        this.actionError.set(err.error?.detail || 'Error al asignar');
-        this.actionLoading.set(false);
-      },
+      error: (err) => { this.actionError.set(err.error?.detail || 'Error al asignar'); this.actionLoading.set(false); },
     });
   }
 
@@ -308,79 +328,53 @@ export class RequestDetailComponent implements OnInit {
     this.actionLoading.set(true);
     this.incidentsService.rejectAssignment(this.incidentId, this.rejectReason).subscribe({
       next: () => {
-        this.actionSuccess.set('Solicitud rechazada');
         this.actionLoading.set(false);
         this.showReject.set(false);
-        this.loadData();
-        setTimeout(() => this.router.navigate(['/requests']), 1500);
+        setTimeout(() => this.router.navigate(['/requests']), 800);
       },
-      error: (err) => {
-        this.actionError.set(err.error?.detail || 'Error al rechazar');
-        this.actionLoading.set(false);
-      },
+      error: (err) => { this.actionError.set(err.error?.detail || 'Error'); this.actionLoading.set(false); },
     });
   }
 
   updateStatus(estado: string): void {
     this.actionLoading.set(true);
     this.incidentsService.updateStatus(this.incidentId, estado).subscribe({
-      next: () => {
-        this.actionLoading.set(false);
-        this.loadData();
-      },
-      error: (err) => {
-        this.actionError.set(err.error?.detail || 'Error al actualizar');
-        this.actionLoading.set(false);
-      },
+      next: () => { this.actionLoading.set(false); this.loadData(); },
+      error: (err) => { this.actionError.set(err.error?.detail || 'Error'); this.actionLoading.set(false); },
     });
   }
 
-  mapsUrl(inc: Incident): string {
-    return `https://maps.google.com/?q=${inc.latitud},${inc.longitud}`;
+  mapsUrl(): string {
+    const inc = this.incident();
+    return `https://maps.google.com/?q=${inc?.latitud},${inc?.longitud}`;
   }
 
-  bannerClass(e: string): string {
-    const map: Record<string, string> = {
-      PENDIENTE: 'bg-orange-50 border-orange-200 text-orange-800',
-      CLASIFICADO: 'bg-blue-50 border-blue-200 text-blue-800',
-      ASIGNADO: 'bg-purple-50 border-purple-200 text-purple-800',
-      EN_CAMINO: 'bg-amber-50 border-amber-200 text-amber-800',
-      EN_PROCESO: 'bg-teal-50 border-teal-200 text-teal-800',
-      ATENDIDO: 'bg-green-50 border-green-200 text-green-800',
-      CANCELADO: 'bg-red-50 border-red-200 text-red-800',
+  bannerStyle(e: string): string {
+    const styles: Record<string,string> = {
+      PENDIENTE: 'background:linear-gradient(135deg,rgba(249,115,22,0.15),rgba(249,115,22,0.08));color:#fdba74;border:1px solid rgba(249,115,22,0.2)',
+      CLASIFICADO: 'background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.08));color:#93c5fd;border:1px solid rgba(59,130,246,0.2)',
+      ASIGNADO: 'background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.08));color:#c4b5fd;border:1px solid rgba(139,92,246,0.2)',
+      EN_CAMINO: 'background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.08));color:#fcd34d;border:1px solid rgba(245,158,11,0.2)',
+      EN_PROCESO: 'background:linear-gradient(135deg,rgba(20,184,166,0.15),rgba(20,184,166,0.08));color:#5eead4;border:1px solid rgba(20,184,166,0.2)',
+      ATENDIDO: 'background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.08));color:#6ee7b7;border:1px solid rgba(16,185,129,0.2)',
+      CANCELADO: 'background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.08));color:#fca5a5;border:1px solid rgba(239,68,68,0.2)',
     };
-    return map[e] || 'bg-gray-50 border-gray-200 text-gray-800';
+    return styles[e] || 'background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border)';
   }
 
   stateIcon(e: string): string {
-    const map: Record<string, string> = {
-      PENDIENTE: '⏳', CLASIFICADO: '🔍', ASIGNADO: '📋',
-      EN_CAMINO: '🚗', EN_PROCESO: '🔧', ATENDIDO: '✅', CANCELADO: '❌',
-    };
-    return map[e] || '❓';
+    return { PENDIENTE: '⏳', CLASIFICADO: '🔍', ASIGNADO: '📋', EN_CAMINO: '🚗', EN_PROCESO: '🔧', ATENDIDO: '✅', CANCELADO: '❌' }[e] || '❓';
   }
 
   prioridadBadge(p: string): string {
-    return { ALTA: 'bg-red-100 text-red-700', MEDIA: 'bg-amber-100 text-amber-700', BAJA: 'bg-green-100 text-green-700' }[p] || 'bg-gray-100 text-gray-600';
-  }
-
-  priorityColor(p: string): string {
-    return { ALTA: 'text-red-600', MEDIA: 'text-amber-600', BAJA: 'text-green-600' }[p] || 'text-gray-600';
-  }
-
-  classIcon(c: string): string {
-    return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
+    return { ALTA: 'badge-red', MEDIA: 'badge-amber', BAJA: 'badge-green' }[p] || 'badge-gray';
   }
 
   evidenceIcon(t: string): string {
     return { IMAGEN: '🖼️', AUDIO: '🎵', TEXTO: '📝' }[t] || '📎';
   }
 
-  evidenceBg(t: string): string {
-    return { IMAGEN: 'bg-blue-100', AUDIO: 'bg-orange-100', TEXTO: 'bg-gray-100' }[t] || 'bg-gray-100';
-  }
-
-  formatDate(d: string): string {
-    return new Date(d).toLocaleString('es-BO');
+  evidenceBadge(t: string): string {
+    return { IMAGEN: 'badge-blue', AUDIO: 'badge-orange', TEXTO: 'badge-gray' }[t] || 'badge-gray';
   }
 }

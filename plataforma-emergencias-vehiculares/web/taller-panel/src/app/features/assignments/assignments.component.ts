@@ -10,85 +10,94 @@ import { Asignacion } from '../../models';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div>
-      <div class="mb-6 flex items-center justify-between">
+    <div class="space-y-5 fade-in">
+      <div class="flex items-start justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Mis asignaciones</h1>
-          <p class="text-gray-500 text-sm">Incidentes asignados a tu taller</p>
+          <h1 class="page-title">Mis asignaciones</h1>
+          <p class="page-subtitle">Incidentes aceptados por tu taller</p>
         </div>
-        <button (click)="reload()" class="btn-secondary flex items-center gap-2">
-          <span>🔄</span> Actualizar
-        </button>
+        <button (click)="reload()" class="btn-ghost text-xs">🔄 Actualizar</button>
       </div>
 
-      <!-- Summary cards -->
-      <div class="grid grid-cols-3 gap-4 mb-6">
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-purple-600">{{ total() }}</p>
-          <p class="text-xs text-gray-500 mt-1">Total asignados</p>
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(139,92,246,0.1);">📋</div>
+          <div>
+            <p class="stat-label">Total asignados</p>
+            <p class="stat-value">{{ total() }}</p>
+          </div>
         </div>
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-amber-500">{{ enCamino() }}</p>
-          <p class="text-xs text-gray-500 mt-1">En camino</p>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(245,158,11,0.1);">🚗</div>
+          <div>
+            <p class="stat-label">En camino</p>
+            <p class="stat-value" style="color:var(--warning);">{{ enCamino() }}</p>
+          </div>
         </div>
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-green-600">{{ atendidos() }}</p>
-          <p class="text-xs text-gray-500 mt-1">Atendidos</p>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(16,185,129,0.1);">✅</div>
+          <div>
+            <p class="stat-label">Atendidos</p>
+            <p class="stat-value" style="color:var(--success);">{{ atendidos() }}</p>
+          </div>
         </div>
       </div>
 
-      <!-- Assignments list -->
+      <!-- List -->
       @if (loading()) {
         <div class="space-y-3">
           @for (_ of [1,2,3]; track $index) {
-            <div class="h-24 bg-gray-100 rounded-xl animate-pulse"></div>
+            <div class="h-28 shimmer rounded-xl"></div>
           }
         </div>
       } @else if (assignments().length === 0) {
-        <div class="card text-center py-16">
-          <div class="text-5xl mb-4">📋</div>
-          <p class="text-gray-500 font-medium">Sin asignaciones activas</p>
-          <p class="text-gray-400 text-sm mt-1">Las solicitudes que aceptes aparecerán aquí</p>
-          <a routerLink="/requests" class="btn-primary mt-4 inline-block">Ver solicitudes</a>
+        <div class="surface p-16 text-center">
+          <span class="text-5xl block mb-3">📋</span>
+          <p class="text-sm font-medium" style="color: var(--text-secondary);">Sin asignaciones activas</p>
+          <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">Las solicitudes que aceptes aparecerán aquí</p>
+          <a routerLink="/requests" class="btn-primary text-sm inline-flex">Ver solicitudes →</a>
         </div>
       } @else {
-        <div class="space-y-4">
+        <div class="space-y-3">
           @for (a of assignments(); track a.id_asignacion) {
-            <div class="card">
+            <div class="surface p-5">
               <div class="flex items-start gap-4">
-                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                     style="background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);">
                   {{ classIcon(a.incidente?.clasificacion || 'OTROS') }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-2">
-                    <h3 class="font-semibold text-gray-900">{{ a.incidente?.clasificacion || 'Incidente' }}</h3>
+                  <div class="flex items-center gap-2 mb-1.5">
+                    <h3 class="text-sm font-semibold" style="color: var(--text-primary);">
+                      {{ a.incidente?.clasificacion || 'Incidente' }}
+                    </h3>
                     @if (a.incidente) {
                       <span [class]="'badge ' + estadoBadge(a.incidente.estado)">
                         {{ a.incidente.estado.split('_').join(' ') }}
                       </span>
                     }
+                    @if (a.incidente?.prioridad) {
+                      <span [class]="'badge ' + prioridadBadge(a.incidente!.prioridad)">{{ a.incidente!.prioridad }}</span>
+                    }
                   </div>
-                  <p class="text-xs text-gray-400 font-mono mb-2"># {{ a.id_incidente.substring(0,8).toUpperCase() }}</p>
-                  <div class="flex items-center gap-4 text-xs text-gray-500">
-                    <span>📅 Asignado: {{ formatDate(a.fecha_asignacion) }}</span>
+                  <p class="text-xs font-mono mb-2" style="color: var(--text-muted);">
+                    #{{ a.id_incidente.substring(0,8).toUpperCase() }}
+                  </p>
+                  <div class="flex flex-wrap items-center gap-3 text-xs" style="color: var(--text-muted);">
+                    <span>📅 {{ formatDate(a.fecha_asignacion) }}</span>
                     @if (a.tecnico) {
                       <span>👷 {{ a.tecnico.nombre_completo }}</span>
                     }
-                    @if (a.incidente?.prioridad) {
-                      <span [class]="priorityColor(a.incidente!.prioridad)">
-                        ⚡ {{ a.incidente!.prioridad }}
-                      </span>
-                    }
                   </div>
                   @if (a.incidente?.resumen_ia) {
-                    <p class="text-sm text-gray-500 mt-2 line-clamp-2">
+                    <p class="text-xs mt-2 line-clamp-2" style="color: var(--text-muted);">
                       🤖 {{ a.incidente!.resumen_ia }}
                     </p>
                   }
                 </div>
-                <a [routerLink]="['/requests', a.id_incidente]"
-                   class="btn-secondary text-sm flex-shrink-0">
-                  Ver detalle
+                <a [routerLink]="['/requests', a.id_incidente]" class="btn-ghost text-xs flex-shrink-0">
+                  Ver detalle →
                 </a>
               </div>
             </div>
@@ -109,10 +118,7 @@ export class AssignmentsComponent implements OnInit {
   enCamino = computed(() => this.assignments().filter(a => a.incidente?.estado === 'EN_CAMINO').length);
   atendidos = computed(() => this.assignments().filter(a => a.incidente?.estado === 'ATENDIDO').length);
 
-  ngOnInit(): void {
-    this.reload();
-    this.ws.messages$.subscribe(() => this.reload());
-  }
+  ngOnInit(): void { this.reload(); this.ws.messages$.subscribe(() => this.reload()); }
 
   reload(): void {
     this.loading.set(true);
@@ -127,17 +133,12 @@ export class AssignmentsComponent implements OnInit {
   }
 
   estadoBadge(e: string): string {
-    const map: Record<string, string> = {
-      ASIGNADO: 'bg-purple-100 text-purple-700',
-      EN_CAMINO: 'bg-amber-100 text-amber-700',
-      EN_PROCESO: 'bg-teal-100 text-teal-700',
-      ATENDIDO: 'bg-green-100 text-green-700',
-    };
-    return map[e] || 'bg-gray-100 text-gray-600';
+    const m: Record<string,string> = { ASIGNADO: 'badge-purple', EN_CAMINO: 'badge-amber', EN_PROCESO: 'badge-teal', ATENDIDO: 'badge-green' };
+    return m[e] || 'badge-gray';
   }
 
-  priorityColor(p: string): string {
-    return { ALTA: 'text-red-600 font-medium', MEDIA: 'text-amber-600', BAJA: 'text-green-600' }[p] || 'text-gray-500';
+  prioridadBadge(p: string): string {
+    return { ALTA: 'badge-red', MEDIA: 'badge-amber', BAJA: 'badge-green' }[p] || 'badge-gray';
   }
 
   formatDate(d: string): string {

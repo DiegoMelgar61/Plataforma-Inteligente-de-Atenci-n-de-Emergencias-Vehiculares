@@ -8,13 +8,17 @@ export interface LoginResponse {
   token_type: string;
 }
 
+export type UserRole = 'CLIENTE' | 'TALLER' | 'ADMIN';
+
 export interface User {
   id_usuario: string;
   correo_electronico: string;
   nombre_completo: string;
   telefono?: string;
-  rol: 'CLIENTE' | 'TALLER' | 'ADMIN';
+  rol: UserRole;
   activo: boolean;
+  fecha_creacion?: string;
+  fecha_actualizacion?: string;
 }
 
 export interface Taller {
@@ -26,6 +30,14 @@ export interface Taller {
   tasa_comision: number;
   activo: boolean;
   fecha_creacion: string;
+  fecha_actualizacion?: string;
+}
+
+export interface TallerCreate {
+  nombre_negocio: string;
+  nit?: string;
+  direccion?: string;
+  tasa_comision?: number;
 }
 
 export interface Tecnico {
@@ -46,15 +58,8 @@ export interface TecnicoCreate {
 }
 
 export type EstadoIncidente =
-  | 'PENDIENTE'
-  | 'EN_PROCESO_IA'
-  | 'CLASIFICADO'
-  | 'ASIGNADO'
-  | 'EN_CAMINO'
-  | 'EN_PROCESO'
-  | 'ATENDIDO'
-  | 'CANCELADO'
-  | 'INCIERTO';
+  | 'PENDIENTE' | 'EN_PROCESO_IA' | 'CLASIFICADO' | 'ASIGNADO'
+  | 'EN_CAMINO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO' | 'INCIERTO';
 
 export type Prioridad = 'BAJA' | 'MEDIA' | 'ALTA';
 export type Clasificacion = 'BATERIA' | 'LLANTA' | 'CHOQUE' | 'MOTOR' | 'OTROS' | 'INCIERTO';
@@ -97,23 +102,10 @@ export interface Asignacion {
   tecnico?: Tecnico;
 }
 
-export interface AssignRequest {
-  id_tecnico?: string;
-}
-
-export interface DashboardStats {
-  totalIncidentesHoy: number;
-  incidentesPendientes: number;
-  incidentesEnProceso: number;
-  incidentesAtendidos: number;
-  tecnicosDisponibles: number;
-  totalTecnicos: number;
-}
-
-export interface HistorialIncidente {
-  id_historial: string;
-  id_incidente: string;
-  estado: EstadoIncidente;
-  notas?: string;
-  fecha_cambio: string;
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  timestamp: Date;
 }
