@@ -1,11 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
-
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
 from app.presentation.api.v1.routers.auth import router as auth_router
@@ -20,6 +20,24 @@ from app.presentation.api.v1.routers.notifications import router as notification
 from app.presentation.api.v1.routers.payments import router as payments_router
 
 logger = logging.getLogger(__name__)
+
+
+class WebSocketCORSBypass:
+    """
+    Strips the Origin header from WebSocket upgrade requests so that
+    CORSMiddleware passes them through unconditionally.
+    Browser security for WebSocket is enforced via tokens at the endpoint level.
+    """
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "websocket":
+            scope["headers"] = [
+                (k, v) for k, v in scope.get("headers", [])
+                if k.lower() != b"origin"
+            ]
+        await self.app(scope, receive, send)
 
 
 @asynccontextmanager
@@ -39,22 +57,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-ALLOWED_ORIGINS = [
-    # Vercel production
-    "https://plataforma-inteligente-de-atenci-n.vercel.app",
-    "https://plataforma-inteligente-de-atenci-n-de-vercel.app",
-    "https://www.plataforma-inteligente-de-atenci-n.vercel.app",
-    # Local development
-    "http://localhost:4200",
-    "http://localhost:4201",
-    "http://127.0.0.1:4200",
-]
-
+# ── CORS para peticiones HTTP ─────────────────────────────────────────────────
+# Nota: allow_origins=["*"] + allow_credentials=True es combinación inválida;
+# los browsers la rechazan. Se usan orígenes explícitos.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=[
+        "https://plataforma-inteligente-de-atenci-n.vercel.app",
+        "https://plataforma-inteligente-de-atenci-n-de-vercel.app",
+        "http://localhost:4200",
+        "http://localhost:4201",
+        "http://127.0.0.1:4200",
+    ],
     # Cubre cualquier preview/deploy de Vercel con este prefijo de proyecto
-    allow_origin_regex=r"https://plataforma-inteligente-de-atenci-n[^.]*\.(vercel\.app|vercel\.app)",
+    allow_origin_regex=r"https://plataforma-inteligente-de-atenci-n[^.]*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=[
@@ -63,16 +79,15 @@ app.add_middleware(
         "Accept",
         "Origin",
         "X-Requested-With",
-        "Upgrade",
-        "Connection",
-        "Sec-WebSocket-Key",
-        "Sec-WebSocket-Version",
-        "Sec-WebSocket-Extensions",
-        "Sec-WebSocket-Protocol",
     ],
     expose_headers=["*"],
     max_age=3600,
 )
+
+# ── WebSocket bypass (se registra después → se ejecuta primero) ───────────────
+# Elimina el header Origin de los upgrades WebSocket para que el CORSMiddleware
+# los deje pasar sin restricciones de origen.
+app.add_middleware(WebSocketCORSBypass)
 
 app.include_router(auth_router)
 app.include_router(users_router)
