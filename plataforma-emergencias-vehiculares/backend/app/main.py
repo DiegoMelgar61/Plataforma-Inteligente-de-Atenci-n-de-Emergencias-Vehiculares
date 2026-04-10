@@ -39,18 +39,39 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+ALLOWED_ORIGINS = [
+    # Vercel production
+    "https://plataforma-inteligente-de-atenci-n.vercel.app",
+    "https://plataforma-inteligente-de-atenci-n-de-vercel.app",
+    "https://www.plataforma-inteligente-de-atenci-n.vercel.app",
+    # Local development
+    "http://localhost:4200",
+    "http://localhost:4201",
+    "http://127.0.0.1:4200",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://plataforma-inteligente-de-atenci-n.vercel.app",
-        "http://localhost:4200",
-        "http://localhost:4201",
-    ],
-    allow_origin_regex=r"https://plataforma-inteligente-de-atenci-n.*\.vercel\.app",
+    allow_origins=ALLOWED_ORIGINS,
+    # Cubre cualquier preview/deploy de Vercel con este prefijo de proyecto
+    allow_origin_regex=r"https://plataforma-inteligente-de-atenci-n[^.]*\.(vercel\.app|vercel\.app)",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "Upgrade",
+        "Connection",
+        "Sec-WebSocket-Key",
+        "Sec-WebSocket-Version",
+        "Sec-WebSocket-Extensions",
+        "Sec-WebSocket-Protocol",
+    ],
     expose_headers=["*"],
+    max_age=3600,
 )
 
 app.include_router(auth_router)
