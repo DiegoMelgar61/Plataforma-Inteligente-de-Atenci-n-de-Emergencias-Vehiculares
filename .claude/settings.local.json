@@ -65,7 +65,8 @@
       "Bash(pkill -f \"gradle-daemon\")",
       "Bash(adb devices:*)",
       "Bash(flutter devices:*)",
-      "Bash(flutter install:*)"
+      "Bash(flutter install:*)",
+      "Bash(grep -n \"APIRouter\\(prefix=\" /c/Users/diego/OneDrive/Escritorio/Plataforma-Inteligente-de-Atenci-n-de-Emergencias-Vehiculares/plataforma-emergencias-vehiculares/backend/app/presentation/api/v1/routers/*.py)"
     ]
   }
 }
