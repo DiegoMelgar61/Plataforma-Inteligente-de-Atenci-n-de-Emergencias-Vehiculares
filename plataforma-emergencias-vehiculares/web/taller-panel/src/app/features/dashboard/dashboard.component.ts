@@ -1,7 +1,8 @@
-import { Component, inject, signal, OnInit, computed } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { IncidentsService } from '../../core/services/incidents.service';
 import { TechniciansService } from '../../core/services/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
@@ -216,13 +217,15 @@ import { Incident, Tecnico, User, Taller } from '../../models';
     </div>
   `,
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private incidentsService = inject(IncidentsService);
   private techniciansService = inject(TechniciansService);
   private adminService = inject(AdminService);
   protected ws = inject(WebSocketService);
   protected auth = inject(AuthService);
   private notifStore = inject(NotificationStore);
+
+  private reloadSubject = new Subject<void>();
 
   loading = signal(true);
   incidents = signal<Incident[]>([]);
@@ -251,12 +254,20 @@ export class DashboardComponent implements OnInit {
   today = () => new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' });
 
   ngOnInit(): void {
+    this.reloadSubject.pipe(debounceTime(2000)).subscribe(() => this.loadData());
     this.loadData();
     this.ws.connectGlobal();
     this.ws.messages$.subscribe((msg) => {
-      this.notifStore.push(msg.data?.message || 'Nuevo evento en tiempo real', 'info');
-      this.loadData();
+      const tipo = msg.tipo || msg.type || '';
+      if (tipo !== 'conectado') {
+        this.notifStore.push(msg.data?.message || msg.mensaje || 'Nuevo evento', 'info');
+        this.reloadSubject.next();
+      }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.reloadSubject.complete();
   }
 
   loadData(): void {

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IncidentsService } from '../../core/services/incidents.service';
 import { WebSocketService } from '../../core/services/websocket.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Asignacion } from '../../models';
 
 @Component({
@@ -110,6 +111,7 @@ import { Asignacion } from '../../models';
 export class AssignmentsComponent implements OnInit {
   private incidentsService = inject(IncidentsService);
   private ws = inject(WebSocketService);
+  private auth = inject(AuthService);
 
   loading = signal(true);
   assignments = signal<Asignacion[]>([]);
@@ -121,6 +123,10 @@ export class AssignmentsComponent implements OnInit {
   ngOnInit(): void { this.reload(); this.ws.messages$.subscribe(() => this.reload()); }
 
   reload(): void {
+    if (!this.auth.isTaller()) {
+      this.loading.set(false);
+      return;
+    }
     this.loading.set(true);
     this.incidentsService.getAssignedToTaller().subscribe({
       next: (list) => { this.assignments.set(list); this.loading.set(false); },
