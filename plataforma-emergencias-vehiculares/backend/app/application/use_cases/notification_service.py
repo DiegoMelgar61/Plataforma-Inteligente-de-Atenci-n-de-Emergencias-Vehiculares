@@ -4,6 +4,7 @@ Gestiona notificaciones push a clientes y talleres, y mantiene conexiones WebSoc
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -20,6 +21,32 @@ logger = logging.getLogger(__name__)
 # Diccionario global de conexiones WebSocket activas
 # Estructura: {incidente_id: [WebSocket, ...]}
 CONEXIONES_ACTIVAS: dict[UUID, list[WebSocket]] = {}
+
+# Lista global de conexiones WebSocket (Dashboard, Mapa, etc.)
+CONEXIONES_GLOBALES: list[WebSocket] = []
+
+
+def registrar_conexion_global(websocket: WebSocket) -> None:
+    CONEXIONES_GLOBALES.append(websocket)
+
+
+def desregistrar_conexion_global(websocket: WebSocket) -> None:
+    try:
+        CONEXIONES_GLOBALES.remove(websocket)
+    except ValueError:
+        pass
+
+
+async def broadcast_global(datos: dict) -> None:
+    """Envía un evento a TODAS las conexiones globales activas."""
+    fallidas = []
+    for ws in CONEXIONES_GLOBALES:
+        try:
+            await ws.send_json(datos)
+        except Exception:
+            fallidas.append(ws)
+    for ws in fallidas:
+        desregistrar_conexion_global(ws)
 
 # Callbacks para enviar notificaciones (pueden integrarse con push services reales)
 NOTIFICACION_CALLBACKS: dict[str, list[Callable[[dict[str, Any]], None]]] = {
@@ -207,6 +234,14 @@ def broadcast_estado_actualizado(
             enviar_notificacion_taller(db, incidente_id, mensaje)
         except Exception:
             logger.exception("Error al notificar taller en broadcast")
+
+    # Notificar también a todas las conexiones globales (Dashboard, Mapa)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_global(notificacion))
+    except Exception:
+        logger.exception("Error en broadcast global")
 
     logger.info("Broadcast de estado enviado: incidente %s, estado %s", incidente_id, nuevo_estado)
 
