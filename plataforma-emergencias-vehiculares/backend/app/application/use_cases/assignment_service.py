@@ -109,6 +109,30 @@ def buscar_talleres_candidatos(db: Session, incidente: INCIDENTES) -> list[dict]
                 "taller": taller,
             })
 
+        # Fallback: si nadie tiene ubicación registrada, incluir cualquier técnico disponible
+        if not candidatos:
+            logger.info(
+                "Sin candidatos por ubicación para %s, usando fallback sin distancia",
+                incidente.ID_INCIDENTE,
+            )
+            query_fallback = (
+                db.query(TALLERES.ID_TALLER, TECNICOS.ID_TECNICO)
+                .join(TECNICOS, TALLERES.ID_TALLER == TECNICOS.ID_TALLER)
+                .filter(
+                    TALLERES.ACTIVO.is_(True),
+                    TECNICOS.DISPONIBLE.is_(True),
+                )
+                .all()
+            )
+            for id_taller, id_tecnico in query_fallback:
+                taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == id_taller).first()
+                candidatos.append({
+                    "id_taller": id_taller,
+                    "id_tecnico": id_tecnico,
+                    "distancia_km": 0.0,
+                    "taller": taller,
+                })
+
         logger.debug(
             "Encontrados %d candidatos para incidente %s",
             len(candidatos),
@@ -169,6 +193,13 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
 
         db.commit()
         db.refresh(asignacion)
+
+        # Marcar técnico como no disponible
+        tecnico = db.query(TECNICOS).filter(TECNICOS.ID_TECNICO == id_tecnico).first()
+        if tecnico:
+            tecnico.DISPONIBLE = False
+            db.add(tecnico)
+            db.commit()
 
         logger.info(
             "Incidente %s asignado a taller %s (distancia: %.2f km)",
