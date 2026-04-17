@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.models import TALLERES, TECNICOS, USUARIOS
-from app.presentation.api.v1.dependencies.auth import get_current_taller
+from app.presentation.api.v1.dependencies.auth import get_current_taller, get_current_user
 from app.presentation.api.v1.schemas.technician import (
     TechnicianCreate,
     TechnicianResponse,
@@ -44,16 +44,22 @@ def _tecnico_en_taller(
 @router.get("", response_model=list[TechnicianResponse])
 def listar_tecnicos(
     db: Session = Depends(get_db),
-    dueno: USUARIOS = Depends(get_current_taller),
+    usuario: USUARIOS = Depends(get_current_user),
 ):
-    """Lista los técnicos del taller del usuario autenticado."""
-    taller = _taller_del_token(db, dueno)
-    items = (
-        db.query(TECNICOS)
-        .filter(TECNICOS.ID_TALLER == taller.ID_TALLER)
-        .order_by(TECNICOS.NOMBRE_COMPLETO)
-        .all()
-    )
+    """Lista técnicos. TALLER: solo los de su taller. ADMIN: todos."""
+    rol = usuario.ROL.value if hasattr(usuario.ROL, "value") else str(usuario.ROL)
+    if rol == "ADMIN":
+        items = db.query(TECNICOS).order_by(TECNICOS.NOMBRE_COMPLETO).all()
+    elif rol == "TALLER":
+        taller = _taller_del_token(db, usuario)
+        items = (
+            db.query(TECNICOS)
+            .filter(TECNICOS.ID_TALLER == taller.ID_TALLER)
+            .order_by(TECNICOS.NOMBRE_COMPLETO)
+            .all()
+        )
+    else:
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden listar técnicos")
     return [TechnicianResponse.model_validate(x) for x in items]
 
 
