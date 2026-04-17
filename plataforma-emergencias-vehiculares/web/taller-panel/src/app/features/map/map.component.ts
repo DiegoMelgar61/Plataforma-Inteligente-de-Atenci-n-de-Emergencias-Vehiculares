@@ -5,8 +5,8 @@ import { IncidentsService } from '../../core/services/incidents.service';
 import { TechniciansService } from '../../core/services/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { Incident, Tecnico } from '../../models';
-import { forkJoin, interval, Subscription } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { forkJoin, interval, Subject, Subscription } from 'rxjs';
+import { debounceTime, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-map',
@@ -183,6 +183,7 @@ export class MapComponent implements OnInit, OnDestroy {
   tecnicos = signal<Tecnico[]>([]);
   selectedIncident = signal<Incident | null>(null);
   private subs: Subscription[] = [];
+  private wsReloadSubject = new Subject<void>();
 
   activeIncidents = computed(() => this.incidents().filter(i =>
     ['CLASIFICADO', 'ASIGNADO', 'EN_CAMINO', 'EN_PROCESO', 'PENDIENTE'].includes(i.estado)
@@ -207,11 +208,15 @@ export class MapComponent implements OnInit, OnDestroy {
     this.ws.connectGlobal();
     this.subs.push(
       interval(30000).pipe(switchMap(() => forkJoin({ incidents: this.incidentsService.getAll(), tecnicos: this.techniciansService.getAll() }))).subscribe(({ incidents, tecnicos }) => { this.incidents.set(incidents); this.tecnicos.set(tecnicos); }),
-      this.ws.messages$.subscribe(() => this.reload()),
+      this.wsReloadSubject.pipe(debounceTime(2000)).subscribe(() => this.reload()),
+      this.ws.messages$.subscribe(() => this.wsReloadSubject.next()),
     );
   }
 
-  ngOnDestroy(): void { this.subs.forEach(s => s.unsubscribe()); }
+  ngOnDestroy(): void {
+    this.subs.forEach(s => s.unsubscribe());
+    this.wsReloadSubject.complete();
+  }
 
   reload(): void {
     forkJoin({ incidents: this.incidentsService.getAll(), tecnicos: this.techniciansService.getAll() }).subscribe({

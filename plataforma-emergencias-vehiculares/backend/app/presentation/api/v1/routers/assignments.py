@@ -165,19 +165,26 @@ def listar_mis_asignaciones(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    if _rol_texto(usuario) != "TALLER":
-        raise HTTPException(status_code=403, detail="Solo talleres pueden consultar sus asignaciones")
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden consultar asignaciones")
 
-    taller = db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
-    if not taller:
-        raise HTTPException(status_code=404, detail="Taller no encontrado para este usuario")
-
-    asignaciones = (
-        db.query(ASIGNACIONES)
-        .filter(ASIGNACIONES.ID_TALLER == taller.ID_TALLER)
-        .order_by(ASIGNACIONES.FECHA_ASIGNACION.desc())
-        .all()
-    )
+    if rol == "ADMIN":
+        asignaciones = (
+            db.query(ASIGNACIONES)
+            .order_by(ASIGNACIONES.FECHA_ASIGNACION.desc())
+            .all()
+        )
+    else:
+        taller = db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
+        if not taller:
+            raise HTTPException(status_code=404, detail="Taller no encontrado para este usuario")
+        asignaciones = (
+            db.query(ASIGNACIONES)
+            .filter(ASIGNACIONES.ID_TALLER == taller.ID_TALLER)
+            .order_by(ASIGNACIONES.FECHA_ASIGNACION.desc())
+            .all()
+        )
 
     result = []
     for a in asignaciones:
