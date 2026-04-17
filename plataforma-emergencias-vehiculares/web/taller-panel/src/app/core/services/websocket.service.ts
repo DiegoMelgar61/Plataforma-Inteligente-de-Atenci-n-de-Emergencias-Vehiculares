@@ -3,8 +3,15 @@ import { Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface WsMessage {
-  type: string;
-  data: any;
+  type?: string;
+  tipo?: string;
+  data?: any;
+  clasificacion?: string;
+  prioridad?: string;
+  mensaje?: string;
+  nuevo_estado?: string;
+  incidente_id?: string;
+  [key: string]: any;
 }
 
 @Injectable({ providedIn: 'root' })
