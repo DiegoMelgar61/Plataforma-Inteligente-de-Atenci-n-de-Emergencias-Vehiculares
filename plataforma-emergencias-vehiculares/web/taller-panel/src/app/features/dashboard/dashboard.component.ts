@@ -2,7 +2,7 @@ import { Component, inject, signal, OnInit, OnDestroy, computed } from '@angular
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { forkJoin, Subject } from 'rxjs';
-import { debounceTime } from 'rxjs/operators';
+import { throttleTime } from 'rxjs/operators';
 import { IncidentsService } from '../../core/services/incidents.service';
 import { TechniciansService } from '../../core/services/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
@@ -226,6 +226,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private notifStore = inject(NotificationStore);
 
   private reloadSubject = new Subject<void>();
+  private recentNotifs = new Set<string>();
 
   loading = signal(true);
   incidents = signal<Incident[]>([]);
@@ -254,15 +255,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
   today = () => new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' });
 
   ngOnInit(): void {
-    this.reloadSubject.pipe(debounceTime(2000)).subscribe(() => this.loadData());
+    this.reloadSubject.pipe(throttleTime(30000)).subscribe(() => this.loadData());
     this.loadData();
     this.ws.connectGlobal();
     this.ws.messages$.subscribe((msg) => {
       const tipo = msg.tipo || msg.type || '';
-      if (tipo !== 'conectado') {
-        this.notifStore.push(msg.data?.message || msg.mensaje || 'Nuevo evento', 'info');
-        this.reloadSubject.next();
-      }
+      if (tipo === 'conectado') return;
+
+      const key = `${tipo}-${msg.incidente_id || ''}`;
+      if (this.recentNotifs.has(key)) return;
+      this.recentNotifs.add(key);
+      setTimeout(() => this.recentNotifs.delete(key), 10000);
+
+      const mensajes: Record<string, string> = {
+        'estado_actualizado': `Incidente actualizado: ${msg.nuevo_estado || ''}`,
+        'incidente_reportado': `Nuevo incidente: ${msg.clasificacion || 'INCIERTO'} · ${msg.prioridad || ''}`,
+        'nueva_asignacion': `Incidente asignado a taller`,
+        'nuevo_usuario': `Nuevo usuario registrado`,
+      };
+      const texto = mensajes[tipo] ?? (msg.mensaje || msg.data?.message || 'Nuevo evento');
+      this.notifStore.push(texto, tipo === 'incidente_reportado' ? 'warning' : 'info');
+      this.reloadSubject.next();
     });
   }
 
