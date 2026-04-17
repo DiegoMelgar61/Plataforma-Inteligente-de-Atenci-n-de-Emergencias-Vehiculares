@@ -44,10 +44,16 @@ EVENTOS_IMPORTANTES = {
     "nuevo_usuario",
 }
 
+# Estados que gestiona el pipeline IA internamente — no notificar al Dashboard/Mapa
+ESTADOS_INTERNOS = {"EN_PROCESO_IA", "CLASIFICADO", "PENDIENTE"}
+
 
 async def broadcast_global(datos: dict) -> None:
     """Envía un evento a TODAS las conexiones globales activas (solo eventos relevantes)."""
-    if datos.get("tipo", "") not in EVENTOS_IMPORTANTES:
+    tipo = datos.get("tipo", "")
+    if tipo not in EVENTOS_IMPORTANTES:
+        return
+    if tipo == "estado_actualizado" and datos.get("nuevo_estado", "") in ESTADOS_INTERNOS:
         return
     fallidas = []
     for ws in CONEXIONES_GLOBALES:
