@@ -5,7 +5,9 @@ import { Notification } from '../../models';
 export class NotificationStore {
   private _notifications = signal<Notification[]>([]);
   readonly notifications = this._notifications.asReadonly();
-  readonly unreadCount = computed(() => this._notifications().filter(n => !n.read).length);
+  readonly unreadCount = computed(
+    () => this._notifications().filter((n) => !n.read).length
+  );
 
   push(message: string, type: Notification['type'] = 'info'): void {
     const n: Notification = {
@@ -15,12 +17,16 @@ export class NotificationStore {
       read: false,
       timestamp: new Date(),
     };
-    this._notifications.update(list => [n, ...list].slice(0, 20));
+    this._notifications.update((list) => [n, ...list].slice(0, 20));
   }
 
   markAllRead(): void {
-    this._notifications.update(list => list.map(n => ({ ...n, read: true })));
+    this._notifications.update((list) =>
+      list.map((n) => ({ ...n, read: true }))
+    );
   }
 
-  clear(): void { this._notifications.set([]); }
+  clear(): void {
+    this._notifications.set([]);
+  }
 }

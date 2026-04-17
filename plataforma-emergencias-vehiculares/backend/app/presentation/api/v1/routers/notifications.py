@@ -18,6 +18,8 @@ from app.application.use_cases.notification_service import (
     desregistrar_conexion_websocket,
     broadcast_estado_actualizado,
     enviar_notificacion_cliente,
+    registrar_conexion_global,
+    desregistrar_conexion_global,
 )
 
 router = APIRouter(prefix="/notifications", tags=["Notificaciones y Tiempo Real"])
@@ -29,6 +31,33 @@ def _rol_texto(usuario: USUARIOS) -> str:
     """Obtiene el rol como string."""
     r = usuario.ROL
     return r.value if hasattr(r, "value") else str(r)
+
+
+@router.websocket("/ws")
+async def websocket_global(websocket: WebSocket):
+    """
+    WebSocket global para Dashboard y Mapa.
+    Recibe broadcasts de cualquier cambio de estado de incidentes.
+    No requiere autenticación ni id de incidente.
+    """
+    await websocket.accept()
+    registrar_conexion_global(websocket)
+    try:
+        await websocket.send_json({
+            "tipo": "conectado",
+            "mensaje": "Conectado al canal global",
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+        while True:
+            await websocket.receive_text()  # mantener conexión viva
+    except WebSocketDisconnect:
+        desregistrar_conexion_global(websocket)
+    except Exception:
+        desregistrar_conexion_global(websocket)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @router.websocket("/ws/incidents/{id_incidente}")
