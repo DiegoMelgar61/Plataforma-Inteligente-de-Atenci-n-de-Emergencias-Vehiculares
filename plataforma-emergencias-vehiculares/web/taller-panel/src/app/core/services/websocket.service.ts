@@ -43,6 +43,13 @@ export class WebSocketService {
   }
 
   connectGlobal(): void {
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
     this.disconnect();
     const wsUrl = environment.wsUrl;
     this.socket = new WebSocket(`${wsUrl}/notifications/ws`);
