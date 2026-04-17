@@ -358,13 +358,18 @@ def listar_mis_incidentes(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    _solo_cliente(usuario)
-    filas = (
-        db.query(INCIDENTES)
-        .filter(INCIDENTES.ID_USUARIO_CLIENTE == usuario.ID_USUARIO)
-        .order_by(INCIDENTES.FECHA_CREACION.desc())
-        .all()
-    )
+    rol = _rol_texto(usuario)
+    if rol == "CLIENTE":
+        filas = (
+            db.query(INCIDENTES)
+            .filter(INCIDENTES.ID_USUARIO_CLIENTE == usuario.ID_USUARIO)
+            .order_by(INCIDENTES.FECHA_CREACION.desc())
+            .all()
+        )
+    elif rol in ("TALLER", "ADMIN"):
+        filas = db.query(INCIDENTES).order_by(INCIDENTES.FECHA_CREACION.desc()).all()
+    else:
+        raise HTTPException(status_code=403, detail="Rol no autorizado")
     return [_a_lista(inc) for inc in filas]
 
 
