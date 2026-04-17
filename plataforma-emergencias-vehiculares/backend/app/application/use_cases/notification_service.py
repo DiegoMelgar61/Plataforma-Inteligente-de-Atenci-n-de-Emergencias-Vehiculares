@@ -37,8 +37,18 @@ def desregistrar_conexion_global(websocket: WebSocket) -> None:
         pass
 
 
+EVENTOS_IMPORTANTES = {
+    "estado_actualizado",
+    "incidente_reportado",
+    "nueva_asignacion",
+    "nuevo_usuario",
+}
+
+
 async def broadcast_global(datos: dict) -> None:
-    """Envía un evento a TODAS las conexiones globales activas."""
+    """Envía un evento a TODAS las conexiones globales activas (solo eventos relevantes)."""
+    if datos.get("tipo", "") not in EVENTOS_IMPORTANTES:
+        return
     fallidas = []
     for ws in CONEXIONES_GLOBALES:
         try:

@@ -2,10 +2,12 @@
 Reporte y consulta de incidentes (solo rol CLIENTE).
 Ubicación + evidencias multimodales (imágenes, audio opcional, texto).
 """
+import asyncio
 import logging
 import re
 import shutil
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
@@ -295,6 +297,29 @@ async def reportar_incidente_multimodal(
         if destino_dir.exists():
             shutil.rmtree(destino_dir, ignore_errors=True)
         raise
+
+    # Notificar en tiempo real que se reportó un nuevo incidente
+    notif = {
+        "tipo": "incidente_reportado",
+        "incidente_id": str(incidente.ID_INCIDENTE),
+        "clasificacion": str(
+            incidente.CLASIFICACION.value if hasattr(incidente.CLASIFICACION, "value")
+            else incidente.CLASIFICACION
+        ),
+        "prioridad": str(
+            incidente.PRIORIDAD.value if hasattr(incidente.PRIORIDAD, "value")
+            else incidente.PRIORIDAD
+        ),
+        "mensaje": "Nuevo incidente reportado",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    try:
+        from app.application.use_cases.notification_service import broadcast_global
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_global(notif))
+    except Exception:
+        pass
 
     return ReporteIncidenteResponse(
         incidente_id=incidente.ID_INCIDENTE,

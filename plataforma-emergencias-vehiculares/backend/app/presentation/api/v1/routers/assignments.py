@@ -2,7 +2,9 @@
 Router de asignación inteligente de incidentes a talleres.
 Tags = ["Asignación Inteligente"]
 """
+import asyncio
 import logging
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -90,6 +92,21 @@ def asignar_incidente(
     except Exception:
         logger.exception("Error al enviar notificaciones para asignación %s", asignacion.ID_ASIGNACION)
         # No propagar el error; la asignación ya fue exitosa
+
+    # Notificar en tiempo real que hay una nueva asignación
+    notif = {
+        "tipo": "nueva_asignacion",
+        "incidente_id": str(id_incidente),
+        "mensaje": "Incidente asignado a taller",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    try:
+        from app.application.use_cases.notification_service import broadcast_global
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_global(notif))
+    except Exception:
+        pass
 
     return AssignmentResponse.model_validate(asignacion)
 

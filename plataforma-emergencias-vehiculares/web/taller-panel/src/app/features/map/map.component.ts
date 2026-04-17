@@ -6,7 +6,7 @@ import { TechniciansService } from '../../core/services/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { Incident, Tecnico } from '../../models';
 import { forkJoin, interval, Subject, Subscription } from 'rxjs';
-import { debounceTime, switchMap } from 'rxjs/operators';
+import { switchMap, throttleTime } from 'rxjs/operators';
 
 @Component({
   selector: 'app-map',
@@ -208,7 +208,7 @@ export class MapComponent implements OnInit, OnDestroy {
     this.ws.connectGlobal();
     this.subs.push(
       interval(30000).pipe(switchMap(() => forkJoin({ incidents: this.incidentsService.getAll(), tecnicos: this.techniciansService.getAll() }))).subscribe(({ incidents, tecnicos }) => { this.incidents.set(incidents); this.tecnicos.set(tecnicos); }),
-      this.wsReloadSubject.pipe(debounceTime(2000)).subscribe(() => this.reload()),
+      this.wsReloadSubject.pipe(throttleTime(30000)).subscribe(() => this.reload()),
       this.ws.messages$.subscribe(() => this.wsReloadSubject.next()),
     );
   }

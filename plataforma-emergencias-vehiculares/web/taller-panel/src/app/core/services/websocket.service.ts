@@ -22,6 +22,7 @@ export class WebSocketService {
 
     this.socket.onopen = () => this.connected.set(true);
     this.socket.onclose = () => {
+      if (!this.connected()) return;
       this.connected.set(false);
       this.reconnectTimer = setTimeout(() => this.connect(incidentId), 5000);
     };
@@ -41,6 +42,7 @@ export class WebSocketService {
 
     this.socket.onopen = () => this.connected.set(true);
     this.socket.onclose = () => {
+      if (!this.connected()) return;
       this.connected.set(false);
       this.reconnectTimer = setTimeout(() => this.connectGlobal(), 5000);
     };
