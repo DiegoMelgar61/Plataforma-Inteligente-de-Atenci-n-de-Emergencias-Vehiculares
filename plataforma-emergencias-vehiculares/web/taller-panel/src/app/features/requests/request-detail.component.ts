@@ -6,6 +6,7 @@ import { IncidentsService } from '../../core/services/incidents.service';
 import { TechniciansService } from '../../core/services/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { Incident, Tecnico } from '../../models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-request-detail',
@@ -116,13 +117,23 @@ import { Incident, Tecnico } from '../../models';
                         @if (ev.texto_transcrito) {
                           <p class="text-sm" style="color: var(--text-secondary);">{{ ev.texto_transcrito }}</p>
                         }
-                        @if (ev.url_archivo && ev.tipo === 'IMAGEN') {
-                          <img [src]="ev.url_archivo" alt="Evidencia" class="mt-2 rounded-lg max-h-48 object-cover" />
+                        @if (ev.tipo === 'IMAGEN') {
+                          @if (evidenceUrl(ev.url_archivo)) {
+                            <img [src]="evidenceUrl(ev.url_archivo)" alt="Evidencia"
+                                 class="mt-2 rounded-lg max-h-48 object-cover" />
+                          } @else {
+                            <p class="text-xs mt-1" style="color: var(--text-muted);">Imagen no disponible</p>
+                          }
                         }
-                        @if (ev.url_archivo && ev.tipo !== 'IMAGEN') {
-                          <a [href]="ev.url_archivo" target="_blank" class="text-xs" style="color: var(--accent);">
-                            Ver archivo →
-                          </a>
+                        @if (ev.tipo !== 'IMAGEN') {
+                          @if (evidenceUrl(ev.url_archivo)) {
+                            <a [href]="evidenceUrl(ev.url_archivo)" target="_blank"
+                               class="text-xs" style="color: var(--accent);">
+                              Ver archivo →
+                            </a>
+                          } @else {
+                            <span class="text-xs" style="color: var(--text-muted);">Archivo no disponible</span>
+                          }
                         }
                       </div>
                     </div>
@@ -376,5 +387,11 @@ export class RequestDetailComponent implements OnInit {
 
   evidenceBadge(t: string): string {
     return { IMAGEN: 'badge-blue', AUDIO: 'badge-orange', TEXTO: 'badge-gray' }[t] || 'badge-gray';
+  }
+
+  evidenceUrl(url: string | undefined | null): string {
+    if (!url || url.startsWith('temporal:')) return '';
+    if (url.startsWith('http')) return url;
+    return `${environment.apiUrl.replace('/api/v1', '')}${url}`;
   }
 }
