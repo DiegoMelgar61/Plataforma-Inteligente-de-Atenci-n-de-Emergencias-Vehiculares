@@ -42,7 +42,7 @@ import { Incident, Tecnico, User, Taller } from '../../models';
       }
 
       <!-- Stats -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="stat-card">
           <div class="stat-icon" style="background: rgba(249,115,22,0.12);">🚨</div>
           <div>
@@ -196,7 +196,7 @@ import { Incident, Tecnico, User, Taller } from '../../models';
             <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Talleres registrados</h2>
             <a routerLink="/admin/workshops" class="text-xs" style="color: var(--accent);">Gestionar →</a>
           </div>
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             @for (t of talleres().slice(0, 4); track t.id_taller) {
               <div class="rounded-lg p-3" style="background: var(--bg-elevated); border: 1px solid var(--border);">
                 <div class="flex items-start justify-between mb-2">

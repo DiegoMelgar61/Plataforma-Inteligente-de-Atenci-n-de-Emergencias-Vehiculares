@@ -1,4 +1,4 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, signal, HostListener, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './sidebar.component';
 import { NavbarComponent } from './navbar.component';
@@ -7,13 +7,33 @@ import { NavbarComponent } from './navbar.component';
   selector: 'app-main-layout',
   standalone: true,
   imports: [RouterOutlet, SidebarComponent, NavbarComponent],
+  styles: [`
+    .mobile-overlay {
+      position: fixed; inset: 0; z-index: 30;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(2px);
+      animation: fadeIn 0.2s ease-out;
+    }
+  `],
   template: `
     <div class="flex h-screen overflow-hidden" style="background: var(--bg-base);">
-      <app-sidebar />
-      <div class="flex flex-col flex-1 min-w-0 transition-all duration-250"
-           style="margin-left: 240px;">
-        <app-navbar />
-        <main class="flex-1 overflow-y-auto p-6 lg:p-8">
+
+      @if (isMobile() && !sidebarCollapsed()) {
+        <div class="mobile-overlay" (click)="sidebarCollapsed.set(true)"></div>
+      }
+
+      <app-sidebar
+        [collapsed]="sidebarCollapsed()"
+        [isMobile]="isMobile()"
+        (toggleSidebar)="sidebarCollapsed.set(!sidebarCollapsed())" />
+
+      <div class="flex flex-col flex-1 min-w-0"
+           style="transition: margin-left 0.25s ease;"
+           [style.margin-left]="mainMarginLeft()">
+        <app-navbar
+          [isMobile]="isMobile()"
+          (toggleSidebar)="sidebarCollapsed.set(!sidebarCollapsed())" />
+        <main class="flex-1 overflow-y-auto p-4 lg:p-8">
           <div class="max-w-7xl mx-auto fade-in">
             <router-outlet />
           </div>
@@ -22,4 +42,25 @@ import { NavbarComponent } from './navbar.component';
     </div>
   `,
 })
-export class MainLayoutComponent {}
+export class MainLayoutComponent implements OnInit {
+  sidebarCollapsed = signal(false);
+  isMobile = signal(false);
+
+  ngOnInit(): void {
+    this.checkViewport();
+  }
+
+  @HostListener('window:resize')
+  checkViewport(): void {
+    const mobile = window.innerWidth < 768;
+    this.isMobile.set(mobile);
+    if (mobile) {
+      this.sidebarCollapsed.set(true);
+    }
+  }
+
+  mainMarginLeft(): string {
+    if (this.isMobile()) return '0px';
+    return this.sidebarCollapsed() ? '64px' : '240px';
+  }
+}
