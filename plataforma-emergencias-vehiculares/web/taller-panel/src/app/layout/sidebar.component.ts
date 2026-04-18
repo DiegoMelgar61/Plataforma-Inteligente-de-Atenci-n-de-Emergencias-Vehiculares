@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, Input, Output, EventEmitter } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../core/services/auth.service';
@@ -32,14 +32,22 @@ interface NavItem {
     }
     .nav-link.active .icon-wrap { color: var(--accent); }
     .icon-wrap { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
-    .sidebar { transition: width 0.25s ease; }
-    .logo-text, .nav-label, .section-label, .user-info { transition: opacity 0.2s ease, width 0.2s ease; }
-    .collapsed .logo-text, .collapsed .nav-label, .collapsed .section-label, .collapsed .user-info {
-      opacity: 0; width: 0; overflow: hidden; pointer-events: none;
+    .sidebar { transition: width 0.25s ease; overflow: hidden; }
+    .logo-text, .nav-label, .section-label, .user-info {
+      transition: opacity 0.2s ease, max-width 0.2s ease;
+      overflow: hidden; white-space: nowrap;
+    }
+    .collapsed .logo-text,
+    .collapsed .nav-label,
+    .collapsed .section-label,
+    .collapsed .user-info {
+      opacity: 0; max-width: 0; pointer-events: none;
     }
   `],
   template: `
-    <aside [class]="'sidebar fixed left-0 top-0 h-screen flex flex-col z-40 ' + (collapsed() ? 'w-16' : 'w-60')"
+    <aside class="sidebar fixed left-0 top-0 h-screen flex flex-col z-40"
+           [class.collapsed]="collapsed"
+           [style.width]="sidebarWidth"
            style="background: var(--bg-surface); border-right: 1px solid var(--border);">
 
       <!-- Header -->
@@ -47,13 +55,12 @@ interface NavItem {
         <div class="flex items-center gap-3 flex-1 min-w-0">
           <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-sm font-bold"
                style="background: var(--accent); box-shadow: 0 0 16px var(--accent-glow);">⚡</div>
-          <span class="logo-text text-sm font-semibold truncate" style="color: var(--text-primary);">EmergVehicular</span>
+          <span class="logo-text text-sm font-semibold" style="color: var(--text-primary);">EmergVehicular</span>
         </div>
-        <button (click)="collapsed.set(!collapsed())"
-                class="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
-                style="color: var(--text-muted);"
-                [class.hover:bg-gray-700]="true">
-          <svg class="w-4 h-4 transition-transform" [class.rotate-180]="collapsed()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button (click)="toggleSidebar.emit()"
+                class="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors hover:bg-gray-700"
+                style="color: var(--text-muted);">
+          <svg class="w-4 h-4 transition-transform" [class.rotate-180]="collapsed" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
           </svg>
         </button>
@@ -63,7 +70,7 @@ interface NavItem {
       <nav class="flex-1 overflow-y-auto p-2 space-y-0.5">
 
         <!-- Role badge -->
-        @if (!collapsed()) {
+        @if (!collapsed) {
           <div class="px-3 py-2 mb-1">
             <span [class]="'badge text-xs ' + (isAdmin() ? 'badge-purple' : 'badge-blue')">
               {{ isAdmin() ? '👑 Administrador' : '🔧 Taller' }}
@@ -77,7 +84,7 @@ interface NavItem {
              routerLinkActive="active"
              [routerLinkActiveOptions]="{exact: item.route === '/dashboard'}"
              class="nav-link"
-             [title]="collapsed() ? item.label : ''">
+             [title]="collapsed ? item.label : ''">
             <span class="icon-wrap">{{ item.icon }}</span>
             <span class="nav-label">{{ item.label }}</span>
           </a>
@@ -93,7 +100,7 @@ interface NavItem {
             <a [routerLink]="item.route"
                routerLinkActive="active"
                class="nav-link"
-               [title]="collapsed() ? item.label : ''">
+               [title]="collapsed ? item.label : ''">
               <span class="icon-wrap">{{ item.icon }}</span>
               <span class="nav-label">{{ item.label }}</span>
             </a>
@@ -126,9 +133,17 @@ interface NavItem {
 })
 export class SidebarComponent {
   private auth = inject(AuthService);
-  collapsed = signal(false);
+
+  @Input() collapsed = false;
+  @Input() isMobile = false;
+  @Output() toggleSidebar = new EventEmitter<void>();
 
   isAdmin = this.auth.isAdmin;
+
+  get sidebarWidth(): string {
+    if (this.collapsed) return this.isMobile ? '0px' : '64px';
+    return '240px';
+  }
 
   commonNav: NavItem[] = [
     { label: 'Dashboard', icon: '◈', route: '/dashboard' },

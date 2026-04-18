@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
@@ -19,16 +19,28 @@ import { NotificationStore } from '../core/services/notification-store.service';
     }
   `],
   template: `
-    <header class="h-14 flex items-center justify-between px-6 flex-shrink-0"
+    <header class="h-14 flex items-center justify-between px-4 sm:px-6 flex-shrink-0"
             style="background: var(--bg-surface); border-bottom: 1px solid var(--border);">
 
-      <!-- Breadcrumb area (dynamic via title service ideally) -->
-      <div class="flex items-center gap-2 text-sm" style="color: var(--text-muted);">
-        <span>Panel</span>
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-        <span style="color: var(--text-secondary);" class="font-medium">{{ auth.isAdmin() ? 'Administrador' : 'Taller' }}</span>
+      <div class="flex items-center gap-2 min-w-0">
+        <!-- Mobile hamburger -->
+        @if (isMobile) {
+          <button (click)="toggleSidebar.emit()"
+                  class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors hover:bg-gray-700"
+                  style="color: var(--text-secondary);">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+        }
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-sm" style="color: var(--text-muted);">
+          <span class="hidden sm:inline">Panel</span>
+          <svg class="hidden sm:block w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          <span style="color: var(--text-secondary);" class="font-medium truncate">{{ auth.isAdmin() ? 'Administrador' : 'Taller' }}</span>
+        </div>
       </div>
 
       <div class="flex items-center gap-2">
@@ -109,6 +121,9 @@ export class NavbarComponent {
   protected auth = inject(AuthService);
   protected notifStore = inject(NotificationStore);
   notifOpen = signal(false);
+
+  @Input() isMobile = false;
+  @Output() toggleSidebar = new EventEmitter<void>();
 
   initials = () => {
     const n = this.auth.user()?.nombre_completo || 'U';
