@@ -85,6 +85,16 @@ def _url_temporal_evidencia(id_evidencia: UUID) -> str:
     return f"temporal:/evidencias/{id_evidencia}"
 
 
+def _construir_url_evidencia(ev: EVIDENCIAS) -> str:
+    """Convierte URL temporal a URL real servida por StaticFiles."""
+    url = ev.URL_ARCHIVO or ""
+    if url.startswith("temporal:") and ev.CLAVE_ARCHIVO:
+        # CLAVE_ARCHIVO = "evidencias/{incidente_id}/{filename}"
+        # URL real      = "/static/evidencias/{incidente_id}/{filename}"
+        return f"{settings.EVIDENCIAS_URL_PREFIX}/{ev.CLAVE_ARCHIVO.replace('evidencias/', '', 1)}"
+    return url
+
+
 def _a_lista(inc: INCIDENTES) -> IncidentListResponse:
     lat, lon = _coords_desde_orm(inc)
     base = IncidentListResponse.model_validate(inc)
@@ -93,7 +103,11 @@ def _a_lista(inc: INCIDENTES) -> IncidentListResponse:
 
 def _a_detalle(inc: INCIDENTES, evidencias: list[EVIDENCIAS]) -> IncidentResponse:
     lat, lon = _coords_desde_orm(inc)
-    evs = [EvidenceItemResponse.model_validate(e) for e in evidencias]
+    evs = []
+    for e in evidencias:
+        ev_response = EvidenceItemResponse.model_validate(e)
+        ev_response = ev_response.model_copy(update={"url_archivo": _construir_url_evidencia(e)})
+        evs.append(ev_response)
     base = IncidentResponse.model_validate(inc)
     return base.model_copy(update={"latitud": lat, "longitud": lon, "evidencias": evs})
 
