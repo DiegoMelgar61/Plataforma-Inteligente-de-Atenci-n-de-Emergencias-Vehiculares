@@ -8,6 +8,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 
@@ -36,6 +37,10 @@ router = APIRouter(prefix="/assignments", tags=["Asignación Inteligente"])
 logger = logging.getLogger(__name__)
 
 
+class AssignRequest(BaseModel):
+    id_tecnico: UUID | None = None
+
+
 def _rol_texto(usuario: USUARIOS) -> str:
     """Obtiene el rol como string."""
     r = usuario.ROL
@@ -55,27 +60,65 @@ def _rol_texto(usuario: USUARIOS) -> str:
 )
 def asignar_incidente(
     id_incidente: UUID,
+    body: AssignRequest = None,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):
     """
     Asigna un incidente al taller más cercano con técnico disponible.
-    Actualiza automáticamente el estado del incidente a "ASIGNADO".
+    Si el body incluye `id_tecnico`, se asigna directamente a ese técnico.
+    De lo contrario, se usa asignación automática por GPS.
 
     Requiere rol ADMIN o TALLER (el dueño del incidente) para autorización.
     """
+    from datetime import datetime, timezone
+
     # Verificar que el incidente existe
     incidente = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not incidente:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
-    # Ejecutar asignación automática
-    asignacion = asignar_taller_automaticamente(db, id_incidente)
-    if not asignacion:
-        raise HTTPException(
-            status_code=400,
-            detail="No hay talleres con técnicos disponibles para asignar",
+    id_tecnico_manual = body.id_tecnico if body else None
+
+    if id_tecnico_manual:
+        # Asignación directa al técnico especificado por el frontend
+        tecnico = db.query(TECNICOS).filter(
+            TECNICOS.ID_TECNICO == id_tecnico_manual,
+            TECNICOS.DISPONIBLE.is_(True),
+        ).first()
+        if not tecnico:
+            raise HTTPException(
+                status_code=400,
+                detail="El técnico no existe o no está disponible",
+            )
+
+        taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == tecnico.ID_TALLER).first()
+        if not taller:
+            raise HTTPException(status_code=400, detail="Taller no encontrado")
+
+        asignacion = ASIGNACIONES(
+            ID_INCIDENTE=id_incidente,
+            ID_TALLER=taller.ID_TALLER,
+            ID_TECNICO=tecnico.ID_TECNICO,
         )
+        db.add(asignacion)
+
+        tecnico.DISPONIBLE = False
+        db.add(tecnico)
+
+        incidente.ESTADO = "ASIGNADO"
+        db.add(incidente)
+
+        db.commit()
+        db.refresh(asignacion)
+    else:
+        # Fallback: asignación automática por GPS
+        asignacion = asignar_taller_automaticamente(db, id_incidente)
+        if not asignacion:
+            raise HTTPException(
+                status_code=400,
+                detail="No hay talleres con técnicos disponibles para asignar",
+            )
 
     # Enviar notificaciones automáticamente
     try:
