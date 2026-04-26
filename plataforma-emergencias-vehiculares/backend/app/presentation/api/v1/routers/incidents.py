@@ -384,6 +384,34 @@ def actualizar_estado_incidente(
         inc.ESTADO = nuevo_estado
     db.commit()
     db.refresh(inc)
+
+    if nuevo_estado == "ATENDIDO":
+        try:
+            from app.models.models import ASIGNACIONES
+            from app.application.use_cases import payment_service
+            asignacion = db.query(ASIGNACIONES).filter(ASIGNACIONES.ID_INCIDENTE == id_incidente).first()
+            if asignacion:
+                pago = payment_service.crear_pago_pendiente(db, inc, asignacion)
+                notif = {
+                    "tipo": "pago_creado",
+                    "pago_id": str(pago.ID_PAGO),
+                    "incidente_id": str(id_incidente),
+                    "monto": str(pago.MONTO),
+                    "mensaje": "Pago generado por incidente atendido",
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+                try:
+                    from app.application.use_cases.notification_service import broadcast_global
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        asyncio.ensure_future(broadcast_global(notif))
+                except Exception:
+                    pass
+            else:
+                logger.warning("No se encontró asignación para incidente %s al crear pago", id_incidente)
+        except Exception:
+            logger.exception("Error al crear pago automático para incidente %s", id_incidente)
+
     return _a_lista(inc)
 
 

@@ -67,7 +67,11 @@
       "Bash(flutter devices:*)",
       "Bash(flutter install:*)",
       "Bash(grep -n \"APIRouter\\(prefix=\" /c/Users/diego/OneDrive/Escritorio/Plataforma-Inteligente-de-Atenci-n-de-Emergencias-Vehiculares/plataforma-emergencias-vehiculares/backend/app/presentation/api/v1/routers/*.py)",
-      "Bash(grep -E \"\\\\.\\(ts|html|css|scss\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|html|css|scss\\)$\")",
+      "Bash(pip show *)",
+      "Bash(cat src/app/app.routes.ts)",
+      "Bash(cat src/app/app-routing.module.ts)",
+      "Bash(node node_modules/@angular/core/package.json)"
     ]
   }
 }

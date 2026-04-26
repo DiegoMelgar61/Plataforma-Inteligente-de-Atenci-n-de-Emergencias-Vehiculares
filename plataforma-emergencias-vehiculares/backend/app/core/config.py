@@ -38,5 +38,7 @@ class Settings(BaseSettings):
     """Directorio raíz donde se guardan archivos subidos (se crea al arrancar)."""
     EVIDENCIAS_URL_PREFIX: str = "/static/evidencias"
     """Prefijo URL público para servir archivos vía StaticFiles en main."""
+    COMPROBANTES_URL_PREFIX: str = "/static/comprobantes"
+    """Prefijo URL público para servir comprobantes de pago vía StaticFiles en main."""
 
 settings = Settings()
