@@ -151,6 +151,7 @@ export class SidebarComponent {
     { label: 'Asignaciones', icon: '📋', route: '/assignments' },
     { label: 'Técnicos', icon: '👷', route: '/technicians' },
     { label: 'Mapa en vivo', icon: '🗺', route: '/map' },
+    { label: 'Pagos', icon: '💰', route: '/payments' },
     { label: 'Historial', icon: '📜', route: '/history' },
   ];
 

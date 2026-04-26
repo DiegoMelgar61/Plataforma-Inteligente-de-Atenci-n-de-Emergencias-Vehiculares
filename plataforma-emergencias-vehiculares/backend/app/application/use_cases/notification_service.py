@@ -42,6 +42,9 @@ EVENTOS_IMPORTANTES = {
     "incidente_reportado",
     "nueva_asignacion",
     "nuevo_usuario",
+    "pago_pendiente",
+    "pago_confirmado",
+    "pago_rechazado",
 }
 
 # Estados que gestiona el pipeline IA internamente — no notificar al Dashboard/Mapa

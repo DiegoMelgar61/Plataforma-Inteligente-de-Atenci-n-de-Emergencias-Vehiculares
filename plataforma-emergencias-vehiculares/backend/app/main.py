@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     uploads = Path(settings.UPLOADS_DIR)
     uploads.mkdir(parents=True, exist_ok=True)
     (uploads / "evidencias").mkdir(parents=True, exist_ok=True)
+    (uploads / "comprobantes").mkdir(parents=True, exist_ok=True)
     yield
     logger.info("Aplicación detenida")
 
@@ -112,4 +113,12 @@ app.mount(
     settings.EVIDENCIAS_URL_PREFIX,
     StaticFiles(directory=str(_evidencias_dir)),
     name="evidencias_estaticas",
+)
+
+_comprobantes_dir = Path(settings.UPLOADS_DIR) / "comprobantes"
+_comprobantes_dir.mkdir(parents=True, exist_ok=True)
+app.mount(
+    settings.COMPROBANTES_URL_PREFIX,
+    StaticFiles(directory=str(_comprobantes_dir)),
+    name="comprobantes_estaticos",
 )

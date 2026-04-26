@@ -1,209 +1,305 @@
 """
-Router de pagos e ingresos por incidentes atendidos.
-Calcula automáticamente la comisión del 10% de la plataforma.
+Router del sistema de pagos manuales con QR (CU13).
 Tags = ["Pagos"]
 """
+import asyncio
 import logging
-from decimal import Decimal
+import re
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import INCIDENTES, PAGOS, USUARIOS
+from app.application.use_cases import payment_service
+from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TALLERES, USUARIOS
 from app.presentation.api.v1.dependencies.auth import get_current_user
-from app.presentation.api.v1.schemas.payment import PaymentCreate, PaymentResponse
+from app.presentation.api.v1.schemas.payment import (
+    PaymentListItem,
+    PaymentReject,
+    PaymentResponse,
+    PaymentStats,
+)
 
 router = APIRouter(prefix="/payments", tags=["Pagos"])
 
 logger = logging.getLogger(__name__)
 
-# Porcentaje de comisión de la plataforma
-COMISION_PORCENTAJE = Decimal("10")
+MIME_IMAGENES_COMPROBANTE = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"}
+)
 
 
 def _rol_texto(usuario: USUARIOS) -> str:
-    """Obtiene el rol como string."""
     r = usuario.ROL
     return r.value if hasattr(r, "value") else str(r)
 
 
-def _calcular_comision(monto: Decimal) -> Decimal:
+def _nombre_seguro(nombre: str | None) -> str:
+    base = Path(nombre or "comprobante").name
+    if not base or ".." in base:
+        return "comprobante"
+    return re.sub(r"[^a-zA-Z0-9._-]", "_", base)[:120]
+
+
+def _construir_url_comprobante(clave: str) -> str:
+    """Convierte clave de disco a URL pública vía StaticFiles."""
+    # clave = "comprobantes/{id_pago}/{filename}"
+    # URL   = "/static/comprobantes/{id_pago}/{filename}"
+    return f"{settings.COMPROBANTES_URL_PREFIX}/{clave.replace('comprobantes/', '', 1)}"
+
+
+def _taller_de_usuario(db: Session, usuario: USUARIOS) -> TALLERES | None:
+    return db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
+
+
+async def _guardar_comprobante(comprobante: UploadFile, id_pago: UUID) -> tuple[str, str]:
     """
-    Calcula la comisión de la plataforma (10% del monto).
-
-    :param monto: Monto total
-    :return: Comisión calculada
+    Guarda el archivo en disco y retorna (url, clave).
+    Lanza HTTPException si el tipo MIME no está permitido.
     """
-    return (monto * COMISION_PORCENTAJE / Decimal("100")).quantize(Decimal("0.01"))
+    ct = (comprobante.content_type or "").split(";")[0].strip().lower()
+    if ct not in MIME_IMAGENES_COMPROBANTE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tipo de archivo no permitido: {ct or 'desconocido'}. Use JPEG, PNG, WEBP o PDF.",
+        )
+    destino_dir = settings.UPLOADS_DIR / "comprobantes" / str(id_pago)
+    destino_dir.mkdir(parents=True, exist_ok=True)
+    nombre_disco = f"{uuid.uuid4().hex}_{_nombre_seguro(comprobante.filename)}"
+    ruta = destino_dir / nombre_disco
+    contenido = await comprobante.read()
+    ruta.write_bytes(contenido)
+    clave = f"comprobantes/{id_pago}/{nombre_disco}"
+    url = _construir_url_comprobante(clave)
+    return url, clave
 
 
-@router.post(
-    "/incidents/{id_incidente}/pay",
-    response_model=PaymentResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Crear pago para incidente",
-    description=(
-        "Cliente paga por un incidente atendido. "
-        "La comisión del 10% se calcula automáticamente y se cobra a la plataforma."
-    ),
-    response_description="Pago registrado satisfactoriamente",
+async def _broadcast(datos: dict) -> None:
+    try:
+        from app.application.use_cases.notification_service import broadcast_global
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_global(datos))
+    except Exception:
+        pass
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/stats",
+    response_model=PaymentStats,
+    summary="Estadísticas de pagos (Taller/Admin)",
 )
-def crear_pago_incidente(
-    id_incidente: UUID,
-    datos: PaymentCreate,
+def obtener_stats(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    """
-    Crea un pago para un incidente atendido. Solo el cliente (propietario del incidente)
-    puede realizar el pago.
-
-    **Cálculo de comisión:**
-    - Comisión = Monto * 10% (redondeado a 2 decimales)
-    - El monto y comisión se registran en la tabla PAGOS
-
-    **Estados válidos para pago:**
-    - ATENDIDO (incidente completado y listo para pago)
-
-    **Parámetros:**
-    - `id_incidente` (UUID): ID del incidente
-    - `monto` (Decimal): Monto total a pagar
-    - `metodo_pago` (str, opcional): Método de pago (TARJETA, TRANSFERENCIA, etc.)
-    """
-    # Verificar que el usuario es cliente
     rol = _rol_texto(usuario)
-    if rol != "CLIENTE":
-        raise HTTPException(
-            status_code=403,
-            detail="Solo los clientes pueden realizar pagos",
-        )
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden ver estadísticas")
 
-    # Verificar que el incidente existe
-    incidente = (
-        db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
-    )
-    if not incidente:
-        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+    id_taller = None
+    if rol == "TALLER":
+        taller = _taller_de_usuario(db, usuario)
+        if not taller:
+            raise HTTPException(status_code=404, detail="Taller no encontrado para este usuario")
+        id_taller = taller.ID_TALLER
 
-    # Verificar que el cliente es propietario del incidente
-    if incidente.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
-        raise HTTPException(
-            status_code=403,
-            detail="No autorizado a pagar este incidente",
-        )
-
-    # Verificar que el incidente está atendido
-    estado_incidente = (
-        incidente.ESTADO.value if hasattr(incidente.ESTADO, "value")
-        else str(incidente.ESTADO)
-    )
-    if estado_incidente != "ATENDIDO":
-        raise HTTPException(
-            status_code=400,
-            detail=f"El incidente debe estar ATENDIDO para pagar. Estado actual: {estado_incidente}",
-        )
-
-    # Verificar que no existe un pago pagado previamente
-    pago_existente = (
-        db.query(PAGOS)
-        .filter(
-            PAGOS.ID_INCIDENTE == id_incidente,
-            PAGOS.ESTADO == "PAGADO",
-        )
-        .first()
-    )
-    if pago_existente:
-        raise HTTPException(
-            status_code=400,
-            detail="Este incidente ya ha sido pagado",
-        )
-
-    # Calcular comisión
-    monto = Decimal(str(datos.monto))
-    comision = _calcular_comision(monto)
-
-    try:
-        # Crear registro de pago
-        pago = PAGOS(
-            ID_INCIDENTE=id_incidente,
-            ID_USUARIO_CLIENTE=usuario.ID_USUARIO,
-            MONTO=monto,
-            COMISION_PLATAFORMA=comision,
-            ESTADO="PAGADO",  # En un sistema real, pasaría por procesador de pagos
-            METODO_PAGO=datos.metodo_pago,
-            ID_TRANSACCION=None,  # Stub: en producción vendría de pasarela de pagos
-        )
-        db.add(pago)
-        db.commit()
-        db.refresh(pago)
-
-        logger.info(
-            "Pago registrado: incidente %s, monto %.2f, comisión %.2f",
-            id_incidente,
-            monto,
-            comision,
-        )
-
-        return PaymentResponse.model_validate(pago)
-
-    except Exception as e:
-        logger.exception("Error al crear pago para incidente %s", id_incidente)
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail="Error al procesar el pago",
-        )
+    stats = payment_service.obtener_estadisticas(db, id_taller=id_taller)
+    return PaymentStats(**stats)
 
 
 @router.get(
     "/my",
-    response_model=list[PaymentResponse],
+    response_model=list[PaymentListItem],
     summary="Mis pagos",
-    description="Lista de pagos realizados por el cliente autenticado.",
-    response_description="Listado de pagos del cliente",
+    description="CLIENTE: sus pagos. TALLER: pagos de su taller. ADMIN: todos.",
 )
 def listar_mis_pagos(
     estado: str | None = None,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    """
-    Obtiene el historial de pagos del cliente autenticado.
-
-    **Parámetro query:**
-    - `estado` (str, opcional): Filtrar por estado (PENDIENTE, PAGADO, RECHAZADO)
-
-    **Respuesta:**
-    Listado de pagos ordenados por fecha de creación (más recientes primero).
-
-    ```json
-    [
-        {
-            "id_pago": "uuid",
-            "id_incidente": "uuid",
-            "monto": 100.00,
-            "comision_plataforma": 10.00,
-            "estado": "PAGADO",
-            "fecha_creacion": "2026-04-05T12:00:00"
-        }
-    ]
-    ```
-    """
-    # Verificar que el usuario es cliente
     rol = _rol_texto(usuario)
-    if rol != "CLIENTE":
-        raise HTTPException(
-            status_code=403,
-            detail="Solo los clientes pueden consultar sus pagos",
-        )
+    query = db.query(PAGOS)
 
-    query = db.query(PAGOS).filter(PAGOS.ID_USUARIO_CLIENTE == usuario.ID_USUARIO)
+    if rol == "CLIENTE":
+        query = query.filter(PAGOS.ID_USUARIO_CLIENTE == usuario.ID_USUARIO)
+    elif rol == "TALLER":
+        taller = _taller_de_usuario(db, usuario)
+        if not taller:
+            raise HTTPException(status_code=404, detail="Taller no encontrado")
+        query = query.filter(PAGOS.ID_TALLER == taller.ID_TALLER)
+    elif rol == "ADMIN":
+        pass
+    else:
+        raise HTTPException(status_code=403, detail="Rol no autorizado")
 
     if estado:
         query = query.filter(PAGOS.ESTADO == estado)
 
     pagos = query.order_by(PAGOS.FECHA_CREACION.desc()).all()
+    return [PaymentListItem.model_validate(p) for p in pagos]
 
-    return [PaymentResponse.model_validate(p) for p in pagos]
+
+@router.get(
+    "",
+    response_model=list[PaymentListItem],
+    summary="Todos los pagos (Taller/Admin)",
+)
+def listar_pagos(
+    estado: str | None = None,
+    id_taller: UUID | None = None,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden listar todos los pagos")
+
+    query = db.query(PAGOS)
+
+    if rol == "TALLER":
+        taller = _taller_de_usuario(db, usuario)
+        if not taller:
+            raise HTTPException(status_code=404, detail="Taller no encontrado")
+        query = query.filter(PAGOS.ID_TALLER == taller.ID_TALLER)
+    elif id_taller:
+        query = query.filter(PAGOS.ID_TALLER == id_taller)
+
+    if estado:
+        query = query.filter(PAGOS.ESTADO == estado)
+
+    pagos = query.order_by(PAGOS.FECHA_CREACION.desc()).all()
+    return [PaymentListItem.model_validate(p) for p in pagos]
+
+
+@router.get(
+    "/{id_pago}",
+    response_model=PaymentResponse,
+    summary="Detalle de pago",
+)
+def obtener_pago(
+    id_pago: UUID,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    pago = db.query(PAGOS).filter(PAGOS.ID_PAGO == id_pago).first()
+    if not pago:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+
+    rol = _rol_texto(usuario)
+    if rol == "CLIENTE" and pago.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(status_code=403, detail="No autorizado a ver este pago")
+    if rol == "TALLER":
+        taller = _taller_de_usuario(db, usuario)
+        if not taller or taller.ID_TALLER != pago.ID_TALLER:
+            raise HTTPException(status_code=403, detail="No autorizado a ver este pago")
+
+    return PaymentResponse.model_validate(pago)
+
+
+@router.post(
+    "/{id_pago}/mark-paid",
+    response_model=PaymentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Subir comprobante de pago (Cliente)",
+)
+async def marcar_pago(
+    id_pago: UUID,
+    comprobante: Annotated[UploadFile, File(description="Imagen o PDF del comprobante de transferencia")],
+    notas_cliente: Annotated[str | None, Form(description="Notas opcionales del cliente")] = None,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    if _rol_texto(usuario) != "CLIENTE":
+        raise HTTPException(status_code=403, detail="Solo los clientes pueden subir comprobantes")
+
+    url, clave = await _guardar_comprobante(comprobante, id_pago)
+
+    pago = payment_service.marcar_como_pagado(
+        db,
+        id_pago=id_pago,
+        id_usuario_cliente=usuario.ID_USUARIO,
+        comprobante_url=url,
+        comprobante_clave=clave,
+        notas=notas_cliente,
+    )
+
+    await _broadcast({
+        "tipo": "pago_pendiente",
+        "pago_id": str(pago.ID_PAGO),
+        "incidente_id": str(pago.ID_INCIDENTE),
+        "mensaje": "El cliente ha subido un comprobante de pago",
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+
+    return PaymentResponse.model_validate(pago)
+
+
+@router.post(
+    "/{id_pago}/confirm",
+    response_model=PaymentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Confirmar pago (Taller/Admin)",
+)
+async def confirmar_pago(
+    id_pago: UUID,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    if _rol_texto(usuario) not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden confirmar pagos")
+
+    pago = payment_service.confirmar_pago(db, id_pago=id_pago, id_usuario_confirma=usuario.ID_USUARIO)
+
+    await _broadcast({
+        "tipo": "pago_confirmado",
+        "pago_id": str(pago.ID_PAGO),
+        "incidente_id": str(pago.ID_INCIDENTE),
+        "mensaje": "El pago ha sido confirmado",
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+
+    return PaymentResponse.model_validate(pago)
+
+
+@router.post(
+    "/{id_pago}/reject",
+    response_model=PaymentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Rechazar comprobante (Taller/Admin)",
+)
+async def rechazar_pago(
+    id_pago: UUID,
+    body: PaymentReject,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    if _rol_texto(usuario) not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden rechazar pagos")
+
+    pago = payment_service.rechazar_pago(
+        db,
+        id_pago=id_pago,
+        id_usuario_confirma=usuario.ID_USUARIO,
+        motivo=body.motivo_rechazo,
+    )
+
+    await _broadcast({
+        "tipo": "pago_rechazado",
+        "pago_id": str(pago.ID_PAGO),
+        "incidente_id": str(pago.ID_INCIDENTE),
+        "motivo": body.motivo_rechazo,
+        "mensaje": "El comprobante de pago fue rechazado",
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+
+    return PaymentResponse.model_validate(pago)
