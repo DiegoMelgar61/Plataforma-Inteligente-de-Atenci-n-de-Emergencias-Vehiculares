@@ -1,5 +1,5 @@
 """
-Endpoints de procesamiento inteligente sobre incidentes (stubs de IA).
+Endpoints de procesamiento inteligente sobre incidentes.
 """
 from uuid import UUID
 
@@ -21,8 +21,8 @@ router = APIRouter(prefix="/incidents", tags=["Inteligencia Artificial"])
     response_model=ProcesamientoIAResponse,
     summary="Procesar incidente con IA",
     description=(
-        "Ejecuta transccripción, análisis de imágenes (stubs), clasificación y resumen. "
-        "Solo el cliente dueño del incidente puede invocarlo."
+        "Ejecuta transcripcion, analisis de imagen/audio, clasificacion y resumen. "
+        "Solo el cliente dueno del incidente puede invocarlo."
     ),
 )
 def procesar_incidente_ia(
@@ -45,10 +45,13 @@ def procesar_incidente_ia(
     est_str = est.value if hasattr(est, "value") else str(est)
     cls = actualizado.CLASIFICACION
     cls_str = cls.value if hasattr(cls, "value") else str(cls)
+    pr = actualizado.PRIORIDAD
+    pr_str = pr.value if hasattr(pr, "value") else str(pr)
 
     return ProcesamientoIAResponse(
         id_incidente=actualizado.ID_INCIDENTE,
         estado=est_str,
         clasificacion=cls_str,
+        prioridad=pr_str,
         resumen_ia=actualizado.RESUMEN_IA,
     )

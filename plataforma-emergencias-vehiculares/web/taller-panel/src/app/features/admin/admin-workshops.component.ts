@@ -1,8 +1,17 @@
-import { Component, inject, signal, OnInit, computed } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import * as L from 'leaflet';
 import { AdminService } from '../../core/services/admin.service';
 import { Taller, TallerCreate } from '../../models';
+
+// Fix Leaflet default marker icon paths broken by bundlers
+const markerIcon = L.divIcon({
+  html: `<div style="background:#3b82f6;width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45);"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  className: '',
+});
 
 @Component({
   selector: 'app-admin-workshops',
@@ -108,6 +117,11 @@ import { Taller, TallerCreate } from '../../models';
                     <span>📍</span> {{ t.direccion }}
                   </div>
                 }
+                @if (t.latitud != null && t.longitud != null) {
+                  <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
+                    <span>🗺️</span> {{ t.latitud | number:'1.4-4' }}, {{ t.longitud | number:'1.4-4' }}
+                  </div>
+                }
                 <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
                   <span>💰</span> Comisión: <span class="font-semibold" style="color: var(--text-secondary);">{{ t.tasa_comision }}%</span>
                 </div>
@@ -132,7 +146,7 @@ import { Taller, TallerCreate } from '../../models';
     <!-- Modal -->
     @if (showModal()) {
       <div class="modal-overlay" (click)="closeModal()">
-        <div class="modal fade-in" (click)="$event.stopPropagation()">
+        <div class="modal fade-in" style="max-height:90vh;overflow-y:auto;" (click)="$event.stopPropagation()">
           <h2 class="text-base font-semibold mb-5" style="color: var(--text-primary);">
             {{ editingId() ? 'Editar taller' : 'Crear nuevo taller' }}
           </h2>
@@ -161,8 +175,28 @@ import { Taller, TallerCreate } from '../../models';
             </div>
             <div>
               <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">Dirección</label>
-              <input type="text" [(ngModel)]="form.direccion" class="input" placeholder="Av. Principal 123, La Paz" />
+              <input type="text" [(ngModel)]="form.direccion" class="input" placeholder="Av. Principal 123, Santa Cruz" />
             </div>
+
+            <!-- Mapa Leaflet -->
+            <div>
+              <label class="block text-xs font-medium mb-1" style="color: var(--text-secondary);">Ubicación en mapa</label>
+              <p class="text-xs mb-2" style="color: var(--text-muted);">Haz clic en el mapa o arrastra el marcador para posicionar el taller.</p>
+              <div id="taller-map" style="height:240px;border-radius:8px;overflow:hidden;border:1px solid var(--border);"></div>
+              <div class="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <label class="block text-xs mb-1" style="color: var(--text-muted);">Latitud</label>
+                  <input type="number" [(ngModel)]="form.latitud" (ngModelChange)="onLatChange($event)"
+                         class="input text-xs" step="0.0000001" placeholder="-17.7833000" />
+                </div>
+                <div>
+                  <label class="block text-xs mb-1" style="color: var(--text-muted);">Longitud</label>
+                  <input type="number" [(ngModel)]="form.longitud" (ngModelChange)="onLngChange($event)"
+                         class="input text-xs" step="0.0000001" placeholder="-63.1821000" />
+                </div>
+              </div>
+            </div>
+
             @if (editingId()) {
               <div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg-base);">
                 <input type="checkbox" [(ngModel)]="formActivo" id="activo" class="w-4 h-4" />
@@ -182,7 +216,7 @@ import { Taller, TallerCreate } from '../../models';
     }
   `,
 })
-export class AdminWorkshopsComponent implements OnInit {
+export class AdminWorkshopsComponent implements OnInit, OnDestroy {
   private adminService = inject(AdminService);
 
   loading = signal(true);
@@ -195,7 +229,10 @@ export class AdminWorkshopsComponent implements OnInit {
   search = '';
   formActivo = true;
 
-  form: TallerCreate = { nombre_negocio: '', nit: '', direccion: '', tasa_comision: 10 };
+  form: TallerCreate = { nombre_negocio: '', nit: '', direccion: '', tasa_comision: 10, latitud: null, longitud: null };
+
+  private map: L.Map | null = null;
+  private marker: L.Marker | null = null;
 
   statusFilters = [
     { label: 'Todos', value: '' },
@@ -222,6 +259,8 @@ export class AdminWorkshopsComponent implements OnInit {
 
   ngOnInit(): void { this.reload(); }
 
+  ngOnDestroy(): void { this.destroyMap(); }
+
   reload(): void {
     this.loading.set(true);
     this.adminService.getWorkshops(false).subscribe({
@@ -232,21 +271,34 @@ export class AdminWorkshopsComponent implements OnInit {
 
   openCreate(): void {
     this.editingId.set(null);
-    this.form = { nombre_negocio: '', nit: '', direccion: '', tasa_comision: 10 };
+    this.form = { nombre_negocio: '', nit: '', direccion: '', tasa_comision: 10, latitud: null, longitud: null };
     this.formActivo = true;
     this.formError.set(null);
     this.showModal.set(true);
+    setTimeout(() => this.initMap(), 50);
   }
 
   openEdit(t: Taller): void {
     this.editingId.set(t.id_taller);
-    this.form = { nombre_negocio: t.nombre_negocio, nit: t.nit || '', direccion: t.direccion || '', tasa_comision: Number(t.tasa_comision) };
+    this.form = {
+      nombre_negocio: t.nombre_negocio,
+      nit: t.nit || '',
+      direccion: t.direccion || '',
+      tasa_comision: Number(t.tasa_comision),
+      latitud: t.latitud ?? null,
+      longitud: t.longitud ?? null,
+    };
     this.formActivo = t.activo;
     this.formError.set(null);
     this.showModal.set(true);
+    setTimeout(() => this.initMap(t.latitud ?? undefined, t.longitud ?? undefined), 50);
   }
 
-  closeModal(): void { this.showModal.set(false); this.formError.set(null); }
+  closeModal(): void {
+    this.destroyMap();
+    this.showModal.set(false);
+    this.formError.set(null);
+  }
 
   save(): void {
     if (!this.form.nombre_negocio) return;
@@ -270,7 +322,73 @@ export class AdminWorkshopsComponent implements OnInit {
     });
   }
 
+  onLatChange(value: number | null): void {
+    if (value == null || isNaN(value) || value < -90 || value > 90) return;
+    const lng = this.form.longitud;
+    if (lng == null) return;
+    this.setMarker(value, lng);
+  }
+
+  onLngChange(value: number | null): void {
+    if (value == null || isNaN(value) || value < -180 || value > 180) return;
+    const lat = this.form.latitud;
+    if (lat == null) return;
+    this.setMarker(lat, value);
+  }
+
   formatDate(d: string): string {
     return new Date(d).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  private initMap(lat?: number, lng?: number): void {
+    this.destroyMap();
+    const centerLat = lat ?? -17.7833;
+    const centerLng = lng ?? -63.1821;
+    const zoom = (lat != null && lng != null) ? 15 : 11;
+
+    this.map = L.map('taller-map').setView([centerLat, centerLng], zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(this.map);
+
+    if (lat != null && lng != null) {
+      this.placeMarker(lat, lng);
+    }
+
+    this.map.on('click', (e: L.LeafletMouseEvent) => {
+      const { lat: clickLat, lng: clickLng } = e.latlng;
+      this.form.latitud = parseFloat(clickLat.toFixed(7));
+      this.form.longitud = parseFloat(clickLng.toFixed(7));
+      this.placeMarker(this.form.latitud, this.form.longitud);
+    });
+  }
+
+  private placeMarker(lat: number, lng: number): void {
+    if (!this.map) return;
+    if (this.marker) {
+      this.marker.setLatLng([lat, lng]);
+    } else {
+      this.marker = L.marker([lat, lng], { icon: markerIcon, draggable: true }).addTo(this.map);
+      this.marker.on('dragend', () => {
+        const pos = this.marker!.getLatLng();
+        this.form.latitud = parseFloat(pos.lat.toFixed(7));
+        this.form.longitud = parseFloat(pos.lng.toFixed(7));
+      });
+    }
+  }
+
+  private setMarker(lat: number, lng: number): void {
+    if (!this.map) return;
+    this.placeMarker(lat, lng);
+    this.map.setView([lat, lng], this.map.getZoom());
+  }
+
+  private destroyMap(): void {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+      this.marker = null;
+    }
   }
 }

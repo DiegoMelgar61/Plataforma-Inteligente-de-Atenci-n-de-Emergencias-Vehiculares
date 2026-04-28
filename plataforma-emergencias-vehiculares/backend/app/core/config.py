@@ -41,4 +41,7 @@ class Settings(BaseSettings):
     COMPROBANTES_URL_PREFIX: str = "/static/comprobantes"
     """Prefijo URL público para servir comprobantes de pago vía StaticFiles en main."""
 
+    GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = 'gemini-2.5-flash'
+
 settings = Settings()

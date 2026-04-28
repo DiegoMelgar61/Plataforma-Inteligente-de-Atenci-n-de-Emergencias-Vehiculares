@@ -137,6 +137,10 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
         _StatusCard(incident: incident),
         const SizedBox(height: 16),
         _InfoSection(incident: incident),
+        if (incident.resumenIa != null && incident.resumenIa!.trim().isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _AiAnalysisSection(rawSummary: incident.resumenIa!),
+        ],
         const SizedBox(height: 16),
         if (incident.evidencias.isNotEmpty) ...[
           _EvidenceSection(evidencias: incident.evidencias),
@@ -372,6 +376,120 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+class _AiAnalysisSection extends StatelessWidget {
+  final String rawSummary;
+  const _AiAnalysisSection({required this.rawSummary});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final resumen = _extractMainSummary(rawSummary);
+    final danos = _extractLine(rawSummary, 'Danos visibles:') ??
+        _extractLine(rawSummary, 'Danos visibles:');
+    final recomendaciones = _extractLine(rawSummary, 'Recomendaciones:');
+    final confianza = _extractLine(rawSummary, 'Confianza IA:');
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.smart_toy_outlined),
+                const SizedBox(width: 8),
+                Text(
+                  'Analisis IA',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(),
+            Text(resumen, style: Theme.of(context).textTheme.bodyMedium),
+            if (danos != null && danos.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _AiSubBlock(title: 'Danos visibles', value: danos),
+            ],
+            if (recomendaciones != null && recomendaciones.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _AiSubBlock(title: 'Recomendaciones', value: recomendaciones),
+            ],
+            if (confianza != null && confianza.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Confianza IA: $confianza',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _extractMainSummary(String raw) {
+    return raw
+        .split('\n')
+        .map((x) => x.trim())
+        .where((x) =>
+            x.isNotEmpty &&
+            !x.startsWith('Recomendaciones:') &&
+            !x.startsWith('Danos visibles:') &&
+            !x.startsWith('Confianza IA:'))
+        .join(' ');
+  }
+
+  static String? _extractLine(String raw, String prefix) {
+    final line = raw
+        .split('\n')
+        .map((x) => x.trim())
+        .firstWhere(
+          (x) => x.startsWith(prefix),
+          orElse: () => '',
+        );
+    if (line.isEmpty) return null;
+    return line.replaceFirst(prefix, '').trim();
+  }
+}
+
+class _AiSubBlock extends StatelessWidget {
+  final String title;
+  final String value;
+  const _AiSubBlock({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(value, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Evidence section ──────────────────────────────────────────────────────────
 
 class _EvidenceSection extends StatelessWidget {
@@ -507,3 +625,4 @@ class _NotificationsSection extends StatelessWidget {
     );
   }
 }
+

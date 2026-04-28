@@ -11,7 +11,6 @@ from app.core.database import get_db
 from app.models.models import TALLERES, USUARIOS
 from app.presentation.api.v1.dependencies.auth import (
     get_current_active_user,
-    get_current_taller,
 )
 from app.presentation.api.v1.schemas.workshop import (
     WorkshopCreate,
@@ -66,15 +65,23 @@ def obtener_taller(
 def crear_taller(
     datos: WorkshopCreate,
     db: Session = Depends(get_db),
-    dueno: USUARIOS = Depends(get_current_taller),
+    usuario: USUARIOS = Depends(get_current_active_user),
 ):
     """
-    Crea el registro de taller vinculado al usuario (un taller por cuenta).
-    Requiere rol TALLER.
+    Crea el registro de taller.
+    - TALLER: crea su propio taller (máximo 1 por cuenta).
+    - ADMIN: puede crear talleres sin vincularlos a una cuenta dueña.
     """
-    existente = db.query(TALLERES).filter(TALLERES.ID_USUARIO == dueno.ID_USUARIO).first()
-    if existente:
-        raise HTTPException(status_code=400, detail="Este usuario ya tiene un taller registrado")
+    rol = _rol_texto(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres o admins pueden crear talleres")
+
+    id_usuario_dueno = None
+    if rol == "TALLER":
+        existente = db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
+        if existente:
+            raise HTTPException(status_code=400, detail="Este usuario ya tiene un taller registrado")
+        id_usuario_dueno = usuario.ID_USUARIO
 
     if datos.nit:
         nit_ocupado = db.query(TALLERES).filter(TALLERES.NIT == datos.nit).first()
@@ -82,11 +89,13 @@ def crear_taller(
             raise HTTPException(status_code=400, detail="El NIT ya está registrado")
 
     taller = TALLERES(
-        ID_USUARIO=dueno.ID_USUARIO,
+        ID_USUARIO=id_usuario_dueno,
         NOMBRE_NEGOCIO=datos.nombre_negocio,
         NIT=datos.nit,
         DIRECCION=datos.direccion,
         TASA_COMISION=datos.tasa_comision if datos.tasa_comision is not None else Decimal("10.00"),
+        LATITUD=datos.latitud,
+        LONGITUD=datos.longitud,
         ACTIVO=True,
     )
     db.add(taller)
@@ -126,6 +135,10 @@ def actualizar_taller(
         t.DIRECCION = datos.direccion
     if datos.tasa_comision is not None:
         t.TASA_COMISION = datos.tasa_comision
+    if datos.latitud is not None:
+        t.LATITUD = datos.latitud
+    if datos.longitud is not None:
+        t.LONGITUD = datos.longitud
     if datos.activo is not None:
         t.ACTIVO = datos.activo
 
