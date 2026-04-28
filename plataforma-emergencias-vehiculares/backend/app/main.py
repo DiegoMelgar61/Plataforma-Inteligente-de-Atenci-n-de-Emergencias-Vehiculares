@@ -2,8 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -100,6 +101,22 @@ app.include_router(incidents_router)
 app.include_router(assignments_router)
 app.include_router(notifications_router)
 app.include_router(payments_router)
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Captura excepciones no controladas (ej. errores de BD) antes de que lleguen a
+    ServerErrorMiddleware de Starlette. Al retornar desde aquí la respuesta pasa por
+    CORSMiddleware y recibe las cabeceras Access-Control-Allow-Origin correctas.
+    Sin este handler, Starlette devuelve el 500 bypassando el send-callback de CORS
+    y el browser lo reporta como bloqueo CORS aunque la config sea correcta.
+    """
+    logger.exception("Error no controlado en %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Error interno del servidor. Intente de nuevo más tarde."},
+    )
 
 
 @app.get("/health")
