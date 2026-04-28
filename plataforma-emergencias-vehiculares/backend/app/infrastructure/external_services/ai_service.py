@@ -296,11 +296,19 @@ def ejecutar_pipeline_procesamiento_incidente(db: Session, id_incidente: UUID) -
         transcripcion = ai_raw.get("transcripcion_audio")
         analisis_imagen = ai_raw.get("resultado_imagen")
 
-        # Si Gemini devolvio transcripcion y hay audio, persistirla en la primera evidencia de audio.
+        # Persistir transcripcion en la primera evidencia de audio.
         if isinstance(transcripcion, str) and transcripcion.strip():
             for ev in evidencias:
                 if _enum_to_text(ev.TIPO) == "AUDIO":
                     ev.TEXTO_TRANSCRITO = transcripcion.strip()
+                    db.add(ev)
+                    break
+
+        # Persistir análisis de imagen en la evidencia IMAGEN correspondiente.
+        if isinstance(analisis_imagen, str) and analisis_imagen.strip():
+            for ev in evidencias:
+                if _enum_to_text(ev.TIPO) == "IMAGEN":
+                    ev.ANALISIS_IA = analisis_imagen.strip()
                     db.add(ev)
                     break
 

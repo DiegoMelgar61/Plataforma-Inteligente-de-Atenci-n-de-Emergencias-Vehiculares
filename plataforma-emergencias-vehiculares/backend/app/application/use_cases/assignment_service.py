@@ -179,7 +179,12 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
     distancia_km = candidato_elegido["distancia_km"]
 
     try:
-        # Crear asignación
+        # Marcar técnico como no disponible en la misma transacción
+        tecnico = db.query(TECNICOS).filter(TECNICOS.ID_TECNICO == id_tecnico).first()
+        if tecnico:
+            tecnico.DISPONIBLE = False
+            db.add(tecnico)
+
         asignacion = ASIGNACIONES(
             ID_INCIDENTE=incidente_id,
             ID_TALLER=id_taller,
@@ -187,19 +192,11 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
         )
         db.add(asignacion)
 
-        # Actualizar estado del incidente a "ASIGNADO"
         incidente.ESTADO = "ASIGNADO"
         db.add(incidente)
 
         db.commit()
         db.refresh(asignacion)
-
-        # Marcar técnico como no disponible
-        tecnico = db.query(TECNICOS).filter(TECNICOS.ID_TECNICO == id_tecnico).first()
-        if tecnico:
-            tecnico.DISPONIBLE = False
-            db.add(tecnico)
-            db.commit()
 
         logger.info(
             "Incidente %s asignado a taller %s (distancia: %.2f km)",
@@ -209,7 +206,7 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
         )
         return asignacion
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error al asignar incidente %s", incidente_id)
         db.rollback()
         return None

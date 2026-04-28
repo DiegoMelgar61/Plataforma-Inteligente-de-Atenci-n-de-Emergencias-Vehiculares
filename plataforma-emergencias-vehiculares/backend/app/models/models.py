@@ -109,6 +109,7 @@ class EVIDENCIAS(Base):
     URL_ARCHIVO = Column("url_archivo", Text, nullable=False)
     CLAVE_ARCHIVO = Column("clave_archivo", Text)
     TEXTO_TRANSCRITO = Column("texto_transcrito", Text)
+    ANALISIS_IA = Column("analisis_ia", Text, nullable=True)
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
 
 

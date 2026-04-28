@@ -39,6 +39,7 @@ class EvidenceItemResponse(BaseModel):
     url_archivo: str = Field(validation_alias="URL_ARCHIVO")
     clave_archivo: str | None = Field(validation_alias="CLAVE_ARCHIVO")
     texto_transcrito: str | None = Field(validation_alias="TEXTO_TRANSCRITO")
+    analisis_ia: str | None = Field(default=None, validation_alias="ANALISIS_IA")
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
 
 

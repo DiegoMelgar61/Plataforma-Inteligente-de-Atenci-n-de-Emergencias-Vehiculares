@@ -211,11 +211,6 @@ def obtener_talleres_disponibles(
     )
 
 
-def _rol_texto(usuario: USUARIOS) -> str:
-    r = usuario.ROL
-    return r.value if hasattr(r, "value") else str(r)
-
-
 @router.get(
     "/my",
     summary="Mis asignaciones (Taller)",
