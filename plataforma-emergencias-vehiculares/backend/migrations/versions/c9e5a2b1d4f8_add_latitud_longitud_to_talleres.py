@@ -9,7 +9,6 @@ Create Date: 2026-04-28 00:00:00.000000
 """
 from typing import Sequence, Union
 
-import sqlalchemy as sa
 from alembic import op
 
 
@@ -20,10 +19,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("talleres", sa.Column("latitud", sa.DECIMAL(10, 7), nullable=True))
-    op.add_column("talleres", sa.Column("longitud", sa.DECIMAL(10, 7), nullable=True))
+    op.execute("ALTER TABLE talleres ADD COLUMN IF NOT EXISTS latitud NUMERIC(10,7)")
+    op.execute("ALTER TABLE talleres ADD COLUMN IF NOT EXISTS longitud NUMERIC(10,7)")
 
 
 def downgrade() -> None:
-    op.drop_column("talleres", "longitud")
-    op.drop_column("talleres", "latitud")
+    op.execute("ALTER TABLE talleres DROP COLUMN IF EXISTS longitud")
+    op.execute("ALTER TABLE talleres DROP COLUMN IF EXISTS latitud")
