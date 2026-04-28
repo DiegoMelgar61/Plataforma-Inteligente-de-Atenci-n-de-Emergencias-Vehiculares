@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import verificar_token
-from app.models.models import USUARIOS
+from app.models.models import TECNICOS, USUARIOS
 
 # Debe coincidir con la ruta real del login (router auth: prefix /auth + /login)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -104,3 +104,36 @@ def get_current_admin(
             detail="Se requieren permisos de administrador",
         )
     return usuario
+
+
+def get_current_tecnico_usuario(
+    usuario: USUARIOS = Depends(get_current_active_user),
+) -> USUARIOS:
+    """Solo cuentas con rol TECNICO (devuelve el USUARIOS ORM)."""
+    if _rol_como_texto(usuario.ROL) != "TECNICO":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta operación solo está disponible para técnicos",
+        )
+    return usuario
+
+
+def get_current_tecnico(
+    usuario: USUARIOS = Depends(get_current_tecnico_usuario),
+    db: Session = Depends(get_db),
+) -> TECNICOS:
+    """
+    Resuelve el registro TECNICOS del usuario con rol TECNICO.
+    Lanza 404 si el usuario tiene el rol pero no tiene perfil de técnico creado.
+    """
+    tecnico = (
+        db.query(TECNICOS)
+        .filter(TECNICOS.ID_USUARIO == usuario.ID_USUARIO)
+        .first()
+    )
+    if tecnico is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Perfil de técnico no encontrado para este usuario",
+        )
+    return tecnico

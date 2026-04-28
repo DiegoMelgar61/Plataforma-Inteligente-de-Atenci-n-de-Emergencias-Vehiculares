@@ -6,7 +6,7 @@ from app.core.database import Base
 import uuid
 
 # ==================== ENUMS ====================
-RolEnum = Enum('CLIENTE', 'TALLER', 'ADMIN', name='rol_enum')
+RolEnum = Enum('CLIENTE', 'TALLER', 'ADMIN', 'TECNICO', name='rol_enum')
 EstadoIncidenteEnum = Enum('PENDIENTE', 'EN_PROCESO_IA', 'CLASIFICADO', 'ASIGNADO',
                            'EN_CAMINO', 'EN_PROCESO', 'ATENDIDO', 'CANCELADO', 'INCIERTO',
                            name='estado_incidente_enum')
@@ -48,6 +48,8 @@ class TALLERES(Base):
     NIT = Column("nit", String(50), unique=True)
     DIRECCION = Column("direccion", Text)
     TASA_COMISION = Column("tasa_comision", DECIMAL(5, 2), default=10.00)
+    LATITUD = Column("latitud", DECIMAL(10, 7), nullable=True)
+    LONGITUD = Column("longitud", DECIMAL(10, 7), nullable=True)
     ACTIVO = Column("activo", Boolean, default=True)
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
@@ -58,6 +60,9 @@ class TECNICOS(Base):
 
     ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller", ondelete="CASCADE"), nullable=False)
+    # Cuenta de login del técnico (usuario con rol TECNICO). Nullable para
+    # compatibilidad con técnicos creados antes de esta columna.
+    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="SET NULL"), unique=True, nullable=True)
     NOMBRE_COMPLETO = Column("nombre_completo", String(255), nullable=False)
     TELEFONO = Column("telefono", String(20))
     DISPONIBLE = Column("disponible", Boolean, default=True)

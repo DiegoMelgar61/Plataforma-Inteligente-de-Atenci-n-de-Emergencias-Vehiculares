@@ -28,6 +28,8 @@ export interface Taller {
   nit?: string;
   direccion?: string;
   tasa_comision: number;
+  latitud?: number | null;
+  longitud?: number | null;
   activo: boolean;
   fecha_creacion: string;
   fecha_actualizacion?: string;
@@ -38,6 +40,8 @@ export interface TallerCreate {
   nit?: string;
   direccion?: string;
   tasa_comision?: number;
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 export interface Tecnico {

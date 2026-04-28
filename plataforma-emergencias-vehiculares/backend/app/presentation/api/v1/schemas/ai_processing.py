@@ -9,4 +9,5 @@ class ProcesamientoIAResponse(BaseModel):
     id_incidente: UUID
     estado: str = Field(description="Estado del incidente tras el pipeline (ej. CLASIFICADO)")
     clasificacion: str
+    prioridad: str
     resumen_ia: str | None = None

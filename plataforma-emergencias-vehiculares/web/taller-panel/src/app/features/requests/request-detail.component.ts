@@ -92,10 +92,25 @@ import { environment } from '../../../environments/environment';
               <div class="surface p-5" style="border-left: 3px solid var(--accent);">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-lg">🤖</span>
-                  <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Análisis de IA</h2>
+                  <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Analisis IA</h2>
                   <span class="badge-blue badge text-xs">Clasificación automática</span>
                 </div>
-                <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">{{ incident()!.resumen_ia }}</p>
+                <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">{{ aiResumenPrincipal() }}</p>
+                @if (aiDanosVisibles()) {
+                  <div class="mt-3 p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                    <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--text-muted);">Danos visibles</p>
+                    <p class="text-sm" style="color: var(--text-secondary);">{{ aiDanosVisibles() }}</p>
+                  </div>
+                }
+                @if (aiRecomendaciones()) {
+                  <div class="mt-3 p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                    <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--text-muted);">Recomendaciones</p>
+                    <p class="text-sm" style="color: var(--text-secondary);">{{ aiRecomendaciones() }}</p>
+                  </div>
+                }
+                @if (aiConfianza()) {
+                  <p class="text-xs mt-3" style="color: var(--text-muted);">Confianza IA: {{ aiConfianza() }}</p>
+                }
               </div>
             }
 
@@ -359,7 +374,41 @@ export class RequestDetailComponent implements OnInit {
     const inc = this.incident();
     return `https://maps.google.com/?q=${inc?.latitud},${inc?.longitud}`;
   }
+  aiResumenPrincipal(): string {
+    const raw = this.incident()?.resumen_ia || '';
+    if (!raw) return '';
+    return raw
+      .split('\n')
+      .filter(line =>
+        !line.startsWith('Recomendaciones:') &&
+        !line.startsWith('Danos visibles:') &&
+        !line.startsWith('Confianza IA:')
+      )
+      .join(' ')
+      .trim();
+  }
 
+  aiRecomendaciones(): string {
+    return this.extractAiSection('Recomendaciones:');
+  }
+
+  aiDanosVisibles(): string {
+    return this.extractAiSection('Danos visibles:');
+  }
+
+  aiConfianza(): string {
+    return this.extractAiSection('Confianza IA:');
+  }
+
+  private extractAiSection(prefix: string): string {
+    const raw = this.incident()?.resumen_ia || '';
+    if (!raw) return '';
+    const line = raw
+      .split('\n')
+      .map(x => x.trim())
+      .find(x => x.startsWith(prefix));
+    return line ? line.replace(prefix, '').trim() : '';
+  }
   bannerStyle(e: string): string {
     const styles: Record<string,string> = {
       PENDIENTE: 'background:linear-gradient(135deg,rgba(249,115,22,0.15),rgba(249,115,22,0.08));color:#fdba74;border:1px solid rgba(249,115,22,0.2)',
@@ -395,3 +444,6 @@ export class RequestDetailComponent implements OnInit {
     return `${environment.apiUrl.replace('/api/v1', '')}${url}`;
   }
 }
+
+
+
