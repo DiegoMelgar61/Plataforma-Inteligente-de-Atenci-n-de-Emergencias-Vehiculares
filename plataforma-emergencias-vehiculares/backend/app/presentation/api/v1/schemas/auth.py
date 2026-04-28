@@ -6,7 +6,7 @@ class UserCreate(BaseModel):
     contrasena: str
     nombre_completo: str
     telefono: str | None = None
-    rol: Literal["CLIENTE", "TALLER", "ADMIN"] = "CLIENTE"
+    rol: Literal["CLIENTE", "TALLER", "ADMIN", "TECNICO"] = "CLIENTE"
 
 class UserLogin(BaseModel):
     correo_electronico: EmailStr
