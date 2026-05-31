@@ -5,7 +5,7 @@ import { AuthService } from '../core/services/auth.service';
 
 interface NavItem {
   label: string;
-  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'history' | 'users' | 'workshops';
+  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'history' | 'users' | 'workshops' | 'tenants';
   route: string;
   adminOnly?: boolean;
   badge?: string;
@@ -20,7 +20,7 @@ interface NavItem {
     .nav-link {
       display: flex; align-items: center; gap: 12px; padding: 10px 12px;
       border-radius: 12px; font-size: 13px; font-weight: 600;
-      color: rgba(255,255,255,0.62); transition: all 200ms ease;
+      color: rgba(255,255,255,0.62); transition: all 250ms ease;
       text-decoration: none; cursor: pointer; white-space: nowrap;
     }
     .nav-link:hover { color: #fff; background: rgba(255,255,255,0.06); }
@@ -30,29 +30,58 @@ interface NavItem {
       box-shadow: var(--neon-glow);
     }
     .nav-link:hover .icon-wrap, .nav-link.active .icon-wrap { color: #fff; opacity: 1; }
-    .icon-wrap { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.84; transition: color 200ms ease, opacity 200ms ease; }
+    .icon-wrap { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.84; transition: color 250ms ease, opacity 250ms ease; }
     .icon-wrap svg { width: 18px; height: 18px; }
-    .sidebar { transition: width 0.25s ease; overflow: hidden; }
+    .sidebar { transition: width 250ms ease, opacity 250ms ease; overflow: hidden; }
+    .sidebar-header, .brand, .user-card, .logout-link {
+      transition: all 250ms ease;
+    }
     .logo-text, .nav-label, .section-label, .user-info {
-      transition: opacity 0.2s ease, max-width 0.2s ease;
+      transition: opacity 250ms ease, max-width 250ms ease;
       overflow: hidden; white-space: nowrap;
     }
+    .nav-label { max-width: 160px; }
     .collapsed .logo-text,
     .collapsed .nav-label,
     .collapsed .section-label,
     .collapsed .user-info {
       opacity: 0; max-width: 0; pointer-events: none;
     }
+    .collapsed .nav-link {
+      justify-content: center;
+      gap: 0;
+      padding: 10px;
+    }
+    .collapsed .sidebar-header {
+      justify-content: center;
+    }
+    .collapsed .brand {
+      opacity: 0;
+      max-width: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .collapsed .user-card {
+      justify-content: center;
+      padding: 10px;
+    }
+    .collapsed .logout-link {
+      justify-content: center;
+      gap: 0;
+      padding: 10px;
+    }
   `],
   template: `
     <aside class="sidebar fixed left-3 top-3 bottom-3 flex flex-col z-40"
            [class.collapsed]="collapsed"
            [style.width]="sidebarWidth"
-           style="background: var(--sidebar-bg); border-radius: 24px; box-shadow: 0 22px 60px rgba(22,18,31,0.24);">
+           [style.opacity]="collapsed && isMobile ? '0' : '1'"
+           [style.pointer-events]="collapsed && isMobile ? 'none' : 'auto'"
+           style="background: var(--sidebar-bg); border-radius: 24px; box-shadow: 0 22px 60px rgba(22,18,31,0.24); overflow: hidden;">
 
       <!-- Header -->
-      <div class="flex items-center h-16 px-3 flex-shrink-0" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-        <div class="flex items-center gap-3 flex-1 min-w-0">
+      <div class="sidebar-header flex items-center h-16 px-3 flex-shrink-0" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div class="brand flex items-center gap-3 flex-1 min-w-0">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-white"
                style="background: var(--accent-gradient); box-shadow: var(--neon-glow);">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +134,7 @@ interface NavItem {
 
       <!-- User footer -->
       <div class="p-3 flex-shrink-0" style="border-top: 1px solid rgba(255,255,255,0.08);">
-        <div class="flex items-center gap-3 px-3 py-3 rounded-2xl mb-2"
+        <div class="user-card flex items-center gap-3 px-3 py-3 rounded-2xl mb-2"
              style="background: rgba(255,255,255,0.06);">
           <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                style="background: var(--accent-gradient); color: #fff;">
@@ -117,7 +146,7 @@ interface NavItem {
           </div>
         </div>
         <button (click)="logout()"
-                class="nav-link w-full text-left"
+                class="logout-link nav-link w-full text-left"
                 style="color: var(--danger);">
           <span class="icon-wrap">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H3m12 0l-4-4m4 4l-4 4m7-10v12"/></svg>
@@ -138,7 +167,7 @@ export class SidebarComponent {
   isAdmin = this.auth.isAdmin;
 
   get sidebarWidth(): string {
-    if (this.collapsed) return this.isMobile ? '0px' : '56px';
+    if (this.collapsed) return this.isMobile ? '0px' : '64px';
     return '224px';
   }
 
@@ -155,6 +184,7 @@ export class SidebarComponent {
   adminNav: NavItem[] = [
     { label: 'Usuarios', icon: 'users', route: '/admin/users' },
     { label: 'Talleres', icon: 'workshops', route: '/admin/workshops' },
+    { label: 'Tenants', icon: 'tenants', route: '/tenants' },
   ];
 
   navIcon(icon: NavItem['icon']): string {
@@ -168,6 +198,7 @@ export class SidebarComponent {
       history: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v5l3 2m5-3a8 8 0 11-2.3-5.7L20 8"/></svg>',
       users: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m8-10a4 4 0 100-8 4 4 0 000 8m14 10v-2a4 4 0 00-3-3.87m-4-11.26a4 4 0 010 7.75"/></svg>',
       workshops: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>',
+      tenants: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-3h4l2 3h4a2 2 0 012 2v12a2 2 0 01-2 2zM12 11a3 3 0 100 6 3 3 0 000-6z"/></svg>',
     };
     return icons[icon];
   }

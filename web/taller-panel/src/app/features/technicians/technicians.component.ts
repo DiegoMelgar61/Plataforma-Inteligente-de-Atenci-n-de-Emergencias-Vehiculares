@@ -62,8 +62,8 @@ import { Tecnico, TecnicoCreate } from '../../models';
           <button (click)="openForm()" class="btn-primary text-sm">Agregar primer técnico</button>
         </div>
       } @else {
-        <div class="table-wrap">
-          <table class="w-full">
+        <div class="table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+          <table class="w-full" style="min-width: 640px;">
             <thead>
               <tr>
                 <th>Técnico</th>
