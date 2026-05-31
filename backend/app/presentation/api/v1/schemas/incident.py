@@ -26,6 +26,27 @@ class IncidentCreate(BaseModel):
         max_length=8000,
         description="Texto libre si no se adjuntan archivos",
     )
+    id_local: str | None = None
+
+
+class IncidentSyncItem(BaseModel):
+    """Item individual para POST /incidents/sync (sync offline)."""
+
+    id_local: str = Field(..., max_length=36, description="ID local del incidente (requerido para sync)")
+    latitud: float = Field(..., ge=-90, le=90)
+    longitud: float = Field(..., ge=-180, le=180)
+    id_vehiculo: UUID | None = None
+    prioridad: Literal["BAJA", "MEDIA", "ALTA"] = "MEDIA"
+    clasificacion: Literal["BATERIA", "LLANTA", "CHOQUE", "MOTOR", "OTROS", "INCIERTO"] = "OTROS"
+    texto_descripcion: str | None = Field(None, max_length=8000)
+
+
+class IncidentSyncResponse(BaseModel):
+    """Respuesta de POST /incidents/sync."""
+
+    sincronizados: int
+    omitidos: int
+    errores: list[str]
 
 
 class EvidenceItemResponse(BaseModel):
@@ -80,6 +101,7 @@ class IncidentResponse(BaseModel):
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
     fecha_actualizacion: datetime | None = Field(validation_alias="FECHA_ACTUALIZACION")
     id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
+    id_local: str | None = Field(None, validation_alias="ID_LOCAL")
     evidencias: list[EvidenceItemResponse] = Field(default_factory=list)
 
 

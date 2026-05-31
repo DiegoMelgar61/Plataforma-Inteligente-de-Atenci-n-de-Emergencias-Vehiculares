@@ -22,6 +22,8 @@ class AppConstants {
   static const String routeHome = '/home';
   static const String routeTechnicianHome = '/technician-home';
   static const String routeReport = '/report';
+  static const String routeOfflineReport = '/offline-report';
+  static const String routeSync = '/sync';
   static const String routeIncidents = '/incidents';
   static const String routeIncidentDetail = '/incident-detail';
   static const String routeMap = '/map';

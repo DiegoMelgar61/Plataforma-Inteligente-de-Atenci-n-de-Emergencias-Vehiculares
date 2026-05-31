@@ -27,6 +27,8 @@ from app.presentation.api.v1.schemas.incident import (
     EvidenceItemResponse,
     IncidentListResponse,
     IncidentResponse,
+    IncidentSyncItem,
+    IncidentSyncResponse,
     ReporteIncidenteResponse,
 )
 
@@ -152,6 +154,10 @@ async def reportar_incidente_multimodal(
         str | None,
         Form(description="Descripción textual si no hay archivos"),
     ] = None,
+    id_local: Annotated[
+        str | None,
+        Form(description="ID local del incidente (para sincronización offline)", max_length=36),
+    ] = None,
     imagenes: Annotated[
         list[UploadFile] | None,
         File(description="Una o más imágenes (JPEG, PNG, WEBP, GIF)"),
@@ -197,6 +203,7 @@ async def reportar_incidente_multimodal(
         UBICACION=punto,
         PRIORIDAD=prioridad or "MEDIA",
         CLASIFICACION=clasificacion or "OTROS",
+        ID_LOCAL=id_local,
         ID_TENANT=getattr(usuario, "_id_tenant", None),
     )
     db.add(incidente)
@@ -340,6 +347,76 @@ async def reportar_incidente_multimodal(
         incidente_id=incidente.ID_INCIDENTE,
         evidencias_subidas=subidas,
     )
+
+
+@router.post(
+    "/sync",
+    response_model=IncidentSyncResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sincronizar incidentes offline (Cliente)",
+    description=(
+        "Recibe una lista de incidentes creados offline y los persiste evitando duplicados. "
+        "Cada item debe incluir `id_local` único por cliente. "
+        "Si un incidente con ese `id_local` ya existe para el cliente, se omite."
+    ),
+)
+def sincronizar_incidentes(
+    items: list[IncidentSyncItem],
+    usuario: USUARIOS = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _solo_cliente(usuario)
+
+    sincronizados = 0
+    omitidos = 0
+    errores: list[str] = []
+
+    for item in items:
+        try:
+            existente = (
+                db.query(INCIDENTES)
+                .filter(
+                    INCIDENTES.ID_LOCAL == item.id_local,
+                    INCIDENTES.ID_USUARIO_CLIENTE == usuario.ID_USUARIO,
+                )
+                .first()
+            )
+            if existente:
+                omitidos += 1
+                continue
+
+            punto = WKTElement(f"POINT({item.longitud} {item.latitud})", srid=4326)
+            incidente = INCIDENTES(
+                ID_USUARIO_CLIENTE=usuario.ID_USUARIO,
+                ID_VEHICULO=item.id_vehiculo,
+                UBICACION=punto,
+                PRIORIDAD=item.prioridad or "MEDIA",
+                CLASIFICACION=item.clasificacion or "OTROS",
+                ID_LOCAL=item.id_local,
+                ID_TENANT=getattr(usuario, "_id_tenant", None),
+            )
+            db.add(incidente)
+            db.flush()
+
+            if item.texto_descripcion and item.texto_descripcion.strip():
+                eid = uuid.uuid4()
+                ev_txt = EVIDENCIAS(
+                    ID_EVIDENCIA=eid,
+                    ID_INCIDENTE=incidente.ID_INCIDENTE,
+                    TIPO="TEXTO",
+                    URL_ARCHIVO=_url_temporal_evidencia(eid),
+                    CLAVE_ARCHIVO=None,
+                    TEXTO_TRANSCRITO=item.texto_descripcion.strip(),
+                )
+                db.add(ev_txt)
+
+            db.commit()
+            sincronizados += 1
+        except Exception as exc:
+            db.rollback()
+            errores.append(f"{item.id_local}: {exc}")
+
+    return IncidentSyncResponse(sincronizados=sincronizados, omitidos=omitidos, errores=errores)
 
 
 @router.get(

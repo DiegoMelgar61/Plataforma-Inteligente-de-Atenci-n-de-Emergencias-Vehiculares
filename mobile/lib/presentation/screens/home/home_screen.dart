@@ -31,17 +31,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final pendientesAsync = ref.watch(pendientesCountProvider);
+    final conectado = ref.watch(connectivityProvider).value ?? true;
+    final pendientes = pendientesAsync.value ?? 0;
+
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
+      body: Column(
+        children: [
+          if (!conectado)
+            SafeArea(
+              bottom: false,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: Colors.orange.shade800,
+                child: const Text(
+                  'Sin conexion - modo offline activo',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _tabs,
+            ),
+          ),
+        ],
       ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  Navigator.pushNamed(context, AppConstants.routeReport),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                conectado
+                    ? AppConstants.routeReport
+                    : AppConstants.routeOfflineReport,
+              ),
               icon: const Icon(Icons.add_alert),
-              label: const Text('Reportar emergencia'),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Reportar emergencia'),
+                  if (pendientes > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.onError,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$pendientes',
+                        style: TextStyle(
+                          color: colorScheme.error,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               backgroundColor: colorScheme.error,
               foregroundColor: colorScheme.onError,
             )
@@ -162,6 +218,17 @@ class _DashboardTab extends ConsumerWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.cloud_sync_outlined),
+                title: const Text('Emergencias offline'),
+                subtitle: const Text('Revisa y sincroniza reportes pendientes'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pushNamed(context, AppConstants.routeSync),
               ),
             ),
             const SizedBox(height: 20),
