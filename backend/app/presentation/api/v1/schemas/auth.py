@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, EmailStr
 from typing import Literal
 
@@ -7,6 +9,7 @@ class UserCreate(BaseModel):
     nombre_completo: str
     telefono: str | None = None
     rol: Literal["CLIENTE", "TALLER", "ADMIN", "TECNICO"] = "CLIENTE"
+    id_tenant: UUID | None = None
 
 class UserLogin(BaseModel):
     correo_electronico: EmailStr

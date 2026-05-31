@@ -44,6 +44,10 @@ def listar_talleres(
     q = db.query(TALLERES)
     if solo_activos:
         q = q.filter(TALLERES.ACTIVO.is_(True))
+    if _rol_texto(usuario) != "ADMIN":
+        id_tenant = getattr(usuario, "_id_tenant", None)
+        if id_tenant is not None:
+            q = q.filter(TALLERES.ID_TENANT == id_tenant)
     items = q.order_by(TALLERES.NOMBRE_NEGOCIO).all()
     return [WorkshopResponse.model_validate(t) for t in items]
 
@@ -97,6 +101,7 @@ def crear_taller(
         LATITUD=datos.latitud,
         LONGITUD=datos.longitud,
         ACTIVO=True,
+        ID_TENANT=getattr(usuario, "_id_tenant", None),
     )
     db.add(taller)
     db.commit()

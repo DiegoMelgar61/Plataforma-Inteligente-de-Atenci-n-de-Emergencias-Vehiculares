@@ -20,7 +20,7 @@ import { Incident } from '../../models';
       <div class="surface p-3 flex flex-wrap items-center gap-3">
         <div class="relative flex-1 min-w-48">
           <input [(ngModel)]="search" class="input pl-8 py-2 text-sm" placeholder="Buscar por ID o tipo..." />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">🔍</span>
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">/</span>
         </div>
         <select [(ngModel)]="filterEstado" class="input text-sm w-40">
           <option value="">Todos los estados</option>
@@ -35,7 +35,7 @@ import { Incident } from '../../models';
           }
         </select>
         @if (search || filterEstado || filterClasif) {
-          <button (click)="clearFilters()" class="btn-ghost text-xs">✕ Limpiar</button>
+          <button (click)="clearFilters()" class="btn-ghost text-xs">Limpiar</button>
         }
       </div>
 
@@ -43,7 +43,6 @@ import { Incident } from '../../models';
       <div class="grid grid-cols-4 gap-3">
         @for (s of stats(); track s.label) {
           <div class="surface p-4 flex items-center gap-3">
-            <span class="text-xl">{{ s.icon }}</span>
             <div>
               <p class="text-xl font-bold" [style.color]="s.color">{{ s.value }}</p>
               <p class="text-xs" style="color: var(--text-muted);">{{ s.label }}</p>
@@ -61,7 +60,6 @@ import { Incident } from '../../models';
         </div>
       } @else if (filtered().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">📜</span>
           <p class="text-sm" style="color: var(--text-muted);">Sin resultados para esta búsqueda</p>
         </div>
       } @else {
@@ -86,7 +84,6 @@ import { Incident } from '../../models';
                   </td>
                   <td>
                     <div class="flex items-center gap-2">
-                      <span>{{ classIcon(inc.clasificacion) }}</span>
                       <span class="font-medium text-sm" style="color: var(--text-primary);">{{ inc.clasificacion }}</span>
                     </div>
                   </td>
@@ -98,7 +95,7 @@ import { Incident } from '../../models';
                   </td>
                   <td class="max-w-xs">
                     @if (inc.resumen_ia) {
-                      <p class="text-xs truncate" style="color: var(--text-muted);">🤖 {{ inc.resumen_ia }}</p>
+                      <p class="text-xs truncate" style="color: var(--text-muted);">IA: {{ inc.resumen_ia }}</p>
                     } @else {
                       <span style="color: var(--text-muted);">—</span>
                     }
@@ -139,10 +136,10 @@ export class HistoryComponent implements OnInit {
   stats = computed(() => {
     const list = this.incidents();
     return [
-      { label: 'Total', value: list.length, icon: '📊', color: 'var(--text-primary)' },
-      { label: 'Atendidos', value: list.filter(i => i.estado === 'ATENDIDO').length, icon: '✅', color: 'var(--success)' },
-      { label: 'Cancelados', value: list.filter(i => i.estado === 'CANCELADO').length, icon: '❌', color: 'var(--danger)' },
-      { label: 'Con análisis IA', value: list.filter(i => !!i.resumen_ia).length, icon: '🤖', color: 'var(--accent)' },
+      { label: 'Total', value: list.length, color: 'var(--text-primary)' },
+      { label: 'Atendidos', value: list.filter(i => i.estado === 'ATENDIDO').length, color: 'var(--success)' },
+      { label: 'Cancelados', value: list.filter(i => i.estado === 'CANCELADO').length, color: 'var(--danger)' },
+      { label: 'Con análisis IA', value: list.filter(i => !!i.resumen_ia).length, color: 'var(--accent)' },
     ];
   });
 
@@ -157,7 +154,7 @@ export class HistoryComponent implements OnInit {
   clearFilters(): void { this.search = ''; this.filterEstado = ''; this.filterClasif = ''; }
 
   classIcon(c: string): string {
-    return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
+    return { BATERIA: 'BA', LLANTA: 'LL', CHOQUE: 'CH', MOTOR: 'MO', OTROS: 'OT', INCIERTO: '?' }[c] || 'OT';
   }
 
   estadoBadge(e: string): string {

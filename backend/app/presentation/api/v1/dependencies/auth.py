@@ -1,6 +1,8 @@
 """
 Dependencias de autenticación y autorización por rol (JWT Bearer).
 """
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -50,6 +52,18 @@ def get_current_user(
             detail="Usuario no encontrado",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Inyectar id_tenant efectivo desde el token (con fallback al valor en DB o al default)
+    from app.application.use_cases.tenant_service import TENANT_DEFAULT_ID
+    id_tenant_str = payload.get("id_tenant")
+    if id_tenant_str:
+        try:
+            usuario._id_tenant = UUID(str(id_tenant_str))
+        except (ValueError, TypeError):
+            usuario._id_tenant = TENANT_DEFAULT_ID
+    else:
+        usuario._id_tenant = usuario.ID_TENANT or TENANT_DEFAULT_ID
+
     return usuario
 
 

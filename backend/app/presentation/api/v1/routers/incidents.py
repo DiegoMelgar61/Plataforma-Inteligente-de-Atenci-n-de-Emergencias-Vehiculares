@@ -197,6 +197,7 @@ async def reportar_incidente_multimodal(
         UBICACION=punto,
         PRIORIDAD=prioridad or "MEDIA",
         CLASIFICACION=clasificacion or "OTROS",
+        ID_TENANT=getattr(usuario, "_id_tenant", None),
     )
     db.add(incidente)
     db.flush()
@@ -358,6 +359,10 @@ def listar_todos_incidentes(
     q = db.query(INCIDENTES)
     if estado:
         q = q.filter(INCIDENTES.ESTADO == estado)
+    if rol != "ADMIN":
+        id_tenant = getattr(usuario, "_id_tenant", None)
+        if id_tenant is not None:
+            q = q.filter(INCIDENTES.ID_TENANT == id_tenant)
     filas = q.order_by(INCIDENTES.FECHA_CREACION.desc()).all()
     return [_a_lista(inc) for inc in filas]
 
@@ -434,7 +439,12 @@ def listar_mis_incidentes(
             .all()
         )
     elif rol in ("TALLER", "ADMIN"):
-        filas = db.query(INCIDENTES).order_by(INCIDENTES.FECHA_CREACION.desc()).all()
+        q = db.query(INCIDENTES)
+        if rol != "ADMIN":
+            id_tenant = getattr(usuario, "_id_tenant", None)
+            if id_tenant is not None:
+                q = q.filter(INCIDENTES.ID_TENANT == id_tenant)
+        filas = q.order_by(INCIDENTES.FECHA_CREACION.desc()).all()
     else:
         raise HTTPException(status_code=403, detail="Rol no autorizado")
     return [_a_lista(inc) for inc in filas]

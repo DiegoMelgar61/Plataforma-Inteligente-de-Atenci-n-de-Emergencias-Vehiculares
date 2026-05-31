@@ -21,35 +21,35 @@ import { PaymentConfirmDialogComponent } from './payment-confirm-dialog.componen
           <h1 class="page-title">Pagos y Transacciones</h1>
           <p class="page-subtitle">Gestión de cobros por servicios prestados</p>
         </div>
-        <button (click)="recargar()" class="btn-ghost text-xs">🔄 Actualizar</button>
+        <button (click)="recargar()" class="btn-ghost text-xs">Actualizar</button>
       </div>
 
       <!-- Stats cards -->
       @if (stats()) {
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(16,185,129,0.1);">💰</div>
+            <div class="stat-icon">Bs</div>
             <div>
               <p class="stat-label">Total cobrado</p>
               <p class="stat-value" style="color:var(--success);">Bs. {{ stats()!.total_cobrado | number:'1.2-2' }}</p>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(245,158,11,0.1);">⏳</div>
+            <div class="stat-icon">P</div>
             <div>
               <p class="stat-label">Pendientes</p>
               <p class="stat-value" style="color:var(--warning);">{{ stats()!.count_por_estado['PENDIENTE'] ?? 0 }}</p>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(239,68,68,0.1);">❗</div>
+            <div class="stat-icon">!</div>
             <div>
               <p class="stat-label">Sin pagar</p>
               <p class="stat-value" style="color:var(--danger);">{{ stats()!.count_por_estado['NO_PAGO'] ?? 0 }}</p>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(99,102,241,0.1);">📊</div>
+            <div class="stat-icon">#</div>
             <div>
               <p class="stat-label">Total registros</p>
               <p class="stat-value">{{ totalRegistros() }}</p>
@@ -95,13 +95,11 @@ import { PaymentConfirmDialogComponent } from './payment-confirm-dialog.componen
         </div>
       } @else if (errorMsg()) {
         <div class="surface p-10 text-center">
-          <span class="text-4xl block mb-3">⚠️</span>
           <p class="text-sm font-medium" style="color: var(--danger);">{{ errorMsg() }}</p>
           <button (click)="recargar()" class="btn-ghost text-sm mt-4">Reintentar</button>
         </div>
       } @else if (pagosFiltrados().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">💳</span>
           <p class="text-sm font-medium" style="color: var(--text-secondary);">Sin pagos registrados</p>
           <p class="text-xs mt-1" style="color: var(--text-muted);">Los pagos aparecen automáticamente cuando un incidente es marcado como atendido</p>
         </div>
@@ -129,7 +127,7 @@ import { PaymentConfirmDialogComponent } from './payment-confirm-dialog.componen
               <div class="lg:col-span-3 flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
                      style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.15);">
-                  💳
+                   Bs
                 </div>
                 <div>
                   <p class="text-xs font-mono font-semibold" style="color: var(--text-primary);">

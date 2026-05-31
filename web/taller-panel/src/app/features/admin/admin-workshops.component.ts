@@ -26,7 +26,7 @@ const markerIcon = L.divIcon({
           <p class="page-subtitle">{{ talleres().length }} talleres registrados</p>
         </div>
         <div class="flex gap-2">
-          <button (click)="reload()" class="btn-ghost text-xs">🔄</button>
+          <button (click)="reload()" class="btn-ghost text-xs">Actualizar</button>
           <button (click)="openCreate()" class="btn-primary text-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -40,7 +40,7 @@ const markerIcon = L.divIcon({
       <div class="surface p-3 flex items-center gap-3">
         <div class="relative flex-1">
           <input [(ngModel)]="search" class="input pl-8 py-2 text-sm" placeholder="Buscar talleres..." />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">🔍</span>
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">/</span>
         </div>
         <div class="flex gap-1.5">
           @for (f of statusFilters; track f.value) {
@@ -55,21 +55,21 @@ const markerIcon = L.divIcon({
       <!-- Stats -->
       <div class="grid grid-cols-3 gap-4">
         <div class="stat-card">
-          <div class="stat-icon" style="background: rgba(16,185,129,0.12);">🏪</div>
+          <div class="stat-icon">TA</div>
           <div>
             <p class="stat-label">Activos</p>
-            <p class="stat-value text-green-400">{{ activos() }}</p>
+            <p class="stat-value" style="color: var(--success);">{{ activos() }}</p>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: rgba(239,68,68,0.12);">🚫</div>
+          <div class="stat-icon">IN</div>
           <div>
             <p class="stat-label">Inactivos</p>
-            <p class="stat-value text-red-400">{{ inactivos() }}</p>
+            <p class="stat-value" style="color: var(--danger);">{{ inactivos() }}</p>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: rgba(59,130,246,0.12);">📊</div>
+          <div class="stat-icon">%</div>
           <div>
             <p class="stat-label">Comisión promedio</p>
             <p class="stat-value">{{ avgComision() }}<span class="text-sm">%</span></p>
@@ -86,7 +86,6 @@ const markerIcon = L.divIcon({
         </div>
       } @else if (filtered().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">🏪</span>
           <p class="text-sm" style="color: var(--text-muted);">Sin talleres registrados</p>
           <button (click)="openCreate()" class="btn-primary mt-4 text-sm">Crear primer taller</button>
         </div>
@@ -98,7 +97,7 @@ const markerIcon = L.divIcon({
               <div class="flex items-start justify-between">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                       style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);">🏪</div>
+                       style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);">TA</div>
                   <div>
                     <p class="font-semibold text-sm" style="color: var(--text-primary);">{{ t.nombre_negocio }}</p>
                     @if (t.nit) {
@@ -114,24 +113,24 @@ const markerIcon = L.divIcon({
               <div class="space-y-1.5">
                 @if (t.direccion) {
                   <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
-                    <span>📍</span> {{ t.direccion }}
+                    <span>Dirección:</span> {{ t.direccion }}
                   </div>
                 }
                 @if (t.latitud != null && t.longitud != null) {
                   <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
-                    <span>🗺️</span> {{ t.latitud | number:'1.4-4' }}, {{ t.longitud | number:'1.4-4' }}
+                    <span>GPS:</span> {{ t.latitud | number:'1.4-4' }}, {{ t.longitud | number:'1.4-4' }}
                   </div>
                 }
                 <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
-                  <span>💰</span> Comisión: <span class="font-semibold" style="color: var(--text-secondary);">{{ t.tasa_comision }}%</span>
+                  <span>Comisión:</span> <span class="font-semibold" style="color: var(--text-secondary);">{{ t.tasa_comision }}%</span>
                 </div>
                 <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
-                  <span>📅</span> Desde {{ formatDate(t.fecha_creacion) }}
+                  <span>Desde</span> {{ formatDate(t.fecha_creacion) }}
                 </div>
               </div>
 
               <div class="flex gap-2 pt-1" style="border-top: 1px solid var(--border);">
-                <button (click)="openEdit(t)" class="btn-ghost text-xs flex-1">✏️ Editar</button>
+                <button (click)="openEdit(t)" class="btn-ghost text-xs flex-1">Editar</button>
                 <button (click)="toggleActive(t)"
                         [class]="t.activo ? 'btn-danger text-xs flex-1' : 'btn-success text-xs flex-1'">
                   {{ t.activo ? 'Desactivar' : 'Activar' }}

@@ -67,6 +67,7 @@ def crear_pago_pendiente(db: Session, incidente: INCIDENTES, asignacion: ASIGNAC
         MONTO=monto,
         COMISION_PLATAFORMA=comision,
         ESTADO="NO_PAGO",
+        ID_TENANT=incidente.ID_TENANT,
     )
     db.add(pago)
     db.commit()

@@ -17,27 +17,27 @@ import { Asignacion } from '../../models';
           <h1 class="page-title">Mis asignaciones</h1>
           <p class="page-subtitle">Incidentes aceptados por tu taller</p>
         </div>
-        <button (click)="reload()" class="btn-ghost text-xs">🔄 Actualizar</button>
+        <button (click)="reload()" class="btn-ghost text-xs">Actualizar</button>
       </div>
 
       <!-- Stats -->
       <div class="grid grid-cols-3 gap-4">
         <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(139,92,246,0.1);">📋</div>
+          <div class="stat-icon">A</div>
           <div>
             <p class="stat-label">Total asignados</p>
             <p class="stat-value">{{ total() }}</p>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(245,158,11,0.1);">🚗</div>
+          <div class="stat-icon">R</div>
           <div>
             <p class="stat-label">En camino</p>
             <p class="stat-value" style="color:var(--warning);">{{ enCamino() }}</p>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(16,185,129,0.1);">✅</div>
+          <div class="stat-icon">OK</div>
           <div>
             <p class="stat-label">Atendidos</p>
             <p class="stat-value" style="color:var(--success);">{{ atendidos() }}</p>
@@ -54,7 +54,6 @@ import { Asignacion } from '../../models';
         </div>
       } @else if (assignments().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">📋</span>
           <p class="text-sm font-medium" style="color: var(--text-secondary);">Sin asignaciones activas</p>
           <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">Las solicitudes que aceptes aparecerán aquí</p>
           <a routerLink="/requests" class="btn-primary text-sm inline-flex">Ver solicitudes →</a>
@@ -86,14 +85,14 @@ import { Asignacion } from '../../models';
                     #{{ a.id_incidente.substring(0,8).toUpperCase() }}
                   </p>
                   <div class="flex flex-wrap items-center gap-3 text-xs" style="color: var(--text-muted);">
-                    <span>📅 {{ formatDate(a.fecha_asignacion) }}</span>
+                    <span>{{ formatDate(a.fecha_asignacion) }}</span>
                     @if (a.tecnico) {
-                      <span>👷 {{ a.tecnico.nombre_completo }}</span>
+                      <span>Técnico: {{ a.tecnico.nombre_completo }}</span>
                     }
                   </div>
                   @if (a.incidente?.resumen_ia) {
                     <p class="text-xs mt-2 line-clamp-2" style="color: var(--text-muted);">
-                      🤖 {{ a.incidente!.resumen_ia }}
+                      IA: {{ a.incidente!.resumen_ia }}
                     </p>
                   }
                 </div>
@@ -135,7 +134,7 @@ export class AssignmentsComponent implements OnInit {
   }
 
   classIcon(c: string): string {
-    return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
+    return { BATERIA: 'BA', LLANTA: 'LL', CHOQUE: 'CH', MOTOR: 'MO', OTROS: 'OT', INCIERTO: '?' }[c] || 'OT';
   }
 
   estadoBadge(e: string): string {
