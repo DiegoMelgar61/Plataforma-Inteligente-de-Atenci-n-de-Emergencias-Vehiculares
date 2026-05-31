@@ -100,6 +100,7 @@ class INCIDENTES(Base):
     CLASIFICACION = Column("clasificacion", ClasificacionEnum, default="OTROS")
     RESUMEN_IA = Column("resumen_ia", Text)
     TIEMPO_ESTIMADO_LLEGADA_MINUTOS = Column("tiempo_estimado_llegada_minutos", Integer)
+    ID_LOCAL = Column("id_local", String(36), nullable=True)
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
     ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/api_client.dart';
 import 'core/constants.dart';
+import 'presentation/providers/providers.dart';
 import 'presentation/routes.dart';
 
 /// Navigator key for global navigation (used by the 401 interceptor to
@@ -26,11 +27,22 @@ void main() {
   );
 }
 
-class PlataformaEmergenciasApp extends StatelessWidget {
+class PlataformaEmergenciasApp extends ConsumerWidget {
   const PlataformaEmergenciasApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      next.whenData((online) async {
+        if (!online || previous?.value == true) return;
+
+        final pendientes = await ref.read(pendientesCountProvider.future);
+        if (pendientes > 0) {
+          await ref.read(sincronizacionProvider.notifier).sincronizarPendientes();
+        }
+      });
+    });
+
     return MaterialApp(
       title: 'Emergencias Vehiculares',
       navigatorKey: navigatorKey,

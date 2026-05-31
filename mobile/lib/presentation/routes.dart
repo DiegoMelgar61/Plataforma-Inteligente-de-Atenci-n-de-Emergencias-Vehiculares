@@ -5,6 +5,8 @@ import 'screens/splash/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/report/report_screen.dart';
+import 'screens/report/offline_report_screen.dart';
+import 'screens/report/sync_screen.dart';
 import 'screens/incidents/incidents_screen.dart';
 import 'screens/incidents/incident_detail_screen.dart';
 import 'screens/map/map_screen.dart';
@@ -22,6 +24,8 @@ class AppRoutes {
         AppConstants.routeHome: (_) => const HomeScreen(),
         AppConstants.routeTechnicianHome: (_) => const TechnicianHomeScreen(),
         AppConstants.routeReport: (_) => const ReportScreen(),
+        AppConstants.routeOfflineReport: (_) => const OfflineReportScreen(),
+        AppConstants.routeSync: (_) => const SyncScreen(),
         AppConstants.routeIncidents: (_) => const IncidentsScreen(),
         AppConstants.routeMap: (_) => const MapScreen(),
         AppConstants.routeProfile: (_) => const ProfileScreen(),
