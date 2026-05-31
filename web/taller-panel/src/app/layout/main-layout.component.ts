@@ -28,7 +28,7 @@ import { NavbarComponent } from './navbar.component';
         (toggleSidebar)="sidebarCollapsed.set(!sidebarCollapsed())" />
 
       <div class="flex flex-col flex-1 min-w-0"
-           style="transition: margin-left 0.25s ease;"
+           style="transition: margin-left 250ms ease;"
            [style.margin-left]="mainMarginLeft()">
         <app-navbar
           [isMobile]="isMobile()"
@@ -61,6 +61,6 @@ export class MainLayoutComponent implements OnInit {
 
   mainMarginLeft(): string {
     if (this.isMobile()) return '0px';
-    return this.sidebarCollapsed() ? '80px' : '248px';
+    return this.sidebarCollapsed() ? '72px' : '236px';
   }
 }

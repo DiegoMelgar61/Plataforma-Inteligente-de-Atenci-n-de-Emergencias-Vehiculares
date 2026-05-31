@@ -12,6 +12,7 @@ import { HistoryComponent } from './features/history/history.component';
 import { AdminUsersComponent } from './features/admin/admin-users.component';
 import { AdminWorkshopsComponent } from './features/admin/admin-workshops.component';
 import { PaymentsListComponent } from './features/payments/payments-list.component';
+import { TenantsComponent } from './features/tenants/tenants.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -29,6 +30,7 @@ export const routes: Routes = [
       { path: 'map', component: MapComponent },
       { path: 'payments', component: PaymentsListComponent },
       { path: 'history', component: HistoryComponent },
+      { path: 'tenants', component: TenantsComponent },
       {
         path: 'admin',
         canActivate: [adminGuard],
