@@ -10,8 +10,8 @@ import { NavbarComponent } from './navbar.component';
   styles: [`
     .mobile-overlay {
       position: fixed; inset: 0; z-index: 30;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(2px);
+      background: rgba(26,22,37,0.32);
+      backdrop-filter: blur(8px);
       animation: fadeIn 0.2s ease-out;
     }
   `],
@@ -33,7 +33,7 @@ import { NavbarComponent } from './navbar.component';
         <app-navbar
           [isMobile]="isMobile()"
           (toggleSidebar)="sidebarCollapsed.set(!sidebarCollapsed())" />
-        <main class="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main class="flex-1 overflow-y-auto p-4 pt-2 lg:p-8 lg:pt-4">
           <div class="max-w-7xl mx-auto fade-in">
             <router-outlet />
           </div>
@@ -61,6 +61,6 @@ export class MainLayoutComponent implements OnInit {
 
   mainMarginLeft(): string {
     if (this.isMobile()) return '0px';
-    return this.sidebarCollapsed() ? '64px' : '240px';
+    return this.sidebarCollapsed() ? '80px' : '248px';
   }
 }

@@ -31,6 +31,8 @@ class USUARIOS(Base):
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
     FECHA_ELIMINACION = Column("fecha_eliminacion", DateTime(timezone=True), nullable=True)
+    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
+    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
 
 
 class CLIENTES(Base):
@@ -53,6 +55,8 @@ class TALLERES(Base):
     ACTIVO = Column("activo", Boolean, default=True)
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
+    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
+    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
 
 
 class TECNICOS(Base):
@@ -98,6 +102,8 @@ class INCIDENTES(Base):
     TIEMPO_ESTIMADO_LLEGADA_MINUTOS = Column("tiempo_estimado_llegada_minutos", Integer)
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
+    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
+    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
 
 
 class EVIDENCIAS(Base):
@@ -159,4 +165,17 @@ class PAGOS(Base):
     FECHA_RECHAZO = Column("fecha_rechazo", DateTime(timezone=True))
     MOTIVO_RECHAZO = Column("motivo_rechazo", Text)
     ID_USUARIO_CONFIRMO = Column("id_usuario_confirmo", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"))
+    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
+    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
+    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
+
+
+class Tenant(Base):
+    __tablename__ = "tenants"
+
+    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    NOMBRE = Column("nombre", String(255), unique=True, nullable=False)
+    DESCRIPCION = Column("descripcion", Text, nullable=True)
+    ACTIVO = Column("activo", Boolean, default=True)
+    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())

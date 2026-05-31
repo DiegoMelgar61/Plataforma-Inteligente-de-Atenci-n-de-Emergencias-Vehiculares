@@ -31,7 +31,7 @@ import { Payment } from '../../models/payment.model';
                   style="color: var(--text-muted); border: 1px solid var(--border);"
                   onmouseenter="this.style.background='var(--bg-elevated)'"
                   onmouseleave="this.style.background='transparent'">
-            ✕
+            x
           </button>
         </div>
 
@@ -82,7 +82,7 @@ import { Payment } from '../../models/payment.model';
           <!-- Notas del cliente -->
           @if (payment.notas_cliente) {
             <div class="rounded-xl p-4" style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.15);">
-              <p class="text-xs font-semibold mb-1" style="color: var(--accent);">💬 Notas del cliente</p>
+              <p class="text-xs font-semibold mb-1" style="color: var(--accent);">Notas del cliente</p>
               <p class="text-sm" style="color: var(--text-secondary);">{{ payment.notas_cliente }}</p>
             </div>
           }
@@ -101,7 +101,6 @@ import { Payment } from '../../models/payment.model';
               </a>
             } @else {
               <div class="rounded-xl p-6 text-center" style="background: var(--bg-elevated); border: 1px dashed var(--border);">
-                <span class="text-3xl block mb-1">📎</span>
                 <p class="text-xs" style="color: var(--text-muted);">Sin comprobante adjunto</p>
               </div>
             }
@@ -110,7 +109,7 @@ import { Payment } from '../../models/payment.model';
           <!-- Motivo rechazo -->
           @if (payment.motivo_rechazo) {
             <div class="rounded-xl p-4" style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);">
-              <p class="text-xs font-semibold mb-1" style="color: var(--danger);">❌ Motivo de rechazo</p>
+              <p class="text-xs font-semibold mb-1" style="color: var(--danger);">Motivo de rechazo</p>
               <p class="text-sm" style="color: #fca5a5;">{{ payment.motivo_rechazo }}</p>
             </div>
           }
@@ -151,12 +150,12 @@ import { Payment } from '../../models/payment.model';
                       [disabled]="cargando()"
                       class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
                       style="background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2);">
-                ❌ Rechazar
+                 Rechazar
               </button>
               <button (click)="confirmar()"
                       [disabled]="cargando()"
                       class="btn-success px-5 py-2 text-sm">
-                @if (cargando()) { Procesando... } @else { ✅ Confirmar pago }
+                 @if (cargando()) { Procesando... } @else { Confirmar pago }
               </button>
             } @else {
               <button (click)="mostrarInputRechazo.set(false)" class="btn-ghost text-sm">
@@ -242,7 +241,7 @@ export class PaymentConfirmDialogComponent {
   }
 
   estadoIcon(e: string): string {
-    return { NO_PAGO: '💳', PENDIENTE: '⏳', PAGADO: '✅', RECHAZADO: '❌' }[e] || '💰';
+    return { NO_PAGO: 'NP', PENDIENTE: 'PE', PAGADO: 'OK', RECHAZADO: 'RE' }[e] || 'PG';
   }
 
   estadoBadge(e: string): string {

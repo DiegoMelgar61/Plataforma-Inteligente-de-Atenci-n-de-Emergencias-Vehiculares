@@ -18,14 +18,14 @@ import { Incident } from '../../models';
           <h1 class="page-title">Solicitudes de emergencia</h1>
           <p class="page-subtitle">{{ filtered().length }} incidentes · Actualización en tiempo real</p>
         </div>
-        <button (click)="reload()" class="btn-ghost text-xs">🔄 Actualizar</button>
+        <button (click)="reload()" class="btn-ghost text-xs">Actualizar</button>
       </div>
 
       <!-- Filters -->
       <div class="surface p-3 flex flex-wrap items-center gap-3">
         <div class="relative flex-1 min-w-48">
           <input [(ngModel)]="search" class="input pl-8 py-2 text-sm" placeholder="Buscar por ID o tipo..." />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">🔍</span>
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">/</span>
         </div>
         <div class="flex flex-wrap gap-1.5">
           @for (f of filters; track f.value) {
@@ -46,7 +46,6 @@ import { Incident } from '../../models';
         </div>
       } @else if (filtered().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">📭</span>
           <p class="font-medium text-sm" style="color: var(--text-secondary);">Sin solicitudes</p>
           <p class="text-xs mt-1" style="color: var(--text-muted);">
             {{ activeFilter() !== 'ALL' ? 'Prueba con otro filtro' : 'No hay incidentes registrados' }}
@@ -75,7 +74,7 @@ import { Incident } from '../../models';
                 </div>
                 <p class="text-xs font-mono" style="color: var(--text-muted);">#{{ inc.id_incidente.substring(0,8).toUpperCase() }}</p>
                 @if (inc.resumen_ia) {
-                  <p class="text-xs mt-1 truncate max-w-md" style="color: var(--text-muted);">🤖 {{ inc.resumen_ia }}</p>
+                  <p class="text-xs mt-1 truncate max-w-md" style="color: var(--text-muted);">IA: {{ inc.resumen_ia }}</p>
                 }
               </div>
 
@@ -158,7 +157,7 @@ export class RequestsListComponent implements OnInit {
   }
 
   classIcon(c: string): string {
-    return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
+    return { BATERIA: 'BA', LLANTA: 'LL', CHOQUE: 'CH', MOTOR: 'MO', OTROS: 'OT', INCIERTO: '?' }[c] || 'OT';
   }
 
   iconStyle(c: string): string {

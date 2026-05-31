@@ -44,3 +44,4 @@ class WorkshopResponse(BaseModel):
     activo: bool = Field(validation_alias="ACTIVO")
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
     fecha_actualizacion: datetime | None = Field(validation_alias="FECHA_ACTUALIZACION")
+    id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")

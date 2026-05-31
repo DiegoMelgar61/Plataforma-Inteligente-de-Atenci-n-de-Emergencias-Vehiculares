@@ -142,6 +142,11 @@ def listar_mis_pagos(
     else:
         raise HTTPException(status_code=403, detail="Rol no autorizado")
 
+    if rol != "ADMIN":
+        id_tenant = getattr(usuario, "_id_tenant", None)
+        if id_tenant is not None:
+            query = query.filter(PAGOS.ID_TENANT == id_tenant)
+
     if estado:
         query = query.filter(PAGOS.ESTADO == estado)
 
@@ -173,6 +178,11 @@ def listar_pagos(
         query = query.filter(PAGOS.ID_TALLER == taller.ID_TALLER)
     elif id_taller:
         query = query.filter(PAGOS.ID_TALLER == id_taller)
+
+    if rol != "ADMIN":
+        id_tenant = getattr(usuario, "_id_tenant", None)
+        if id_tenant is not None:
+            query = query.filter(PAGOS.ID_TENANT == id_tenant)
 
     if estado:
         query = query.filter(PAGOS.ESTADO == estado)

@@ -57,6 +57,7 @@ class IncidentListResponse(BaseModel):
     prioridad: str = Field(validation_alias="PRIORIDAD")
     clasificacion: str = Field(validation_alias="CLASIFICACION")
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
+    id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
 
 
 class IncidentResponse(BaseModel):
@@ -78,6 +79,7 @@ class IncidentResponse(BaseModel):
     )
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
     fecha_actualizacion: datetime | None = Field(validation_alias="FECHA_ACTUALIZACION")
+    id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
     evidencias: list[EvidenceItemResponse] = Field(default_factory=list)
 
 

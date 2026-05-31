@@ -62,6 +62,7 @@ class PaymentResponse(BaseModel):
     motivo_rechazo: str | None = Field(None, validation_alias="MOTIVO_RECHAZO")
     id_usuario_confirmo: UUID | None = Field(None, validation_alias="ID_USUARIO_CONFIRMO")
     fecha_actualizacion: datetime | None = Field(None, validation_alias="FECHA_ACTUALIZACION")
+    id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
 
 
 class PaymentListItem(BaseModel):

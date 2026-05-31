@@ -16,14 +16,14 @@ import { User, UserRole } from '../../models';
           <h1 class="page-title">Gestión de usuarios</h1>
           <p class="page-subtitle">{{ filtered().length }} usuarios · Edita roles y permisos</p>
         </div>
-        <button (click)="reload()" class="btn-ghost text-xs">🔄 Actualizar</button>
+        <button (click)="reload()" class="btn-ghost text-xs">Actualizar</button>
       </div>
 
       <!-- Filters bar -->
       <div class="surface p-3 flex flex-wrap items-center gap-3">
         <div class="relative flex-1 min-w-48">
           <input [(ngModel)]="search" class="input pl-8 py-2 text-sm" placeholder="Buscar por nombre o correo..." />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">🔍</span>
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: var(--text-muted);">/</span>
         </div>
         <div class="flex gap-1.5">
           @for (f of roleFilters; track f.value) {
@@ -52,7 +52,6 @@ import { User, UserRole } from '../../models';
         </div>
       } @else if (filtered().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">👥</span>
           <p class="text-sm" style="color: var(--text-muted);">Sin usuarios con estos filtros</p>
         </div>
       } @else {
@@ -146,14 +145,14 @@ import { User, UserRole } from '../../models';
                   <p class="text-xs" style="color: var(--text-muted);">{{ r.desc }}</p>
                 </div>
                 @if (selectedRole === r.value) {
-                  <span class="text-blue-400">✓</span>
+                  <span style="color: var(--accent);">Seleccionado</span>
                 }
               </button>
             }
           </div>
 
           @if (actionError()) {
-            <p class="text-xs text-red-400 mb-3">{{ actionError() }}</p>
+            <p class="text-xs mb-3" style="color: var(--danger);">{{ actionError() }}</p>
           }
 
           <div class="flex gap-2">
@@ -195,9 +194,9 @@ export class AdminUsersComponent implements OnInit {
   ];
 
   roles = [
-    { value: 'CLIENTE' as UserRole, label: 'Cliente', icon: '👤', desc: 'Puede reportar incidentes desde la app móvil' },
-    { value: 'TALLER' as UserRole, label: 'Taller', icon: '🔧', desc: 'Accede al panel web y gestiona incidentes' },
-    { value: 'ADMIN' as UserRole, label: 'Administrador', icon: '👑', desc: 'Acceso total al sistema y gestión de usuarios' },
+    { value: 'CLIENTE' as UserRole, label: 'Cliente', icon: 'CL', desc: 'Puede reportar incidentes desde la app móvil' },
+    { value: 'TALLER' as UserRole, label: 'Taller', icon: 'TA', desc: 'Accede al panel web y gestiona incidentes' },
+    { value: 'ADMIN' as UserRole, label: 'Administrador', icon: 'AD', desc: 'Acceso total al sistema y gestión de usuarios' },
   ];
 
   filtered = computed(() => {

@@ -174,9 +174,9 @@ export class LoginComponent {
   showPass = signal(false);
 
   features = [
-    { icon: '⚡', title: 'Respuesta en tiempo real', desc: 'WebSocket para notificaciones instantáneas' },
-    { icon: '🤖', title: 'Clasificación por IA', desc: 'Análisis automático de incidentes vehiculares' },
-    { icon: '🗺️', title: 'Mapa de operaciones', desc: 'Seguimiento geográfico de técnicos' },
+    { icon: 'RT', title: 'Respuesta en tiempo real', desc: 'WebSocket para notificaciones instantáneas' },
+    { icon: 'IA', title: 'Clasificación por IA', desc: 'Análisis automático de incidentes vehiculares' },
+    { icon: 'MAP', title: 'Mapa de operaciones', desc: 'Seguimiento geográfico de técnicos' },
   ];
 
   submit(): void {

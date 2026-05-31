@@ -23,11 +23,11 @@ import { switchMap, throttleTime } from 'rxjs/operators';
           @if (ws.connected()) {
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
                  style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #6ee7b7;">
-              <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
               En vivo
             </div>
           }
-          <button (click)="reload()" class="btn-ghost text-xs">🔄</button>
+          <button (click)="reload()" class="btn-ghost text-xs">Actualizar</button>
         </div>
       </div>
 
@@ -82,14 +82,13 @@ import { switchMap, throttleTime } from 'rxjs/operators';
                  [style.left.%]="toMapX(t.ubicacion_lng!)"
                  [style.top.%]="toMapY(t.ubicacion_lat!)"
                  [class]="t.disponible ? 'bg-green-500' : 'bg-gray-600'">
-              👷
+               T
             </div>
           }
 
           <!-- Empty state -->
           @if (incidentsWithLocation().length === 0) {
             <div class="text-center z-10">
-              <div class="text-5xl mb-3">🗺️</div>
               <p class="font-medium text-sm" style="color: var(--text-secondary);">
                 {{ activeIncidents().length > 0 ? 'Sin coordenadas GPS' : 'Sin incidentes activos' }}
               </p>
@@ -125,14 +124,14 @@ import { switchMap, throttleTime } from 'rxjs/operators';
                 <p class="text-xs font-mono" style="color: var(--text-muted);">#{{ selectedIncident()!.id_incidente.substring(0,8).toUpperCase() }}</p>
               </div>
             </div>
-            <button (click)="selectedIncident.set(null)" style="color: var(--text-muted);">✕</button>
+            <button (click)="selectedIncident.set(null)" style="color: var(--text-muted);">Cerrar</button>
           </div>
           <div class="flex items-center gap-3 mt-3">
             <span [class]="'badge ' + estadoBadge(selectedIncident()!.estado)">{{ selectedIncident()!.estado }}</span>
             <span [class]="'badge ' + prioridadBadge(selectedIncident()!.prioridad)">{{ selectedIncident()!.prioridad }}</span>
           </div>
           @if (selectedIncident()!.resumen_ia) {
-            <p class="text-xs mt-2" style="color: var(--text-muted);">🤖 {{ selectedIncident()!.resumen_ia }}</p>
+            <p class="text-xs mt-2" style="color: var(--text-muted);">IA: {{ selectedIncident()!.resumen_ia }}</p>
           }
           <a [routerLink]="['/requests', selectedIncident()!.id_incidente]" class="btn-primary text-xs mt-3 inline-flex">
             Ver detalle completo →
@@ -147,7 +146,6 @@ import { switchMap, throttleTime } from 'rxjs/operators';
         </div>
         @if (activeIncidents().length === 0) {
           <div class="p-12 text-center">
-            <span class="text-4xl block mb-2">✅</span>
             <p class="text-sm" style="color: var(--text-muted);">Sin incidentes activos</p>
           </div>
         } @else {
@@ -159,7 +157,7 @@ import { switchMap, throttleTime } from 'rxjs/operators';
               @for (inc of activeIncidents(); track inc.id_incidente) {
                 <tr>
                   <td class="font-mono text-xs" style="color: var(--text-muted);">#{{ inc.id_incidente.substring(0,8).toUpperCase() }}</td>
-                  <td class="text-sm">{{ classIcon(inc.clasificacion) }} {{ inc.clasificacion }}</td>
+                  <td class="text-sm">{{ inc.clasificacion }}</td>
                   <td><span [class]="'badge ' + estadoBadge(inc.estado)">{{ inc.estado.split('_').join(' ') }}</span></td>
                   <td><span [class]="'badge ' + prioridadBadge(inc.prioridad)">{{ inc.prioridad }}</span></td>
                   <td class="text-xs" style="color: var(--text-muted);">{{ inc.latitud ? (inc.latitud.toFixed(3) + ', ' + inc.longitud!.toFixed(3)) : 'Sin GPS' }}</td>
@@ -233,7 +231,7 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   classIcon(c: string): string {
-    return { BATERIA: '🔋', LLANTA: '🔄', CHOQUE: '💥', MOTOR: '⚙️', OTROS: '🚗', INCIERTO: '❓' }[c] || '🚗';
+    return { BATERIA: 'BA', LLANTA: 'LL', CHOQUE: 'CH', MOTOR: 'MO', OTROS: 'OT', INCIERTO: '?' }[c] || 'OT';
   }
 
   estadoBadge(e: string): string {

@@ -91,7 +91,6 @@ import { environment } from '../../../environments/environment';
             @if (incident()!.resumen_ia) {
               <div class="surface p-5" style="border-left: 3px solid var(--accent);">
                 <div class="flex items-center gap-2 mb-3">
-                  <span class="text-lg">🤖</span>
                   <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Analisis IA</h2>
                   <span class="badge-blue badge text-xs">Clasificación automática</span>
                 </div>
@@ -164,7 +163,6 @@ import { environment } from '../../../environments/environment';
                 <div class="rounded-xl flex items-center justify-center h-40"
                      style="background: var(--bg-elevated); border: 1px solid var(--border);">
                   <div class="text-center">
-                    <div class="text-4xl mb-2">📍</div>
                     <p class="text-sm font-mono" style="color: var(--text-secondary);">
                       {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
                     </p>
@@ -208,10 +206,10 @@ import { environment } from '../../../environments/environment';
                 </select>
 
                 <button (click)="accept()" [disabled]="actionLoading()" class="btn-success w-full mb-2">
-                  @if (actionLoading()) { Procesando... } @else { ✅ Aceptar y asignar }
+                  @if (actionLoading()) { Procesando... } @else { Aceptar y asignar }
                 </button>
                 <button (click)="showReject.set(!showReject())" class="btn-ghost w-full text-sm">
-                  ❌ Rechazar solicitud
+                  Rechazar solicitud
                 </button>
 
                 @if (showReject()) {
@@ -254,7 +252,6 @@ import { environment } from '../../../environments/environment';
         </div>
       } @else {
         <div class="surface p-16 text-center">
-          <span class="text-5xl mb-3 block">⚠️</span>
           <p style="color: var(--text-muted);">No se pudo cargar el incidente</p>
           <a routerLink="/requests" class="btn-ghost text-sm mt-4 inline-flex">← Volver</a>
         </div>
@@ -330,9 +327,9 @@ export class RequestDetailComponent implements OnInit {
 
   nextStates() {
     const e = this.incident()?.estado;
-    if (e === 'ASIGNADO') return [{ value: 'EN_CAMINO', label: '🚗 Marcar en camino', style: 'background:rgba(245,158,11,0.1);color:#fcd34d;border:1px solid rgba(245,158,11,0.2)' }];
-    if (e === 'EN_CAMINO') return [{ value: 'EN_PROCESO', label: '🔧 Iniciar servicio', style: 'background:rgba(20,184,166,0.1);color:#5eead4;border:1px solid rgba(20,184,166,0.2)' }];
-    if (e === 'EN_PROCESO') return [{ value: 'ATENDIDO', label: '✅ Marcar como atendido', style: 'background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.2)' }];
+    if (e === 'ASIGNADO') return [{ value: 'EN_CAMINO', label: 'Marcar en camino', style: 'background:rgba(245,158,11,0.1);color:#fcd34d;border:1px solid rgba(245,158,11,0.2)' }];
+    if (e === 'EN_CAMINO') return [{ value: 'EN_PROCESO', label: 'Iniciar servicio', style: 'background:rgba(20,184,166,0.1);color:#5eead4;border:1px solid rgba(20,184,166,0.2)' }];
+    if (e === 'EN_PROCESO') return [{ value: 'ATENDIDO', label: 'Marcar como atendido', style: 'background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.2)' }];
     return [];
   }
 
@@ -423,7 +420,7 @@ export class RequestDetailComponent implements OnInit {
   }
 
   stateIcon(e: string): string {
-    return { PENDIENTE: '⏳', CLASIFICADO: '🔍', ASIGNADO: '📋', EN_CAMINO: '🚗', EN_PROCESO: '🔧', ATENDIDO: '✅', CANCELADO: '❌' }[e] || '❓';
+    return { PENDIENTE: 'PE', CLASIFICADO: 'CL', ASIGNADO: 'AS', EN_CAMINO: 'EC', EN_PROCESO: 'EP', ATENDIDO: 'AT', CANCELADO: 'CA' }[e] || '?';
   }
 
   prioridadBadge(p: string): string {
@@ -431,7 +428,7 @@ export class RequestDetailComponent implements OnInit {
   }
 
   evidenceIcon(t: string): string {
-    return { IMAGEN: '🖼️', AUDIO: '🎵', TEXTO: '📝' }[t] || '📎';
+    return { IMAGEN: 'IMG', AUDIO: 'AUD', TEXTO: 'TXT' }[t] || 'FILE';
   }
 
   evidenceBadge(t: string): string {

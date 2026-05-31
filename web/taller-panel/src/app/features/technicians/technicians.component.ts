@@ -26,21 +26,21 @@ import { Tecnico, TecnicoCreate } from '../../models';
       <!-- Stats -->
       <div class="grid grid-cols-3 gap-4">
         <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(59,130,246,0.1);">👷</div>
+          <div class="stat-icon">T</div>
           <div>
             <p class="stat-label">Total</p>
             <p class="stat-value">{{ tecnicos().length }}</p>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(16,185,129,0.1);">✅</div>
+          <div class="stat-icon">D</div>
           <div>
             <p class="stat-label">Disponibles</p>
             <p class="stat-value" style="color:var(--success);">{{ disponibles() }}</p>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(100,116,139,0.1);">🔒</div>
+          <div class="stat-icon">O</div>
           <div>
             <p class="stat-label">Ocupados</p>
             <p class="stat-value" style="color:var(--text-muted);">{{ ocupados() }}</p>
@@ -57,7 +57,6 @@ import { Tecnico, TecnicoCreate } from '../../models';
         </div>
       } @else if (tecnicos().length === 0) {
         <div class="surface p-16 text-center">
-          <span class="text-5xl block mb-3">👷</span>
           <p class="text-sm font-medium" style="color: var(--text-secondary);">Sin técnicos registrados</p>
           <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">Agrega técnicos para asignarlos a emergencias</p>
           <button (click)="openForm()" class="btn-primary text-sm">Agregar primer técnico</button>
@@ -99,8 +98,8 @@ import { Tecnico, TecnicoCreate } from '../../models';
                               [class]="t.disponible ? 'btn-ghost py-1 px-3 text-xs' : 'btn-success py-1 px-3 text-xs'">
                         {{ t.disponible ? 'Marcar ocupado' : 'Marcar libre' }}
                       </button>
-                      <button (click)="openForm(t)" class="btn-ghost py-1 px-3 text-xs">✏️</button>
-                      <button (click)="confirmDelete(t)" class="btn-danger py-1 px-3 text-xs">🗑️</button>
+                      <button (click)="openForm(t)" class="btn-ghost py-1 px-3 text-xs">Editar</button>
+                      <button (click)="confirmDelete(t)" class="btn-danger py-1 px-3 text-xs">Eliminar</button>
                     </div>
                   </td>
                 </tr>
@@ -153,7 +152,7 @@ import { Tecnico, TecnicoCreate } from '../../models';
       <div class="modal-overlay" (click)="deletingTecnico.set(null)">
         <div class="modal fade-in" (click)="$event.stopPropagation()" style="max-width: 380px;">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mx-auto mb-4"
-               style="background: rgba(239,68,68,0.1);">🗑️</div>
+               style="background: rgba(239,68,68,0.1); color: var(--danger);">!</div>
           <h3 class="text-base font-semibold text-center mb-2" style="color: var(--text-primary);">Eliminar técnico</h3>
           <p class="text-sm text-center mb-5" style="color: var(--text-muted);">
             ¿Eliminar a <strong style="color: var(--text-secondary);">{{ deletingTecnico()!.nombre_completo }}</strong>? Esta acción no puede deshacerse.
