@@ -47,6 +47,7 @@ export interface TallerCreate {
 export interface Tecnico {
   id_tecnico: string;
   id_taller: string;
+  id_usuario?: string | null;
   nombre_completo: string;
   telefono?: string;
   disponible: boolean;
@@ -59,6 +60,14 @@ export interface TecnicoCreate {
   nombre_completo: string;
   telefono?: string;
   disponible?: boolean;
+}
+
+export interface TecnicoWithUserCreate {
+  nombre_completo: string;
+  telefono?: string;
+  correo_electronico: string;
+  contrasena: string;
+  id_taller?: string;
 }
 
 export type EstadoIncidente =

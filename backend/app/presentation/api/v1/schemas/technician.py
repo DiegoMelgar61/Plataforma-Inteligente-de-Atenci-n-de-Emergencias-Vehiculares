@@ -23,6 +23,7 @@ class TechnicianWithUserCreate(BaseModel):
     telefono: str | None = Field(None, max_length=20)
     correo_electronico: EmailStr
     contrasena: str = Field(..., min_length=8, description="Mínimo 8 caracteres")
+    id_taller: UUID | None = None
 
 
 class TechnicianUpdate(BaseModel):

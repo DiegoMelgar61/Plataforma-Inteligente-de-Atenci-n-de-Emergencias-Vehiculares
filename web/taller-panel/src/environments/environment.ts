@@ -1,5 +1,5 @@
 export const environment = {
-  production: true,
-  apiUrl: 'https://atencion-de-emergencias-vehiculares.onrender.com',
-  wsUrl: 'wss://atencion-de-emergencias-vehiculares.onrender.com',
+  production: false,
+  apiUrl: 'http://localhost:8000',
+  wsUrl: 'ws://localhost:8000',
 };

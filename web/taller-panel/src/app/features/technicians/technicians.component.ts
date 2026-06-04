@@ -2,7 +2,8 @@ import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TechniciansService } from '../../core/services/technicians.service';
-import { Tecnico, TecnicoCreate } from '../../models';
+import { AdminService } from '../../core/services/admin.service';
+import { Taller, Tecnico, TecnicoCreate, TecnicoWithUserCreate } from '../../models';
 
 @Component({
   selector: 'app-technicians',
@@ -65,12 +66,13 @@ import { Tecnico, TecnicoCreate } from '../../models';
         <div class="table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
           <table class="w-full" style="min-width: 640px;">
             <thead>
-              <tr>
-                <th>Técnico</th>
-                <th>Teléfono</th>
-                <th>Estado</th>
-                <th>Registrado</th>
-                <th class="text-right">Acciones</th>
+                <tr>
+                  <th>Técnico</th>
+                  <th>Teléfono</th>
+                  <th>Cuenta móvil</th>
+                  <th>Estado</th>
+                  <th>Registrado</th>
+                  <th class="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -86,6 +88,11 @@ import { Tecnico, TecnicoCreate } from '../../models';
                     </div>
                   </td>
                   <td class="font-mono text-xs">{{ t.telefono || '—' }}</td>
+                  <td>
+                    <span [class]="t.id_usuario ? 'badge-green badge' : 'badge-amber badge'">
+                      {{ t.id_usuario ? 'Con acceso' : 'Sin acceso' }}
+                    </span>
+                  </td>
                   <td>
                     <span [class]="t.disponible ? 'badge-green badge' : 'badge-gray badge'">
                       {{ t.disponible ? '● Disponible' : '○ Ocupado' }}
@@ -132,13 +139,38 @@ import { Tecnico, TecnicoCreate } from '../../models';
               <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">Teléfono</label>
               <input type="tel" [(ngModel)]="form.telefono" class="input" placeholder="+591 76543210" />
             </div>
-            <div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg-base); border: 1px solid var(--border);">
-              <input type="checkbox" [(ngModel)]="form.disponible" id="disp" class="w-4 h-4 rounded" />
-              <label for="disp" class="text-sm cursor-pointer" style="color: var(--text-secondary);">Disponible para atender emergencias</label>
-            </div>
+            @if (!editingId()) {
+              @if (talleres().length > 0) {
+                <div>
+                  <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">Taller *</label>
+                  <select [(ngModel)]="form.id_taller" class="input">
+                    <option value="">Selecciona un taller</option>
+                    @for (taller of talleres(); track taller.id_taller) {
+                      <option [value]="taller.id_taller">{{ taller.nombre_negocio }}</option>
+                    }
+                  </select>
+                </div>
+              }
+              <div>
+                <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">Correo de acceso móvil *</label>
+                <input type="email" [(ngModel)]="form.correo_electronico" class="input" placeholder="tecnico@taller.com" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">Contraseña inicial *</label>
+                <input type="password" [(ngModel)]="form.contrasena" class="input" placeholder="Mínimo 8 caracteres" />
+              </div>
+              <p class="text-xs" style="color: var(--text-muted);">
+                Estas credenciales permiten que el técnico ingrese desde la app móvil.
+              </p>
+            } @else {
+              <div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg-base); border: 1px solid var(--border);">
+                <input type="checkbox" [(ngModel)]="form.disponible" id="disp" class="w-4 h-4 rounded" />
+                <label for="disp" class="text-sm cursor-pointer" style="color: var(--text-secondary);">Disponible para atender emergencias</label>
+              </div>
+            }
           </div>
           <div class="flex gap-2 mt-5">
-            <button (click)="saveForm()" [disabled]="formLoading() || !form.nombre_completo" class="btn-primary flex-1">
+            <button (click)="saveForm()" [disabled]="formLoading() || !canSave()" class="btn-primary flex-1">
               {{ formLoading() ? 'Guardando...' : (editingId() ? 'Actualizar' : 'Agregar técnico') }}
             </button>
             <button (click)="cancelForm()" class="btn-ghost">Cancelar</button>
@@ -170,21 +202,30 @@ import { Tecnico, TecnicoCreate } from '../../models';
 })
 export class TechniciansComponent implements OnInit {
   private svc = inject(TechniciansService);
+  private adminService = inject(AdminService);
 
   loading = signal(true);
   tecnicos = signal<Tecnico[]>([]);
+  talleres = signal<Taller[]>([]);
   showForm = signal(false);
   editingId = signal<string | null>(null);
   formLoading = signal(false);
   formError = signal<string | null>(null);
   deletingTecnico = signal<Tecnico | null>(null);
 
-  form: TecnicoCreate & { disponible: boolean } = { nombre_completo: '', telefono: '', disponible: true };
+  form: TecnicoCreate & TecnicoWithUserCreate & { disponible: boolean } = {
+    nombre_completo: '',
+    telefono: '',
+    disponible: true,
+    correo_electronico: '',
+    contrasena: '',
+    id_taller: '',
+  };
 
   disponibles = computed(() => this.tecnicos().filter(t => t.disponible).length);
   ocupados = computed(() => this.tecnicos().filter(t => !t.disponible).length);
 
-  ngOnInit(): void { this.reload(); }
+  ngOnInit(): void { this.reload(); this.loadWorkshops(); }
 
   reload(): void {
     this.loading.set(true);
@@ -196,19 +237,60 @@ export class TechniciansComponent implements OnInit {
 
   openForm(t?: Tecnico): void {
     this.editingId.set(t?.id_tecnico ?? null);
-    this.form = t ? { nombre_completo: t.nombre_completo, telefono: t.telefono || '', disponible: t.disponible } : { nombre_completo: '', telefono: '', disponible: true };
+    this.form = t
+      ? {
+          nombre_completo: t.nombre_completo,
+          telefono: t.telefono || '',
+          disponible: t.disponible,
+          correo_electronico: '',
+          contrasena: '',
+          id_taller: t.id_taller,
+        }
+      : {
+          nombre_completo: '',
+          telefono: '',
+          disponible: true,
+          correo_electronico: '',
+          contrasena: '',
+          id_taller: '',
+        };
     this.formError.set(null);
     this.showForm.set(true);
   }
 
+  loadWorkshops(): void {
+    this.adminService.getWorkshops(false).subscribe({
+      next: (list) => this.talleres.set(list.filter(t => t.activo)),
+      error: () => this.talleres.set([]),
+    });
+  }
+
   cancelForm(): void { this.showForm.set(false); this.formError.set(null); }
 
+  canSave(): boolean {
+    if (!this.form.nombre_completo.trim()) return false;
+    if (this.editingId()) return true;
+    if (this.talleres().length > 0 && !this.form.id_taller) return false;
+    return !!this.form.correo_electronico.trim() && this.form.contrasena.length >= 8;
+  }
+
   saveForm(): void {
-    if (!this.form.nombre_completo) return;
+    if (!this.canSave()) return;
     this.formLoading.set(true);
-    const payload: TecnicoCreate = { nombre_completo: this.form.nombre_completo, telefono: this.form.telefono || undefined, disponible: this.form.disponible };
     const id = this.editingId();
-    const obs = id ? this.svc.update(id, payload) : this.svc.create(payload);
+    const obs = id
+      ? this.svc.update(id, {
+          nombre_completo: this.form.nombre_completo.trim(),
+          telefono: this.form.telefono || undefined,
+          disponible: this.form.disponible,
+        })
+      : this.svc.createWithUser({
+          nombre_completo: this.form.nombre_completo.trim(),
+          telefono: this.form.telefono || undefined,
+          correo_electronico: this.form.correo_electronico.trim(),
+          contrasena: this.form.contrasena,
+          id_taller: this.form.id_taller || undefined,
+        });
     obs.subscribe({
       next: () => { this.formLoading.set(false); this.cancelForm(); this.reload(); },
       error: (err) => { this.formError.set(err.error?.detail || 'Error al guardar'); this.formLoading.set(false); },

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Tecnico, TecnicoCreate } from '../../models';
+import { Tecnico, TecnicoCreate, TecnicoWithUserCreate } from '../../models';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -17,6 +17,10 @@ export class TechniciansService {
     return this.http.post<Tecnico>(`${this.api}/tecnicos`, tecnico);
   }
 
+  createWithUser(tecnico: TecnicoWithUserCreate): Observable<Tecnico> {
+    return this.http.post<Tecnico>(`${this.api}/tecnicos/crear-con-usuario`, tecnico);
+  }
+
   update(id: string, tecnico: Partial<TecnicoCreate>): Observable<Tecnico> {
     return this.http.put<Tecnico>(`${this.api}/tecnicos/${id}`, tecnico);
   }
@@ -26,6 +30,6 @@ export class TechniciansService {
   }
 
   toggleDisponible(id: string, disponible: boolean): Observable<Tecnico> {
-    return this.http.patch<Tecnico>(`${this.api}/tecnicos/${id}`, { disponible });
+    return this.http.put<Tecnico>(`${this.api}/tecnicos/${id}`, { disponible });
   }
 }
