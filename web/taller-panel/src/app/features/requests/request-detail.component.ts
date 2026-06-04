@@ -1,12 +1,22 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { IncidentsService } from '../../core/services/incidents.service';
 import { TechniciansService } from '../../core/services/technicians.service';
-import { WebSocketService } from '../../core/services/websocket.service';
+import { WebSocketService, WsMessage } from '../../core/services/websocket.service';
 import { Incident, Tecnico } from '../../models';
 import { environment } from '../../../environments/environment';
+
+declare const L: any;
+
+interface TechnicianLocation {
+  lat: number;
+  lng: number;
+  tecnicoId?: string;
+  timestamp?: string;
+}
 
 @Component({
   selector: 'app-request-detail',
@@ -156,8 +166,43 @@ import { environment } from '../../../environments/environment';
               </div>
             }
 
-            <!-- Location card -->
-            @if (incident()!.latitud && incident()!.longitud) {
+            <!-- Tracking / Location card -->
+            @if (shouldShowTrackingSection()) {
+              <div class="surface p-5">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Tracking del técnico</h2>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Ubicación en vivo recibida por WebSocket</p>
+                  </div>
+                  <span [class]="technicianLocation() ? 'badge-green badge' : 'badge-amber badge'">
+                    {{ technicianLocation() ? 'En vivo' : 'Esperando GPS' }}
+                  </span>
+                </div>
+
+                @if (technicianLocation()) {
+                  <div id="tracking-map" class="rounded-xl overflow-hidden h-72" style="border: 1px solid var(--border);"></div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <div class="rounded-lg p-3" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                      <p class="text-xs mb-1" style="color: var(--text-muted);">Incidente</p>
+                      <p class="text-xs font-mono" style="color: var(--text-secondary);">
+                        {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
+                      </p>
+                    </div>
+                    <div class="rounded-lg p-3" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                      <p class="text-xs mb-1" style="color: var(--text-muted);">Técnico</p>
+                      <p class="text-xs font-mono" style="color: var(--text-secondary);">
+                        {{ technicianLocation()!.lat.toFixed(5) }}, {{ technicianLocation()!.lng.toFixed(5) }}
+                      </p>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="rounded-xl p-6 text-center" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Esperando ubicación del técnico</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">El mapa aparecerá cuando el técnico inicie el tracking GPS desde la app móvil.</p>
+                  </div>
+                }
+              </div>
+            } @else if (incident()!.latitud && incident()!.longitud) {
               <div class="surface p-5">
                 <h2 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Ubicación GPS</h2>
                 <div class="rounded-xl flex items-center justify-center h-40"
@@ -170,6 +215,14 @@ import { environment } from '../../../environments/environment';
                       Abrir Google Maps
                     </a>
                   </div>
+                </div>
+              </div>
+            } @else {
+              <div class="surface p-5">
+                <h2 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Tracking del técnico</h2>
+                <div class="rounded-xl p-6 text-center" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                  <p class="text-sm font-medium" style="color: var(--text-secondary);">Mapa no disponible</p>
+                  <p class="text-xs mt-1" style="color: var(--text-muted);">Este incidente no tiene coordenadas GPS suficientes.</p>
                 </div>
               </div>
             }
@@ -259,7 +312,7 @@ import { environment } from '../../../environments/environment';
     </div>
   `,
 })
-export class RequestDetailComponent implements OnInit {
+export class RequestDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private incidentsService = inject(IncidentsService);
@@ -273,8 +326,14 @@ export class RequestDetailComponent implements OnInit {
   actionError = signal<string | null>(null);
   actionSuccess = signal<string | null>(null);
   showReject = signal(false);
+  technicianLocation = signal<TechnicianLocation | null>(null);
   selectedTecnico = '';
   rejectReason = '';
+
+  private wsSub?: Subscription;
+  private map: any = null;
+  private incidentMarker: any = null;
+  private technicianMarker: any = null;
 
   get incidentId(): string {
     return this.route.snapshot.paramMap.get('id') || '';
@@ -283,15 +342,135 @@ export class RequestDetailComponent implements OnInit {
   ngOnInit(): void {
     this.loadData();
     this.ws.connect(this.incidentId);
-    this.ws.messages$.subscribe(() => this.loadData());
+    this.wsSub = this.ws.messages$.subscribe(msg => this.handleWsMessage(msg));
     this.techniciansService.getAll().subscribe(t => this.tecnicos.set(t));
+  }
+
+  ngOnDestroy(): void {
+    this.wsSub?.unsubscribe();
+    this.ws.disconnect();
+    this.destroyMap();
   }
 
   loadData(): void {
     this.loading.set(true);
     this.incidentsService.getById(this.incidentId).subscribe({
-      next: (inc) => { this.incident.set(inc); this.loading.set(false); },
-      error: () => { this.incident.set(null); this.loading.set(false); },
+      next: (inc) => {
+        this.incident.set(inc);
+        this.loading.set(false);
+        this.syncTrackingMap();
+      },
+      error: () => {
+        this.incident.set(null);
+        this.loading.set(false);
+        this.destroyMap();
+      },
+    });
+  }
+
+  shouldShowTrackingSection(): boolean {
+    const inc = this.incident();
+    return inc?.latitud != null && inc?.longitud != null && ['EN_CAMINO', 'EN_PROCESO'].includes(inc.estado);
+  }
+
+  private handleWsMessage(msg: WsMessage): void {
+    if (msg.tipo === 'ubicacion_tecnico') {
+      const lat = this.toNumber(msg['lat'] ?? msg['latitud']);
+      const lng = this.toNumber(msg['lng'] ?? msg['longitud']);
+      if (lat == null || lng == null) return;
+
+      this.technicianLocation.set({
+        lat,
+        lng,
+        tecnicoId: msg['tecnico_id'] ?? msg['id_tecnico'],
+        timestamp: msg['timestamp'],
+      });
+      this.syncTrackingMap();
+      return;
+    }
+
+    if (msg.tipo === 'tracking_finalizado') {
+      this.technicianLocation.set(null);
+      this.destroyMap();
+      this.loadData();
+      return;
+    }
+
+    if (msg.tipo !== 'conectado') this.loadData();
+  }
+
+  private toNumber(value: unknown): number | null {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  private syncTrackingMap(): void {
+    if (!this.shouldShowTrackingSection() || !this.technicianLocation()) {
+      this.destroyMap();
+      return;
+    }
+    setTimeout(() => this.renderTrackingMap(), 0);
+  }
+
+  private renderTrackingMap(): void {
+    const inc = this.incident();
+    const tech = this.technicianLocation();
+    const container = document.getElementById('tracking-map');
+    if (inc?.latitud == null || inc?.longitud == null || !tech || !container || typeof L === 'undefined') return;
+
+    const incidentLatLng: [number, number] = [inc.latitud, inc.longitud];
+    const techLatLng: [number, number] = [tech.lat, tech.lng];
+
+    if (!this.map) {
+      this.map = L.map(container, { zoomControl: true }).setView(techLatLng, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(this.map);
+      this.incidentMarker = L.marker(incidentLatLng, { icon: this.incidentIcon() })
+        .addTo(this.map)
+        .bindPopup('Incidente');
+      this.technicianMarker = L.marker(techLatLng, { icon: this.technicianIcon() })
+        .addTo(this.map)
+        .bindPopup('Técnico');
+    } else {
+      this.incidentMarker?.setLatLng(incidentLatLng);
+      this.technicianMarker?.setLatLng(techLatLng);
+    }
+
+    const bounds = L.latLngBounds([incidentLatLng, techLatLng]);
+    this.map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16 });
+    this.map.invalidateSize();
+  }
+
+  private destroyMap(): void {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+      this.incidentMarker = null;
+      this.technicianMarker = null;
+    }
+  }
+
+  private incidentIcon(): any {
+    return L.divIcon({
+      html: '<div style="width:18px;height:18px;border-radius:50%;background:#ef4444;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,.4);"></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      className: '',
+    });
+  }
+
+  private technicianIcon(): any {
+    return L.divIcon({
+      html: '<div style="width:28px;height:28px;border-radius:50%;background:#2563eb;border:3px solid white;box-shadow:0 0 0 8px rgba(37,99,235,.22),0 2px 12px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">T</div>',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+      className: '',
     });
   }
 

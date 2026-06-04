@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api_client.dart';
 import '../../../core/config.dart';
@@ -24,6 +26,7 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
   StreamSubscription<dynamic>? _subscription;
   final List<Map<String, dynamic>> _wsMessages = [];
   bool _wsConnected = false;
+  TechnicianLocation? _technicianLocation;
 
   @override
   void initState() {
@@ -49,7 +52,12 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
           try {
             final data =
                 jsonDecode(message as String) as Map<String, dynamic>;
-            setState(() => _wsMessages.insert(0, data));
+            setState(() {
+              if (data['tipo'] == 'ubicacion_tecnico') {
+                _technicianLocation = TechnicianLocation.fromJson(data);
+              }
+              _wsMessages.insert(0, data);
+            });
           } catch (_) {
             setState(() =>
                 _wsMessages.insert(0, {'mensaje': message.toString()}));
@@ -146,9 +154,184 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
           _EvidenceSection(evidencias: incident.evidencias),
           const SizedBox(height: 16),
         ],
+        _LiveMapSection(
+          incident: incident,
+          technicianLocation: _technicianLocation,
+          isConnected: _wsConnected,
+        ),
+        const SizedBox(height: 16),
         _NotificationsSection(messages: _wsMessages),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+class _LiveMapSection extends StatelessWidget {
+  final Incident incident;
+  final TechnicianLocation? technicianLocation;
+  final bool isConnected;
+
+  const _LiveMapSection({
+    required this.incident,
+    required this.technicianLocation,
+    required this.isConnected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final incidentLat = incident.latitud;
+    final incidentLng = incident.longitud;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (incidentLat == null || incidentLng == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.map_outlined, color: colorScheme.onSurfaceVariant),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Mapa no disponible para este incidente')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final incidentPoint = LatLng(incidentLat, incidentLng);
+    final technicianPoint = technicianLocation == null
+        ? null
+        : LatLng(technicianLocation!.latitud, technicianLocation!.longitud);
+    final center = technicianPoint ?? incidentPoint;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.map_outlined, color: colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Mapa en vivo',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                _LiveBadge(
+                  label: technicianPoint == null
+                      ? 'Esperando técnico'
+                      : (isConnected ? 'Técnico en vivo' : 'Última ubicación'),
+                  color: technicianPoint == null
+                      ? Colors.orange
+                      : (isConnected ? Colors.green : Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 260,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: technicianPoint == null ? 15 : 14,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.plataforma.emergencias',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: incidentPoint,
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        Icons.location_on,
+                        color: colorScheme.error,
+                        size: 42,
+                      ),
+                    ),
+                    if (technicianPoint != null)
+                      Marker(
+                        point: technicianPoint,
+                        width: 54,
+                        height: 54,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colorScheme.primary,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withOpacity(0.35),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.engineering, color: Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InfoRow(
+                  icon: Icons.report_problem_outlined,
+                  label: 'Incidente',
+                  value: '${incidentLat.toStringAsFixed(6)}, ${incidentLng.toStringAsFixed(6)}',
+                ),
+                if (technicianLocation != null)
+                  _InfoRow(
+                    icon: Icons.engineering_outlined,
+                    label: 'Técnico',
+                    value:
+                        '${technicianLocation!.latitud.toStringAsFixed(6)}, ${technicianLocation!.longitud.toStringAsFixed(6)}',
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _LiveBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

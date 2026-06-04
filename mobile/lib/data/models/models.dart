@@ -420,6 +420,37 @@ class TechnicianAssignment {
   bool get tieneAccionDisponible => siguienteEstado != null;
 }
 
+class TechnicianLocation {
+  final String idIncidente;
+  final String? idTecnico;
+  final double latitud;
+  final double longitud;
+  final DateTime? timestamp;
+
+  const TechnicianLocation({
+    required this.idIncidente,
+    this.idTecnico,
+    required this.latitud,
+    required this.longitud,
+    this.timestamp,
+  });
+
+  factory TechnicianLocation.fromJson(Map<String, dynamic> json) =>
+      TechnicianLocation(
+        idIncidente: (json['incidente_id'] ?? json['id_incidente']) as String? ?? '',
+        idTecnico: (json['tecnico_id'] ?? json['id_tecnico']) as String?,
+        latitud: _toDouble(json['lat'] ?? json['latitud']) ?? 0,
+        longitud: _toDouble(json['lng'] ?? json['longitud']) ?? 0,
+        timestamp: DateTime.tryParse(json['timestamp'] as String? ?? ''),
+      );
+}
+
+double? _toDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
+
 // ── WebSocket Notification ────────────────────────────────────────────────────
 
 class WsNotification {

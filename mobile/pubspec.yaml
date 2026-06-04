@@ -26,6 +26,8 @@ dependencies:
 
   # Location & Maps
   geolocator: ^10.1.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
   # Media
   image_picker: ^1.0.7

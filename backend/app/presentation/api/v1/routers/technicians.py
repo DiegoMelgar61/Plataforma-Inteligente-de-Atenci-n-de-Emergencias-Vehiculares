@@ -284,6 +284,15 @@ def actualizar_estado_incidente_tecnico(
         except Exception:
             logger.exception("Error al crear pago para incidente %s", id_incidente)
 
+        # Cerrar la sesión de tracking GPS del técnico si está activa
+        try:
+            from app.application.use_cases.notification_service import cerrar_tracking_tecnico
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(cerrar_tracking_tecnico(id_incidente))
+        except Exception:
+            logger.exception("Error al cerrar tracking GPS para incidente %s", id_incidente)
+
     db.commit()
     db.refresh(incidente)
 

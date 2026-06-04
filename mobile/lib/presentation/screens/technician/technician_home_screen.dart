@@ -139,6 +139,99 @@ class _LibreView extends StatelessWidget {
   }
 }
 
+class _TrackingCard extends ConsumerWidget {
+  final TechnicianAssignment asignacion;
+  const _TrackingCard({required this.asignacion});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tracking = ref.watch(technicianTrackingProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isCurrentIncident = tracking.incidentId == asignacion.idIncidente;
+    final isActive = tracking.isTracking && isCurrentIncident;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SeccionTitulo(
+              icon: Icons.gps_fixed,
+              titulo: 'Tracking GPS del servicio',
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  isActive ? Icons.location_searching : Icons.location_disabled,
+                  color: isActive ? Colors.green : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isActive
+                        ? 'Enviando ubicación al cliente en tiempo real.'
+                        : 'Inicia el tracking cuando salgas hacia el incidente.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+            if (tracking.lastLocation != null && isCurrentIncident) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Última ubicación: ${tracking.lastLocation!.latitud.toStringAsFixed(6)}, ${tracking.lastLocation!.longitud.toStringAsFixed(6)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+            if (tracking.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                tracking.errorMessage!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.error,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: isActive
+                  ? OutlinedButton.icon(
+                      icon: const Icon(Icons.stop_circle_outlined),
+                      label: const Text('Detener tracking'),
+                      onPressed: () => ref
+                          .read(technicianTrackingProvider.notifier)
+                          .stop(),
+                    )
+                  : FilledButton.icon(
+                      icon: tracking.isConnecting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.play_arrow),
+                      label: Text(tracking.isConnecting
+                          ? 'Iniciando...'
+                          : 'Iniciar tracking GPS'),
+                      onPressed: tracking.isConnecting
+                          ? null
+                          : () => ref
+                              .read(technicianTrackingProvider.notifier)
+                              .start(asignacion.idIncidente),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Orden activa ──────────────────────────────────────────────────────────────
 
 class _OrdenActivaView extends ConsumerWidget {
@@ -236,6 +329,12 @@ class _OrdenActivaView extends ConsumerWidget {
         _UbicacionCard(asignacion: asignacion),
         const SizedBox(height: 24),
 
+        // ── Tracking GPS ─────────────────────────────────────────────────────
+        if (asignacion.estadoIncidente.toUpperCase() != 'ATENDIDO') ...[
+          _TrackingCard(asignacion: asignacion),
+          const SizedBox(height: 24),
+        ],
+
         // ── Botón de acción ──────────────────────────────────────────────────
         if (asignacion.tieneAccionDisponible)
           _BotonAccion(
@@ -278,6 +377,14 @@ class _OrdenActivaView extends ConsumerWidget {
     await ref
         .read(technicianStateUpdateProvider.notifier)
         .updateState(asignacion.idIncidente, siguiente);
+
+    if (siguiente == 'EN_CAMINO') {
+      await ref
+          .read(technicianTrackingProvider.notifier)
+          .start(asignacion.idIncidente);
+    } else if (siguiente == 'ATENDIDO') {
+      await ref.read(technicianTrackingProvider.notifier).stop();
+    }
   }
 
   String _clasificacionLabel(String c) {
