@@ -6,6 +6,7 @@ import asyncio
 import logging
 import re
 import shutil
+import struct
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +15,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from geoalchemy2.elements import WKTElement
-from geoalchemy2.shape import to_shape
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -65,42 +65,63 @@ def _solo_cliente(usuario: USUARIOS) -> None:
         )
 
 
+def _parse_wkb_point(hex_str: str) -> tuple[float, float] | None:
+    """
+    Decode a 2D WKB/EWKB POINT hex string into (lon, lat) using only the
+    stdlib. PostGIS stores geography points as standard WKB, so the bytes the
+    WKBElement already holds are enough — no shapely/GEOS round-trip needed.
+
+    Layout: [byte order:1][geom type:4][optional SRID:4][X:8][Y:8]
+    """
+    try:
+        b = bytes.fromhex(hex_str)
+    except (ValueError, TypeError):
+        return None
+    if len(b) < 21:
+        return None
+    fmt = "<" if b[0] == 1 else ">"
+    geom_type = struct.unpack(fmt + "I", b[1:5])[0]
+    has_srid = bool(geom_type & 0x20000000)  # EWKB SRID flag
+    offset = 5 + (4 if has_srid else 0)
+    if len(b) < offset + 16:
+        return None
+    lon, lat = struct.unpack(fmt + "dd", b[offset:offset + 16])
+    return lon, lat
+
+
 def _coords_desde_orm(inc: INCIDENTES) -> tuple[float | None, float | None]:
+    """Return (lat, lon) for an incident, decoding the PostGIS geography point."""
     raw = inc.UBICACION
     if raw is None:
         return None, None
 
-    # Intento 1: WKBElement de geoalchemy2 — usa el import de nivel módulo
-    try:
-        punto = to_shape(raw)
-        return float(punto.y), float(punto.x)
-    except Exception:
-        pass
+    # Primary: decode the WKB hex carried by the WKBElement (no native deps).
+    hex_str = getattr(raw, "desc", None)
+    if hex_str is None:
+        data = getattr(raw, "data", None)
+        if isinstance(data, (bytes, bytearray, memoryview)):
+            hex_str = bytes(data).hex()
+        elif isinstance(data, str):
+            hex_str = data
+    if hex_str is None:
+        m = re.search(r"[0-9a-fA-F]{40,}", str(raw))
+        hex_str = m.group(0) if m else None
+    if hex_str:
+        coords = _parse_wkb_point(hex_str)
+        if coords is not None:
+            lon, lat = coords
+            return lat, lon
 
-    # Intento 2: string WKT "POINT (lon lat)"
-    try:
-        s = str(raw).strip()
-        if s.upper().startswith("POINT"):
-            nums = re.findall(r"[-+]?\d+\.?\d*", s)
-            if len(nums) >= 2:
-                return float(nums[1]), float(nums[0])
-    except Exception:
-        pass
-
-    # Intento 3: WKB hex / bytes
-    try:
-        from shapely import wkb
-        if isinstance(raw, (bytes, memoryview)):
-            punto = wkb.loads(bytes(raw), include_srid=True)
-        else:
-            punto = wkb.loads(str(raw), hex=True, include_srid=True)
-        return float(punto.y), float(punto.x)
-    except Exception:
-        pass
+    # Fallback: WKT string "POINT (lon lat)".
+    s = str(raw).strip()
+    if "POINT" in s.upper():
+        nums = re.findall(r"[-+]?\d+\.?\d*", s)
+        if len(nums) >= 2:
+            return float(nums[1]), float(nums[0])
 
     logger.warning(
-        "No se pudieron extraer coordenadas — incidente %s, tipo=%s, valor=%r",
-        inc.ID_INCIDENTE, type(raw).__name__, str(raw)[:80],
+        "No se pudieron extraer coordenadas — incidente %s, tipo=%s",
+        inc.ID_INCIDENTE, type(raw).__name__,
     )
     return None, None
 

@@ -289,16 +289,15 @@ interface TechnicianLocation {
             } @else if (incident()!.latitud && incident()!.longitud) {
               <div class="surface p-5">
                 <h2 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Ubicación GPS</h2>
-                <div class="rounded-xl flex items-center justify-center h-40"
-                     style="background: var(--bg-elevated); border: 1px solid var(--border);">
-                  <div class="text-center">
-                    <p class="text-sm font-mono" style="color: var(--text-secondary);">
-                      {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
-                    </p>
-                    <a [href]="mapsUrl()" target="_blank" class="btn-primary text-xs py-1.5 px-4 inline-flex mt-3">
-                      Abrir Google Maps
-                    </a>
-                  </div>
+                <div id="static-location-map" class="rounded-xl overflow-hidden"
+                     style="height: 220px; width: 100%; border: 1px solid var(--border);"></div>
+                <div class="flex items-center justify-between mt-3">
+                  <p class="text-xs font-mono" style="color: var(--text-secondary);">
+                    {{ incident()!.latitud!.toFixed(5) }}, {{ incident()!.longitud!.toFixed(5) }}
+                  </p>
+                  <a [href]="mapsUrl()" target="_blank" class="btn-primary text-xs py-1.5 px-4 inline-flex">
+                    Abrir Google Maps
+                  </a>
                 </div>
               </div>
             } @else {
@@ -498,6 +497,7 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
   private map: any = null;
   private incidentMarker: any = null;
   private technicianMarker: any = null;
+  private staticMap: any = null;
 
   get incidentId(): string {
     return this.route.snapshot.paramMap.get('id') || '';
@@ -515,6 +515,7 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
     this.wsSub?.unsubscribe();
     this.ws.disconnect();
     this.destroyMap();
+    this.destroyStaticMap();
   }
 
   loadData(): void {
@@ -524,11 +525,13 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
         this.incident.set(inc);
         this.loading.set(false);
         this.syncTrackingMap();
+        this.syncStaticMap();
       },
       error: () => {
         this.incident.set(null);
         this.loading.set(false);
         this.destroyMap();
+        this.destroyStaticMap();
       },
     });
   }
@@ -652,6 +655,44 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
       this.map = null;
       this.incidentMarker = null;
       this.technicianMarker = null;
+    }
+  }
+
+  private syncStaticMap(): void {
+    const inc = this.incident();
+    // Static map only when there are coords but no live technician tracking.
+    if (this.shouldShowTrackingSection() || inc?.latitud == null || inc?.longitud == null) {
+      this.destroyStaticMap();
+      return;
+    }
+    // 200ms delay so the container has real dimensions before Leaflet measures it.
+    setTimeout(() => this.renderStaticMap(), 200);
+  }
+
+  private renderStaticMap(): void {
+    const inc = this.incident();
+    const container = document.getElementById('static-location-map');
+    if (inc?.latitud == null || inc?.longitud == null || !container || typeof L === 'undefined') return;
+
+    const latLng: [number, number] = [inc.latitud, inc.longitud];
+    if (!this.staticMap) {
+      this.staticMap = L.map(container, { zoomControl: true }).setView(latLng, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(this.staticMap);
+      L.marker(latLng, { icon: this.incidentIcon() }).addTo(this.staticMap).bindPopup('Incidente');
+    } else {
+      this.staticMap.setView(latLng, 14);
+    }
+    // Recalculate size once the tiles/layout settle — fixes the blank/gray map.
+    this.staticMap.invalidateSize();
+  }
+
+  private destroyStaticMap(): void {
+    if (this.staticMap) {
+      this.staticMap.remove();
+      this.staticMap = null;
     }
   }
 

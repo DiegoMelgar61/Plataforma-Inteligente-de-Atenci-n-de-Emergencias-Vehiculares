@@ -44,6 +44,6 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .mypy_cache/
-
+.claude
 # Alembic (opcional: descomentar si no versionas revisiones generadas localmente)
 # app/migrations/versions/*.py
