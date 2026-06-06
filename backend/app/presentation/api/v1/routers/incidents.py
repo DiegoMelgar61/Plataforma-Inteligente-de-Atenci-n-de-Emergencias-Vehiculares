@@ -70,56 +70,37 @@ def _coords_desde_orm(inc: INCIDENTES) -> tuple[float | None, float | None]:
     if raw is None:
         return None, None
 
-    # Intento 1: geoalchemy2 to_shape (camino nominal — WKBElement/WKTElement)
+    # Intento 1: WKBElement de geoalchemy2 — usa el import de nivel módulo
     try:
         punto = to_shape(raw)
         return float(punto.y), float(punto.x)
     except Exception:
         pass
 
-    # Intento 2: shapely.wkb.loads directo sobre el hex del EWKB.
-    # Cubre el caso en que psycopg2 devuelve el valor como str/bytes crudo
-    # en vez de WKBElement, o que to_shape falle por versión de shapely.
+    # Intento 2: string WKT "POINT (lon lat)"
     try:
-        from shapely import wkb as shapely_wkb
-        if hasattr(raw, "desc"):
-            hex_str: str = raw.desc
-        elif isinstance(raw, memoryview):
-            hex_str = bytes(raw).hex()
-        elif isinstance(raw, bytes):
-            hex_str = raw.hex()
-        elif isinstance(raw, str):
-            hex_str = raw
+        s = str(raw).strip()
+        if s.upper().startswith("POINT"):
+            nums = re.findall(r"[-+]?\d+\.?\d*", s)
+            if len(nums) >= 2:
+                return float(nums[1]), float(nums[0])
+    except Exception:
+        pass
+
+    # Intento 3: WKB hex / bytes
+    try:
+        from shapely import wkb
+        if isinstance(raw, (bytes, memoryview)):
+            punto = wkb.loads(bytes(raw), include_srid=True)
         else:
-            hex_str = str(raw)
-        try:
-            # include_srid=True es necesario para EWKB (PostGIS Geography con SRID embebido)
-            punto = shapely_wkb.loads(hex_str, hex=True, include_srid=True)
-        except TypeError:
-            # Shapely < 1.6.1 no acepta include_srid; intentar sin él
-            punto = shapely_wkb.loads(hex_str, hex=True)
+            punto = wkb.loads(str(raw), hex=True, include_srid=True)
         return float(punto.y), float(punto.x)
     except Exception:
         pass
 
-    # Intento 3: regex sobre la representación en texto (WKT / EWKT)
-    try:
-        s = str(raw)
-        m = re.search(
-            r"POINT\s*\(\s*([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)\s*\)",
-            s,
-            re.IGNORECASE,
-        )
-        if m:
-            # PostGIS WKT usa orden (longitud latitud): POINT(lng lat)
-            return float(m.group(2)), float(m.group(1))
-    except Exception:
-        pass
-
     logger.warning(
-        "No se pudieron extraer coordenadas — incidente %s, tipo=%s",
-        inc.ID_INCIDENTE,
-        type(raw).__name__,
+        "No se pudieron extraer coordenadas — incidente %s, tipo=%s, valor=%r",
+        inc.ID_INCIDENTE, type(raw).__name__, str(raw)[:80],
     )
     return None, None
 
