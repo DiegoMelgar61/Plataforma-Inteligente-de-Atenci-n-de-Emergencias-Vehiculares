@@ -90,7 +90,7 @@ function tecnicoIcon(disponible: boolean): L.DivIcon {
 
       <!-- Real Leaflet map -->
       <div class="surface overflow-hidden">
-        <div id="operations-map" style="min-height:400px;height:480px;width:100%;"></div>
+        <div id="operations-map" style="height: 480px; width: 100%;"></div>
 
         @if (incidentsWithLocation().length === 0) {
           <div class="px-4 py-3 text-center" style="border-top: 1px solid var(--border);">
@@ -157,6 +157,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private map: L.Map | null = null;
   private markersLayer: L.LayerGroup | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   activeIncidents = computed(() => this.incidents().filter(i =>
     ['CLASIFICADO', 'ASIGNADO', 'EN_CAMINO', 'EN_PROCESO', 'PENDIENTE'].includes(i.estado)
@@ -197,8 +198,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    // The map container exists after the view renders.
-    setTimeout(() => this.initMap(), 50);
+    // 300ms delay so the container has real dimensions before Leaflet measures
+    // it. On slow-loading prod bundles (Vercel) a 0ms tick renders a black map.
+    setTimeout(() => this.initMap(), 300);
   }
 
   ngOnDestroy(): void {
@@ -215,10 +217,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private initMap(): void {
     if (this.map) return;
-    const el = document.getElementById('operations-map');
-    if (!el) return;
+    const container = document.getElementById('operations-map');
+    if (!container) return;
 
-    this.map = L.map('operations-map').setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    this.map = L.map(container).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
@@ -227,6 +229,15 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Render whatever data is already loaded.
     this.renderMarkers(this.incidentsWithLocation(), this.tecnicosWithLocation());
+
+    // Recalculate size once tiles/layout settle — fixes the black map in prod.
+    setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 400);
+
+    // Keep the map sized correctly whenever the container changes dimensions.
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.map) this.map.invalidateSize();
+    });
+    this.resizeObserver.observe(container);
   }
 
   private renderMarkers(incidents: Incident[], tecnicos: Tecnico[]): void {
@@ -269,6 +280,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private destroyMap(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
     if (this.map) {
       this.map.remove();
       this.map = null;
