@@ -66,13 +66,62 @@ def _solo_cliente(usuario: USUARIOS) -> None:
 
 
 def _coords_desde_orm(inc: INCIDENTES) -> tuple[float | None, float | None]:
-    if inc.UBICACION is None:
+    raw = inc.UBICACION
+    if raw is None:
         return None, None
+
+    # Intento 1: geoalchemy2 to_shape (camino nominal — WKBElement/WKTElement)
     try:
-        punto = to_shape(inc.UBICACION)
+        punto = to_shape(raw)
         return float(punto.y), float(punto.x)
     except Exception:
-        return None, None
+        pass
+
+    # Intento 2: shapely.wkb.loads directo sobre el hex del EWKB.
+    # Cubre el caso en que psycopg2 devuelve el valor como str/bytes crudo
+    # en vez de WKBElement, o que to_shape falle por versión de shapely.
+    try:
+        from shapely import wkb as shapely_wkb
+        if hasattr(raw, "desc"):
+            hex_str: str = raw.desc
+        elif isinstance(raw, memoryview):
+            hex_str = bytes(raw).hex()
+        elif isinstance(raw, bytes):
+            hex_str = raw.hex()
+        elif isinstance(raw, str):
+            hex_str = raw
+        else:
+            hex_str = str(raw)
+        try:
+            # include_srid=True es necesario para EWKB (PostGIS Geography con SRID embebido)
+            punto = shapely_wkb.loads(hex_str, hex=True, include_srid=True)
+        except TypeError:
+            # Shapely < 1.6.1 no acepta include_srid; intentar sin él
+            punto = shapely_wkb.loads(hex_str, hex=True)
+        return float(punto.y), float(punto.x)
+    except Exception:
+        pass
+
+    # Intento 3: regex sobre la representación en texto (WKT / EWKT)
+    try:
+        s = str(raw)
+        m = re.search(
+            r"POINT\s*\(\s*([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)\s*\)",
+            s,
+            re.IGNORECASE,
+        )
+        if m:
+            # PostGIS WKT usa orden (longitud latitud): POINT(lng lat)
+            return float(m.group(2)), float(m.group(1))
+    except Exception:
+        pass
+
+    logger.warning(
+        "No se pudieron extraer coordenadas — incidente %s, tipo=%s",
+        inc.ID_INCIDENTE,
+        type(raw).__name__,
+    )
+    return None, None
 
 
 def _nombre_seguro(nombre: str | None) -> str:

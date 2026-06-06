@@ -1,5 +1,5 @@
 """
-Esquemas para las operaciones de asignación inteligente.
+Esquemas para las operaciones de asignación inteligente y cotizaciones.
 """
 from datetime import datetime
 from uuid import UUID
@@ -38,3 +38,33 @@ class AssignmentResponse(BaseModel):
     id_tecnico: UUID = Field(validation_alias="ID_TECNICO")
     fecha_asignacion: datetime | None = Field(validation_alias="FECHA_ASIGNACION")
     mensaje: str = Field(default="Incidente asignado correctamente")
+
+
+class CotizacionCreate(BaseModel):
+    """Propuesta de cotización enviada por el taller."""
+
+    monto_cotizado: float = Field(..., gt=0, description="Monto total cotizado (moneda local)")
+    tiempo_estimado_reparacion: int | None = Field(
+        None, gt=0, description="Tiempo estimado en minutos"
+    )
+    notas_cotizacion: str | None = Field(None, max_length=1000)
+
+
+class CotizacionRespuesta(BaseModel):
+    """Respuesta del cliente a la cotización propuesta."""
+
+    aceptada: bool
+    motivo_rechazo: str | None = Field(None, max_length=500)
+
+
+class CotizacionDetalleResponse(BaseModel):
+    """Estado actual de la cotización para un incidente."""
+
+    id_asignacion: UUID
+    id_incidente: UUID
+    monto_cotizado: float | None
+    tiempo_estimado_reparacion: int | None
+    notas_cotizacion: str | None
+    cotizacion_aceptada: bool | None
+    estado_incidente: str
+    timestamp: str | None = None

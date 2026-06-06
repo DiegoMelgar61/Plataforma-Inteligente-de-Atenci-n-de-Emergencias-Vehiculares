@@ -13,6 +13,7 @@ import { AdminUsersComponent } from './features/admin/admin-users.component';
 import { AdminWorkshopsComponent } from './features/admin/admin-workshops.component';
 import { PaymentsListComponent } from './features/payments/payments-list.component';
 import { TenantsComponent } from './features/tenants/tenants.component';
+import { OperationsComponent } from './features/operations/operations.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -29,6 +30,7 @@ export const routes: Routes = [
       { path: 'technicians', component: TechniciansComponent },
       { path: 'map', component: MapComponent },
       { path: 'payments', component: PaymentsListComponent },
+      { path: 'operations', component: OperationsComponent },
       { path: 'history', component: HistoryComponent },
       { path: 'tenants', component: TenantsComponent },
       {

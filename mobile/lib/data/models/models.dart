@@ -295,6 +295,10 @@ class Assignment {
   final String idTaller;
   final String? idTecnico;
   final DateTime? fechaAsignacion;
+  final num? montoCotizado;
+  final int? tiempoEstimadoReparacion;
+  final String? notasCotizacion;
+  final bool? cotizacionAceptada;
 
   const Assignment({
     required this.idAsignacion,
@@ -302,6 +306,10 @@ class Assignment {
     required this.idTaller,
     this.idTecnico,
     this.fechaAsignacion,
+    this.montoCotizado,
+    this.tiempoEstimadoReparacion,
+    this.notasCotizacion,
+    this.cotizacionAceptada,
   });
 
   factory Assignment.fromJson(Map<String, dynamic> json) => Assignment(
@@ -311,7 +319,50 @@ class Assignment {
         idTecnico: json['id_tecnico'] as String?,
         fechaAsignacion:
             DateTime.tryParse(json['fecha_asignacion'] as String? ?? ''),
+        montoCotizado: _toNum(json['monto_cotizado']),
+        tiempoEstimadoReparacion:
+            (json['tiempo_estimado_reparacion'] as num?)?.toInt(),
+        notasCotizacion: json['notas_cotizacion'] as String?,
+        cotizacionAceptada: json['cotizacion_aceptada'] as bool?,
       );
+}
+
+class CotizacionDetalle {
+  final String idAsignacion;
+  final String idIncidente;
+  final num? montoCotizado;
+  final int? tiempoEstimadoReparacion;
+  final String? notasCotizacion;
+  final bool? cotizacionAceptada;
+  final String estadoIncidente;
+  final DateTime? timestamp;
+
+  const CotizacionDetalle({
+    required this.idAsignacion,
+    required this.idIncidente,
+    this.montoCotizado,
+    this.tiempoEstimadoReparacion,
+    this.notasCotizacion,
+    this.cotizacionAceptada,
+    required this.estadoIncidente,
+    this.timestamp,
+  });
+
+  factory CotizacionDetalle.fromJson(Map<String, dynamic> json) =>
+      CotizacionDetalle(
+        idAsignacion: json['id_asignacion'] as String? ?? '',
+        idIncidente: json['id_incidente'] as String? ?? '',
+        montoCotizado: _toNum(json['monto_cotizado']),
+        tiempoEstimadoReparacion:
+            (json['tiempo_estimado_reparacion'] as num?)?.toInt(),
+        notasCotizacion: json['notas_cotizacion'] as String?,
+        cotizacionAceptada: json['cotizacion_aceptada'] as bool?,
+        estadoIncidente: json['estado_incidente'] as String? ?? '',
+        timestamp: DateTime.tryParse(json['timestamp'] as String? ?? ''),
+      );
+
+  bool get tieneMonto => montoCotizado != null;
+  bool get pendienteRespuesta => tieneMonto && cotizacionAceptada == null;
 }
 
 // ── TechnicianAssignment ──────────────────────────────────────────────────────
@@ -369,8 +420,8 @@ class TechnicianAssignment {
         clienteTelefono: json['cliente_telefono'] as String?,
         fechaAsignacion:
             DateTime.tryParse(json['fecha_asignacion'] as String? ?? ''),
-        fechaCreacionIncidente:
-            DateTime.tryParse(json['fecha_creacion_incidente'] as String? ?? ''),
+        fechaCreacionIncidente: DateTime.tryParse(
+            json['fecha_creacion_incidente'] as String? ?? ''),
       );
 
   /// Etiqueta visible al usuario para el estado actual
@@ -437,7 +488,8 @@ class TechnicianLocation {
 
   factory TechnicianLocation.fromJson(Map<String, dynamic> json) =>
       TechnicianLocation(
-        idIncidente: (json['incidente_id'] ?? json['id_incidente']) as String? ?? '',
+        idIncidente:
+            (json['incidente_id'] ?? json['id_incidente']) as String? ?? '',
         idTecnico: (json['tecnico_id'] ?? json['id_tecnico']) as String?,
         latitud: _toDouble(json['lat'] ?? json['latitud']) ?? 0,
         longitud: _toDouble(json['lng'] ?? json['longitud']) ?? 0,
@@ -597,8 +649,7 @@ class Payment {
             DateTime.tryParse(json['fecha_marcado_pago'] as String? ?? ''),
         fechaConfirmacion:
             DateTime.tryParse(json['fecha_confirmacion'] as String? ?? ''),
-        fechaRechazo:
-            DateTime.tryParse(json['fecha_rechazo'] as String? ?? ''),
+        fechaRechazo: DateTime.tryParse(json['fecha_rechazo'] as String? ?? ''),
       );
 }
 

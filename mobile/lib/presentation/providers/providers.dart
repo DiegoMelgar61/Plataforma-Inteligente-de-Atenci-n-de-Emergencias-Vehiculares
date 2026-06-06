@@ -109,8 +109,8 @@ class SincronizacionNotifier extends StateNotifier<SincronizacionState> {
   void reset() => state = const SincronizacionIdle();
 }
 
-final sincronizacionProvider = StateNotifierProvider<SincronizacionNotifier,
-    SincronizacionState>((ref) {
+final sincronizacionProvider =
+    StateNotifierProvider<SincronizacionNotifier, SincronizacionState>((ref) {
   return SincronizacionNotifier(ref.watch(offlineSyncRepositoryProvider), ref);
 });
 
@@ -141,8 +141,7 @@ class AuthState {
         isAuthenticated: isAuthenticated ?? this.isAuthenticated,
         currentUser: clearUser ? null : (currentUser ?? this.currentUser),
         isLoading: isLoading ?? this.isLoading,
-        errorMessage:
-            clearError ? null : (errorMessage ?? this.errorMessage),
+        errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       );
 }
 
@@ -195,8 +194,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void clearError() => state = state.copyWith(clearError: true);
 }
 
-final authProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref.watch(authRepositoryProvider), ref);
 });
 
@@ -213,6 +211,51 @@ final selectedIncidentProvider =
   return ref.read(incidentRepositoryProvider).getIncidentById(id);
 });
 
+final incidentQuotationProvider = FutureProvider.autoDispose
+    .family<CotizacionDetalle?, String>((ref, id) async {
+  return ref.read(incidentRepositoryProvider).getCotizacion(id);
+});
+
+class QuotationResponseNotifier extends StateNotifier<AsyncValue<void>> {
+  QuotationResponseNotifier(this._repo, this._ref, this._incidentId)
+      : super(const AsyncValue.data(null));
+
+  final IncidentRepository _repo;
+  final Ref _ref;
+  final String _incidentId;
+
+  Future<void> respond({
+    required bool accepted,
+    String? rejectionReason,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.responderCotizacion(
+        _incidentId,
+        aceptada: accepted,
+        motivoRechazo: rejectionReason,
+      );
+      _ref.invalidate(incidentQuotationProvider(_incidentId));
+      _ref.invalidate(selectedIncidentProvider(_incidentId));
+      _ref.invalidate(myIncidentsProvider);
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  void reset() => state = const AsyncValue.data(null);
+}
+
+final quotationResponseProvider = StateNotifierProvider.autoDispose
+    .family<QuotationResponseNotifier, AsyncValue<void>, String>((ref, id) {
+  return QuotationResponseNotifier(
+    ref.watch(incidentRepositoryProvider),
+    ref,
+    id,
+  );
+});
+
 // ── Payments ──────────────────────────────────────────────────────────────────
 
 final myPaymentsProvider =
@@ -222,15 +265,13 @@ final myPaymentsProvider =
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 
-final vehiclesProvider =
-    FutureProvider.autoDispose<List<Vehicle>>((ref) async {
+final vehiclesProvider = FutureProvider.autoDispose<List<Vehicle>>((ref) async {
   return ref.read(vehicleRepositoryProvider).getVehicles();
 });
 
 // ── WS Notifications (global list) ───────────────────────────────────────────
 
-class NotificationsNotifier
-    extends StateNotifier<List<Map<String, dynamic>>> {
+class NotificationsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   NotificationsNotifier() : super(const []);
 
   void add(Map<String, dynamic> notification) {
@@ -285,8 +326,7 @@ class ReportFormState {
         longitude: longitude ?? this.longitude,
         filePaths: filePaths ?? this.filePaths,
         isSubmitting: isSubmitting ?? this.isSubmitting,
-        errorMessage:
-            clearError ? null : (errorMessage ?? this.errorMessage),
+        errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       );
 }
 
@@ -298,8 +338,7 @@ class ReportFormNotifier extends StateNotifier<ReportFormState> {
   void setVehicle(String? vehicleId) =>
       state = state.copyWith(selectedVehicleId: vehicleId);
 
-  void setDescription(String desc) =>
-      state = state.copyWith(description: desc);
+  void setDescription(String desc) => state = state.copyWith(description: desc);
 
   void setLocation(double lat, double lng) =>
       state = state.copyWith(latitude: lat, longitude: lng);
@@ -324,9 +363,8 @@ class ReportFormNotifier extends StateNotifier<ReportFormState> {
         latitud: state.latitude!,
         longitud: state.longitude!,
         idVehiculo: state.selectedVehicleId,
-        textoDescripcion: state.description.trim().isEmpty
-            ? null
-            : state.description.trim(),
+        textoDescripcion:
+            state.description.trim().isEmpty ? null : state.description.trim(),
         imagenesPath: state.filePaths,
       );
       state = const ReportFormState();
@@ -341,8 +379,8 @@ class ReportFormNotifier extends StateNotifier<ReportFormState> {
   }
 }
 
-final reportFormProvider = StateNotifierProvider.autoDispose<ReportFormNotifier,
-    ReportFormState>(
+final reportFormProvider =
+    StateNotifierProvider.autoDispose<ReportFormNotifier, ReportFormState>(
   (ref) => ReportFormNotifier(ref.watch(incidentRepositoryProvider)),
 );
 
@@ -356,7 +394,8 @@ final miAsignacionProvider =
 // ── Technician: cambio de estado (máquina de estados) ────────────────────────
 
 class TechnicianStateUpdateNotifier extends StateNotifier<AsyncValue<void>> {
-  TechnicianStateUpdateNotifier(this._repo) : super(const AsyncValue.data(null));
+  TechnicianStateUpdateNotifier(this._repo)
+      : super(const AsyncValue.data(null));
 
   final TechnicianRepository _repo;
 
@@ -375,7 +414,8 @@ class TechnicianStateUpdateNotifier extends StateNotifier<AsyncValue<void>> {
 
 final technicianStateUpdateProvider = StateNotifierProvider.autoDispose<
     TechnicianStateUpdateNotifier, AsyncValue<void>>(
-  (ref) => TechnicianStateUpdateNotifier(ref.watch(technicianRepositoryProvider)),
+  (ref) =>
+      TechnicianStateUpdateNotifier(ref.watch(technicianRepositoryProvider)),
 );
 
 // ── Technician: tracking GPS por WebSocket ────────────────────────────────────
@@ -413,8 +453,10 @@ class TechnicianTrackingState {
       );
 }
 
-class TechnicianTrackingNotifier extends StateNotifier<TechnicianTrackingState> {
-  TechnicianTrackingNotifier(this._client) : super(const TechnicianTrackingState());
+class TechnicianTrackingNotifier
+    extends StateNotifier<TechnicianTrackingState> {
+  TechnicianTrackingNotifier(this._client)
+      : super(const TechnicianTrackingState());
 
   final ApiClient _client;
   WebSocketChannel? _channel;
@@ -462,7 +504,8 @@ class TechnicianTrackingNotifier extends StateNotifier<TechnicianTrackingState> 
       );
     } catch (e) {
       await stop();
-      state = TechnicianTrackingState(errorMessage: 'No se pudo iniciar tracking: $e');
+      state = TechnicianTrackingState(
+          errorMessage: 'No se pudo iniciar tracking: $e');
     }
   }
 
@@ -544,7 +587,8 @@ class TechnicianTrackingNotifier extends StateNotifier<TechnicianTrackingState> 
   }
 }
 
-final technicianTrackingProvider = StateNotifierProvider<
-    TechnicianTrackingNotifier, TechnicianTrackingState>((ref) {
+final technicianTrackingProvider =
+    StateNotifierProvider<TechnicianTrackingNotifier, TechnicianTrackingState>(
+        (ref) {
   return TechnicianTrackingNotifier(ref.watch(apiClientProvider));
 });

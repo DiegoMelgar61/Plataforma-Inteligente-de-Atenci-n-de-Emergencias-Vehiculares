@@ -21,6 +21,7 @@ from app.presentation.api.v1.routers.assignments import router as assignments_ro
 from app.presentation.api.v1.routers.notifications import router as notifications_router
 from app.presentation.api.v1.routers.payments import router as payments_router
 from app.presentation.api.v1.routers.tracking import router as tracking_router
+from app.presentation.api.v1.routers.stats import router as stats_router
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,7 @@ app.include_router(assignments_router)
 app.include_router(notifications_router)
 app.include_router(payments_router)
 app.include_router(tracking_router)
+app.include_router(stats_router)
 
 
 @app.exception_handler(Exception)
@@ -143,3 +145,7 @@ app.mount(
     StaticFiles(directory=str(_comprobantes_dir)),
     name="comprobantes_estaticos",
 )
+
+
+
+

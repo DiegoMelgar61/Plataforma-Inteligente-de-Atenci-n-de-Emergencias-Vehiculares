@@ -29,6 +29,9 @@ from app.presentation.api.v1.dependencies.auth import (
 from app.presentation.api.v1.schemas.assignment import (
     AssignmentResponse,
     AvailableWorkshopsResponse,
+    CotizacionCreate,
+    CotizacionDetalleResponse,
+    CotizacionRespuesta,
     WorkshopCandidateResponse,
 )
 
@@ -319,3 +322,299 @@ def rechazar_asignacion(
 
     db.commit()
     return {"detail": "Asignación rechazada"}
+
+
+# ─── helpers ────────────────────────────────────────────────────────────────
+
+def _notify_incidente(incidente_id: UUID, payload: dict) -> None:
+    """Encola un broadcast al canal WebSocket del incidente."""
+    try:
+        from app.application.use_cases.notification_service import broadcast_incidente_async
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_incidente_async(incidente_id, payload))
+    except Exception:
+        pass
+
+
+# ─── CU21 — Cotizaciones ─────────────────────────────────────────────────────
+
+@router.get(
+    "/incidents/{id_incidente}/cotizacion",
+    response_model=CotizacionDetalleResponse,
+    summary="Ver cotización del incidente",
+    description="Devuelve el estado actual de la cotización: propuesta, aceptada o sin respuesta.",
+)
+def ver_cotizacion(
+    id_incidente: UUID,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_active_user),
+):
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    rol = _rol_texto(usuario)
+    es_cliente = rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE == usuario.ID_USUARIO
+    es_taller_admin = rol in ("TALLER", "ADMIN")
+    if not (es_cliente or es_taller_admin):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    asignacion = (
+        db.query(ASIGNACIONES)
+        .filter(
+            ASIGNACIONES.ID_INCIDENTE == id_incidente,
+            ASIGNACIONES.FECHA_RECHAZO.is_(None),
+        )
+        .first()
+    )
+    if not asignacion:
+        raise HTTPException(status_code=404, detail="Sin asignación activa para este incidente")
+
+    estado_str = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
+    return CotizacionDetalleResponse(
+        id_asignacion=asignacion.ID_ASIGNACION,
+        id_incidente=inc.ID_INCIDENTE,
+        monto_cotizado=float(asignacion.MONTO_COTIZADO) if asignacion.MONTO_COTIZADO else None,
+        tiempo_estimado_reparacion=asignacion.TIEMPO_ESTIMADO_REPARACION,
+        notas_cotizacion=asignacion.NOTAS_COTIZACION,
+        cotizacion_aceptada=asignacion.COTIZACION_ACEPTADA,
+        estado_incidente=estado_str,
+        timestamp=datetime.utcnow().isoformat(),
+    )
+
+
+@router.post(
+    "/incidents/{id_incidente}/cotizacion",
+    response_model=CotizacionDetalleResponse,
+    summary="Proponer cotización (Taller)",
+    description=(
+        "El taller asignado propone el monto, tiempo estimado y notas de cotización. "
+        "Solo disponible cuando el incidente está en estado ASIGNADO y sin respuesta del cliente."
+    ),
+)
+def proponer_cotizacion(
+    id_incidente: UUID,
+    body: CotizacionCreate,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_active_user),
+):
+    if _rol_texto(usuario) != "TALLER":
+        raise HTTPException(status_code=403, detail="Solo talleres pueden proponer cotizaciones")
+
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    estado_str = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
+    if estado_str != "ASIGNADO":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se puede cotizar en estado ASIGNADO (estado actual: {estado_str})",
+        )
+
+    taller = db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
+    if not taller:
+        raise HTTPException(status_code=404, detail="Taller no encontrado")
+
+    asignacion = (
+        db.query(ASIGNACIONES)
+        .filter(
+            ASIGNACIONES.ID_INCIDENTE == id_incidente,
+            ASIGNACIONES.ID_TALLER == taller.ID_TALLER,
+            ASIGNACIONES.FECHA_RECHAZO.is_(None),
+        )
+        .first()
+    )
+    if not asignacion:
+        raise HTTPException(status_code=403, detail="No sos el taller asignado a este incidente")
+
+    if asignacion.COTIZACION_ACEPTADA is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="El cliente ya respondió a la cotización — no se puede modificar",
+        )
+
+    asignacion.MONTO_COTIZADO = body.monto_cotizado
+    asignacion.TIEMPO_ESTIMADO_REPARACION = body.tiempo_estimado_reparacion
+    asignacion.NOTAS_COTIZACION = body.notas_cotizacion
+    db.add(asignacion)
+    db.commit()
+    db.refresh(asignacion)
+
+    payload = {
+        "tipo": "cotizacion_propuesta",
+        "incidente_id": str(id_incidente),
+        "asignacion_id": str(asignacion.ID_ASIGNACION),
+        "monto_cotizado": float(body.monto_cotizado),
+        "tiempo_estimado_reparacion": body.tiempo_estimado_reparacion,
+        "notas_cotizacion": body.notas_cotizacion,
+        "mensaje": "El taller propuso una cotización. Por favor revisá y respondé.",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    _notify_incidente(id_incidente, payload)
+
+    return CotizacionDetalleResponse(
+        id_asignacion=asignacion.ID_ASIGNACION,
+        id_incidente=inc.ID_INCIDENTE,
+        monto_cotizado=float(asignacion.MONTO_COTIZADO),
+        tiempo_estimado_reparacion=asignacion.TIEMPO_ESTIMADO_REPARACION,
+        notas_cotizacion=asignacion.NOTAS_COTIZACION,
+        cotizacion_aceptada=asignacion.COTIZACION_ACEPTADA,
+        estado_incidente=estado_str,
+        timestamp=payload["timestamp"],
+    )
+
+
+@router.post(
+    "/incidents/{id_incidente}/cotizacion/respuesta",
+    response_model=CotizacionDetalleResponse,
+    summary="Responder cotización (Cliente)",
+    description=(
+        "El cliente acepta o rechaza la cotización propuesta por el taller.\n\n"
+        "- **Aceptar**: el incidente avanza automáticamente a EN_CAMINO.\n"
+        "- **Rechazar**: el incidente vuelve a CLASIFICADO para reasignación; "
+        "el técnico queda disponible nuevamente."
+    ),
+)
+def responder_cotizacion(
+    id_incidente: UUID,
+    body: CotizacionRespuesta,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_active_user),
+):
+    from app.models.models import HISTORIAL_INCIDENTES
+
+    if _rol_texto(usuario) != "CLIENTE":
+        raise HTTPException(status_code=403, detail="Solo clientes pueden responder cotizaciones")
+
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    if inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(status_code=403, detail="No autorizado a responder este incidente")
+
+    estado_str = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
+    if estado_str != "ASIGNADO":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se puede responder en estado ASIGNADO (estado actual: {estado_str})",
+        )
+
+    asignacion = (
+        db.query(ASIGNACIONES)
+        .filter(
+            ASIGNACIONES.ID_INCIDENTE == id_incidente,
+            ASIGNACIONES.FECHA_RECHAZO.is_(None),
+        )
+        .first()
+    )
+    if not asignacion:
+        raise HTTPException(status_code=404, detail="Sin asignación activa para este incidente")
+
+    if asignacion.MONTO_COTIZADO is None:
+        raise HTTPException(
+            status_code=400,
+            detail="El taller todavía no envió una cotización",
+        )
+
+    if asignacion.COTIZACION_ACEPTADA is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya respondiste a esta cotización — no se puede cambiar",
+        )
+
+    if body.aceptada:
+        asignacion.COTIZACION_ACEPTADA = True
+        asignacion.FECHA_ACEPTACION = datetime.utcnow()
+        inc.ESTADO = "EN_CAMINO"
+        db.add(asignacion)
+        db.add(inc)
+        db.add(
+            HISTORIAL_INCIDENTES(
+                ID_INCIDENTE=id_incidente,
+                ESTADO="EN_CAMINO",
+                NOTAS="Cliente aceptó la cotización. Técnico en camino.",
+                ID_USUARIO_CAMBIO=usuario.ID_USUARIO,
+            )
+        )
+        db.commit()
+        db.refresh(asignacion)
+
+        nuevo_estado = "EN_CAMINO"
+        payload = {
+            "tipo": "cotizacion_aceptada",
+            "incidente_id": str(id_incidente),
+            "asignacion_id": str(asignacion.ID_ASIGNACION),
+            "nuevo_estado": nuevo_estado,
+            "monto_cotizado": float(asignacion.MONTO_COTIZADO),
+            "mensaje": "Cotización aceptada. El técnico se dirige al lugar.",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    else:
+        # Rechazar: liberar técnico y eliminar asignación para permitir reasignación
+        if asignacion.ID_TECNICO:
+            tecnico = db.query(TECNICOS).filter(
+                TECNICOS.ID_TECNICO == asignacion.ID_TECNICO
+            ).first()
+            if tecnico:
+                tecnico.DISPONIBLE = True
+                db.add(tecnico)
+
+        db.add(
+            HISTORIAL_INCIDENTES(
+                ID_INCIDENTE=id_incidente,
+                ESTADO="CLASIFICADO",
+                NOTAS=f"Cliente rechazó la cotización. Motivo: {body.motivo_rechazo or 'sin especificar'}",
+                ID_USUARIO_CAMBIO=usuario.ID_USUARIO,
+            )
+        )
+        db.delete(asignacion)
+        inc.ESTADO = "CLASIFICADO"
+        db.add(inc)
+        db.commit()
+
+        nuevo_estado = "CLASIFICADO"
+        payload = {
+            "tipo": "cotizacion_rechazada",
+            "incidente_id": str(id_incidente),
+            "nuevo_estado": nuevo_estado,
+            "motivo_rechazo": body.motivo_rechazo,
+            "mensaje": "Cotización rechazada. El incidente vuelve a CLASIFICADO para reasignación.",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        asignacion = None  # fue eliminado
+
+    _notify_incidente(id_incidente, payload)
+
+    # También notificar al canal global para actualizar dashboards con el cambio de estado
+    try:
+        from app.application.use_cases.notification_service import broadcast_global
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_global({
+                "tipo": "estado_actualizado",
+                "incidente_id": str(id_incidente),
+                "nuevo_estado": nuevo_estado,
+                "mensaje": f"Incidente {id_incidente} cambió a {nuevo_estado}",
+                "timestamp": datetime.utcnow().isoformat(),
+            }))
+    except Exception:
+        pass
+
+    monto = float(asignacion.MONTO_COTIZADO) if asignacion else None
+    tiempo = asignacion.TIEMPO_ESTIMADO_REPARACION if asignacion else None
+    notas = asignacion.NOTAS_COTIZACION if asignacion else None
+    id_asig = asignacion.ID_ASIGNACION if asignacion else UUID("00000000-0000-0000-0000-000000000000")
+
+    return CotizacionDetalleResponse(
+        id_asignacion=id_asig,
+        id_incidente=id_incidente,
+        monto_cotizado=monto,
+        tiempo_estimado_reparacion=tiempo,
+        notas_cotizacion=notas,
+        cotizacion_aceptada=body.aceptada,
+        estado_incidente=nuevo_estado,
+        timestamp=payload["timestamp"],
+    )

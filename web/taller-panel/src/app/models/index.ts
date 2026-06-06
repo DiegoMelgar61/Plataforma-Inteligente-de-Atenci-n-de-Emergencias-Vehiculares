@@ -111,8 +111,55 @@ export interface Asignacion {
   fecha_aceptacion?: string;
   fecha_rechazo?: string;
   motivo_rechazo?: string;
+  monto_cotizado?: number | string | null;
+  tiempo_estimado_minutos?: number | null;
+  tiempo_estimado_reparacion?: number | null;
+  notas_cotizacion?: string | null;
+  estado_cotizacion?: 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | string | null;
+  cotizacion_aceptada?: boolean | null;
+  fecha_cotizacion?: string | null;
+  fecha_aceptacion_cotizacion?: string | null;
+  fecha_rechazo_cotizacion?: string | null;
   incidente?: Incident;
   tecnico?: Tecnico;
+}
+
+export interface QuotationRequest {
+  monto_cotizado: number;
+  tiempo_estimado_reparacion?: number | null;
+  notas_cotizacion?: string | null;
+}
+
+export interface CotizacionDetalle {
+  id_asignacion: string;
+  id_incidente: string;
+  monto_cotizado: number | null;
+  tiempo_estimado_reparacion: number | null;
+  notas_cotizacion: string | null;
+  cotizacion_aceptada: boolean | null;
+  estado_incidente: string;
+  timestamp?: string | null;
+}
+
+export interface DashboardStats {
+  total_incidentes: number;
+  incidentes_atendidos?: number;
+  incidentes_por_estado?: Array<{ estado: string; total: number }>;
+  total_recaudado: number;
+  tiempo_promedio_atencion_minutos: number | null;
+  incidentes_por_clasificacion: Record<string, number> | Array<{ clasificacion: string; total: number }>;
+  incidentes_ultimos_7_dias: Array<{ fecha?: string; dia?: string; total: number }>;
+  taller_top?: {
+    id_taller?: string;
+    nombre_negocio: string;
+    total_atendidos: number;
+  } | null;
+  taller_mas_eficiente?: {
+    id_taller?: string;
+    nombre_negocio: string;
+    incidentes_atendidos?: number;
+    tiempo_promedio_atencion_minutos?: number | null;
+  } | null;
 }
 
 export interface Notification {

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Incident, Asignacion } from '../../models';
+import { Asignacion, CotizacionDetalle, Incident, QuotationRequest } from '../../models';
 import { environment } from '../../../environments/environment';
 
 interface AssignRequest { id_tecnico?: string; }
@@ -47,5 +47,13 @@ export class IncidentsService {
     return this.http.post(`${this.api}/assignments/incidents/${incidentId}/reject`, {
       motivo_rechazo: motivo,
     });
+  }
+
+  getQuotation(incidentId: string): Observable<CotizacionDetalle> {
+    return this.http.get<CotizacionDetalle>(`${this.api}/assignments/incidents/${incidentId}/cotizacion`);
+  }
+
+  proposeQuotation(incidentId: string, body: QuotationRequest): Observable<CotizacionDetalle> {
+    return this.http.post<CotizacionDetalle>(`${this.api}/assignments/incidents/${incidentId}/cotizacion`, body);
   }
 }

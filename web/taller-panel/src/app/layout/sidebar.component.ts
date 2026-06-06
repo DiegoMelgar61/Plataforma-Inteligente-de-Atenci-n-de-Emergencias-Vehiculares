@@ -5,7 +5,7 @@ import { AuthService } from '../core/services/auth.service';
 
 interface NavItem {
   label: string;
-  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'history' | 'users' | 'workshops' | 'tenants';
+  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'operations' | 'history' | 'users' | 'workshops' | 'tenants';
   route: string;
   adminOnly?: boolean;
   badge?: string;
@@ -178,6 +178,7 @@ export class SidebarComponent {
     { label: 'Técnicos', icon: 'technicians', route: '/technicians' },
     { label: 'Mapa en vivo', icon: 'map', route: '/map' },
     { label: 'Pagos', icon: 'payments', route: '/payments' },
+    { label: 'Operaciones', icon: 'operations', route: '/operations' },
     { label: 'Historial', icon: 'history', route: '/history' },
   ];
 
@@ -195,6 +196,7 @@ export class SidebarComponent {
       technicians: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0"/></svg>',
       map: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3zm0 0V3m6 18V6"/></svg>',
       payments: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18v10H3V7zm3 3h4m7 4h1"/></svg>',
+      operations: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19V5m0 14h18M8 16V9m5 7V7m5 9v-5"/></svg>',
       history: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v5l3 2m5-3a8 8 0 11-2.3-5.7L20 8"/></svg>',
       users: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m8-10a4 4 0 100-8 4 4 0 000 8m14 10v-2a4 4 0 00-3-3.87m-4-11.26a4 4 0 010 7.75"/></svg>',
       workshops: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>',
