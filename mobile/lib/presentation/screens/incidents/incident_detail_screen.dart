@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api_client.dart';
 import '../../../core/config.dart';
@@ -24,6 +26,7 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
   StreamSubscription<dynamic>? _subscription;
   final List<Map<String, dynamic>> _wsMessages = [];
   bool _wsConnected = false;
+  TechnicianLocation? _technicianLocation;
 
   @override
   void initState() {
@@ -47,12 +50,16 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
         (message) {
           if (!mounted) return;
           try {
-            final data =
-                jsonDecode(message as String) as Map<String, dynamic>;
-            setState(() => _wsMessages.insert(0, data));
+            final data = jsonDecode(message as String) as Map<String, dynamic>;
+            setState(() {
+              if (data['tipo'] == 'ubicacion_tecnico') {
+                _technicianLocation = TechnicianLocation.fromJson(data);
+              }
+              _wsMessages.insert(0, data);
+            });
           } catch (_) {
-            setState(() =>
-                _wsMessages.insert(0, {'mensaje': message.toString()}));
+            setState(
+                () => _wsMessages.insert(0, {'mensaje': message.toString()}));
           }
         },
         onError: (_) {
@@ -107,8 +114,8 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: () => ref
-                .invalidate(selectedIncidentProvider(widget.incidentId)),
+            onPressed: () =>
+                ref.invalidate(selectedIncidentProvider(widget.incidentId)),
           ),
         ],
       ),
@@ -120,8 +127,8 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
             padding: const EdgeInsets.all(24),
             child: AppErrorCard(
               message: error.toString().withoutException,
-              onRetry: () => ref
-                  .invalidate(selectedIncidentProvider(widget.incidentId)),
+              onRetry: () =>
+                  ref.invalidate(selectedIncidentProvider(widget.incidentId)),
             ),
           ),
         ),
@@ -131,13 +138,22 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
   }
 
   Widget _buildContent(Incident incident) {
+    final quotationAsync =
+        ref.watch(incidentQuotationProvider(widget.incidentId));
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _StatusCard(incident: incident),
+        _QuotationSection(
+          quotationAsync: quotationAsync,
+          responseState:
+              ref.watch(quotationResponseProvider(widget.incidentId)),
+          onRespond: _respondToQuotation,
+        ),
         const SizedBox(height: 16),
         _InfoSection(incident: incident),
-        if (incident.resumenIa != null && incident.resumenIa!.trim().isNotEmpty) ...[
+        if (incident.resumenIa != null &&
+            incident.resumenIa!.trim().isNotEmpty) ...[
           const SizedBox(height: 16),
           _AiAnalysisSection(rawSummary: incident.resumenIa!),
         ],
@@ -146,9 +162,368 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
           _EvidenceSection(evidencias: incident.evidencias),
           const SizedBox(height: 16),
         ],
+        _LiveMapSection(
+          incident: incident,
+          technicianLocation: _technicianLocation,
+          isConnected: _wsConnected,
+        ),
+        const SizedBox(height: 16),
         _NotificationsSection(messages: _wsMessages),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Future<void> _respondToQuotation(bool accepted) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(accepted ? 'Aceptar cotización' : 'Rechazar cotización'),
+        content: Text(
+          accepted
+              ? '¿Confirmás que aceptás esta cotización? El técnico pasará a estar en camino.'
+              : '¿Confirmás que rechazás esta cotización? El incidente volverá a clasificación para reasignación.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(accepted ? 'Aceptar' : 'Rechazar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final notifier =
+        ref.read(quotationResponseProvider(widget.incidentId).notifier);
+    await notifier.respond(accepted: accepted);
+    if (!mounted) return;
+
+    final state = ref.read(quotationResponseProvider(widget.incidentId));
+    final message = state.hasError
+        ? state.error.toString().withoutException
+        : accepted
+            ? 'Cotización aceptada. El técnico va en camino.'
+            : 'Cotización rechazada. Buscaremos otra asignación.';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _QuotationSection extends StatelessWidget {
+  final AsyncValue<CotizacionDetalle?> quotationAsync;
+  final AsyncValue<void> responseState;
+  final Future<void> Function(bool accepted) onRespond;
+
+  const _QuotationSection({
+    required this.quotationAsync,
+    required this.responseState,
+    required this.onRespond,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return quotationAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (error, _) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(error.toString().withoutException),
+        ),
+      ),
+      data: (quotation) {
+        if (quotation == null || !quotation.tieneMonto)
+          return const SizedBox.shrink();
+        final colorScheme = Theme.of(context).colorScheme;
+        final accepted = quotation.cotizacionAceptada;
+        final isSubmitting = responseState.isLoading;
+
+        return Column(
+          children: [
+            const SizedBox(height: 16),
+            Card(
+              color: accepted == null
+                  ? colorScheme.secondaryContainer
+                  : colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.request_quote_outlined,
+                            color: colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Cotización del taller',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        _QuotationBadge(accepted: accepted),
+                      ],
+                    ),
+                    const Divider(),
+                    Text(
+                      '\$${quotation.montoCotizado!.toStringAsFixed(2)}',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: colorScheme.primary,
+                              ),
+                    ),
+                    if (quotation.tiempoEstimadoReparacion != null) ...[
+                      const SizedBox(height: 8),
+                      _InfoRow(
+                        icon: Icons.build_outlined,
+                        label: 'Tiempo estimado de reparación',
+                        value: '${quotation.tiempoEstimadoReparacion} min',
+                      ),
+                    ],
+                    if (quotation.notasCotizacion != null &&
+                        quotation.notasCotizacion!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _InfoRow(
+                        icon: Icons.notes_outlined,
+                        label: 'Notas del taller',
+                        value: quotation.notasCotizacion!,
+                      ),
+                    ],
+                    if (quotation.pendienteRespuesta) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed:
+                                  isSubmitting ? null : () => onRespond(false),
+                              child: const Text('Rechazar'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed:
+                                  isSubmitting ? null : () => onRespond(true),
+                              child: Text(
+                                isSubmitting
+                                    ? 'Enviando...'
+                                    : 'Aceptar cotización',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _QuotationBadge extends StatelessWidget {
+  final bool? accepted;
+
+  const _QuotationBadge({required this.accepted});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = accepted == null
+        ? 'Pendiente'
+        : accepted!
+            ? 'Aceptada'
+            : 'Rechazada';
+    final color = accepted == null
+        ? Colors.orange
+        : accepted!
+            ? Colors.green
+            : Colors.red;
+    return _LiveBadge(label: label, color: color);
+  }
+}
+
+class _LiveMapSection extends StatelessWidget {
+  final Incident incident;
+  final TechnicianLocation? technicianLocation;
+  final bool isConnected;
+
+  const _LiveMapSection({
+    required this.incident,
+    required this.technicianLocation,
+    required this.isConnected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final incidentLat = incident.latitud;
+    final incidentLng = incident.longitud;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (incidentLat == null || incidentLng == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.map_outlined, color: colorScheme.onSurfaceVariant),
+              const SizedBox(width: 12),
+              const Expanded(
+                  child: Text('Mapa no disponible para este incidente')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final incidentPoint = LatLng(incidentLat, incidentLng);
+    final technicianPoint = technicianLocation == null
+        ? null
+        : LatLng(technicianLocation!.latitud, technicianLocation!.longitud);
+    final center = technicianPoint ?? incidentPoint;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.map_outlined, color: colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Mapa en vivo',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                _LiveBadge(
+                  label: technicianPoint == null
+                      ? 'Esperando técnico'
+                      : (isConnected ? 'Técnico en vivo' : 'Última ubicación'),
+                  color: technicianPoint == null
+                      ? Colors.orange
+                      : (isConnected ? Colors.green : Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 260,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: technicianPoint == null ? 15 : 14,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.plataforma.emergencias',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: incidentPoint,
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        Icons.location_on,
+                        color: colorScheme.error,
+                        size: 42,
+                      ),
+                    ),
+                    if (technicianPoint != null)
+                      Marker(
+                        point: technicianPoint,
+                        width: 54,
+                        height: 54,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colorScheme.primary,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withOpacity(0.35),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.engineering,
+                              color: Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InfoRow(
+                  icon: Icons.report_problem_outlined,
+                  label: 'Incidente',
+                  value:
+                      '${incidentLat.toStringAsFixed(6)}, ${incidentLng.toStringAsFixed(6)}',
+                ),
+                if (technicianLocation != null)
+                  _InfoRow(
+                    icon: Icons.engineering_outlined,
+                    label: 'Técnico',
+                    value:
+                        '${technicianLocation!.latitud.toStringAsFixed(6)}, ${technicianLocation!.longitud.toStringAsFixed(6)}',
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _LiveBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -178,8 +553,9 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final currentStep =
-        _steps.indexOf(incident.estado.toUpperCase()).clamp(-1, _steps.length - 1);
+    final currentStep = _steps
+        .indexOf(incident.estado.toUpperCase())
+        .clamp(-1, _steps.length - 1);
 
     return Card(
       color: colorScheme.primaryContainer,
@@ -307,16 +683,14 @@ class _InfoSection extends StatelessWidget {
               _InfoRow(
                 icon: Icons.location_on_outlined,
                 label: 'Ubicación',
-                value:
-                    '${incident.latitud!.toStringAsFixed(6)}, '
+                value: '${incident.latitud!.toStringAsFixed(6)}, '
                     '${incident.longitud!.toStringAsFixed(6)}',
               ),
             if (incident.tiempoEstimadoLlegadaMinutos != null)
               _InfoRow(
                 icon: Icons.timer_outlined,
                 label: 'Tiempo estimado de llegada',
-                value:
-                    '${incident.tiempoEstimadoLlegadaMinutos} min',
+                value: '${incident.tiempoEstimadoLlegadaMinutos} min',
               ),
             if (incident.textoDescripcion != null)
               _InfoRow(
@@ -350,8 +724,7 @@ class _InfoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon,
-              size: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
+              size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -360,13 +733,11 @@ class _InfoRow extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
                 const SizedBox(height: 2),
-                Text(value,
-                    style: Theme.of(context).textTheme.bodyMedium),
+                Text(value, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
@@ -446,10 +817,7 @@ class _AiAnalysisSection extends StatelessWidget {
   }
 
   static String? _extractLine(String raw, String prefix) {
-    final line = raw
-        .split('\n')
-        .map((x) => x.trim())
-        .firstWhere(
+    final line = raw.split('\n').map((x) => x.trim()).firstWhere(
           (x) => x.startsWith(prefix),
           orElse: () => '',
         );
@@ -625,4 +993,3 @@ class _NotificationsSection extends StatelessWidget {
     );
   }
 }
-

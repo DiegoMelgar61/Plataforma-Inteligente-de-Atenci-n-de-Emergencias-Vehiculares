@@ -34,7 +34,7 @@ class WorkshopResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id_taller: UUID = Field(validation_alias="ID_TALLER")
-    id_usuario: UUID = Field(validation_alias="ID_USUARIO")
+    id_usuario: UUID | None = Field(None, validation_alias="ID_USUARIO")
     nombre_negocio: str = Field(validation_alias="NOMBRE_NEGOCIO")
     nit: str | None = Field(validation_alias="NIT")
     direccion: str | None = Field(validation_alias="DIRECCION")

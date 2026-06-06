@@ -142,6 +142,10 @@ class ASIGNACIONES(Base):
     FECHA_ACEPTACION = Column("fecha_aceptacion", DateTime(timezone=True))
     FECHA_RECHAZO = Column("fecha_rechazo", DateTime(timezone=True))
     MOTIVO_RECHAZO = Column("motivo_rechazo", Text)
+    MONTO_COTIZADO = Column("monto_cotizado", DECIMAL(10, 2), nullable=True)
+    TIEMPO_ESTIMADO_REPARACION = Column("tiempo_estimado_reparacion", Integer, nullable=True)
+    COTIZACION_ACEPTADA = Column("cotizacion_aceptada", Boolean, nullable=True)
+    NOTAS_COTIZACION = Column("notas_cotizacion", Text, nullable=True)
 
 
 class PAGOS(Base):

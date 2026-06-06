@@ -21,8 +21,13 @@ dependencies:
   # Secure Storage
   flutter_secure_storage: ^9.0.0
 
+  # Local Preferences (offline storage for non-sensitive data)
+  shared_preferences: ^2.2.0
+
   # Location & Maps
   geolocator: ^10.1.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
   # Media
   image_picker: ^1.0.7

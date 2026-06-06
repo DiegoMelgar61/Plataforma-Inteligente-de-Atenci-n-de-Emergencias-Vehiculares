@@ -31,6 +31,7 @@ from app.models.models import (
     USUARIOS,
 )
 from app.presentation.api.v1.dependencies.auth import (
+    get_current_active_user,
     get_current_tecnico,
     get_current_taller,
     get_current_user,
@@ -69,6 +70,37 @@ def _taller_del_token(db: Session, usuario: USUARIOS) -> TALLERES:
             detail="Debe registrar su taller antes de gestionar técnicos",
         )
     return t
+
+
+def _taller_para_creacion_tecnico(
+    db: Session,
+    usuario: USUARIOS,
+    id_taller: UUID | None,
+) -> TALLERES:
+    rol = _rol_texto(usuario)
+    if rol == "ADMIN":
+        if id_taller is None:
+            raise HTTPException(status_code=400, detail="Debe seleccionar un taller para crear el técnico")
+        taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == id_taller).first()
+        if not taller:
+            raise HTTPException(status_code=404, detail="Taller no encontrado")
+        return taller
+
+    if rol == "TALLER":
+        taller = db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
+        if taller:
+            return taller
+        if id_taller is not None:
+            taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == id_taller).first()
+            if not taller:
+                raise HTTPException(status_code=404, detail="Taller no encontrado")
+            usuario_tenant = getattr(usuario, "_id_tenant", None)
+            if usuario_tenant is not None and taller.ID_TENANT != usuario_tenant:
+                raise HTTPException(status_code=403, detail="No autorizado a gestionar este taller")
+            return taller
+        raise HTTPException(status_code=400, detail="Debe registrar o seleccionar un taller antes de gestionar técnicos")
+
+    raise HTTPException(status_code=403, detail="Solo talleres y admins pueden crear técnicos")
 
 
 def _tecnico_en_taller(db: Session, id_tecnico: UUID, id_taller: UUID) -> TECNICOS | None:
@@ -252,6 +284,15 @@ def actualizar_estado_incidente_tecnico(
         except Exception:
             logger.exception("Error al crear pago para incidente %s", id_incidente)
 
+        # Cerrar la sesión de tracking GPS del técnico si está activa
+        try:
+            from app.application.use_cases.notification_service import cerrar_tracking_tecnico
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(cerrar_tracking_tecnico(id_incidente))
+        except Exception:
+            logger.exception("Error al cerrar tracking GPS para incidente %s", id_incidente)
+
     db.commit()
     db.refresh(incidente)
 
@@ -333,10 +374,10 @@ def crear_tecnico(
 def crear_tecnico_con_usuario(
     datos: TechnicianWithUserCreate,
     db: Session = Depends(get_db),
-    dueno: USUARIOS = Depends(get_current_taller),
+    usuario: USUARIOS = Depends(get_current_active_user),
 ):
     """Alta de técnico con cuenta de login propia (rol TECNICO)."""
-    taller = _taller_del_token(db, dueno)
+    taller = _taller_para_creacion_tecnico(db, usuario, datos.id_taller)
 
     if db.query(USUARIOS).filter(USUARIOS.CORREO_ELECTRONICO == datos.correo_electronico).first():
         raise HTTPException(status_code=400, detail="El correo ya está registrado")

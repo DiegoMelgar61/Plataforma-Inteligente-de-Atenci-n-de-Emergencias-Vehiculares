@@ -1,12 +1,11 @@
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 
 class OfflineStorage {
   static const String _key = 'emergencias_offline';
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static Future<void> guardarEmergencia(EmergenciaLocal e) async {
     final emergencias = await obtenerTodas();
@@ -20,7 +19,8 @@ class OfflineStorage {
   }
 
   static Future<List<EmergenciaLocal>> obtenerTodas() async {
-    final raw = await _storage.read(key: _key);
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
     if (raw == null || raw.isEmpty) return [];
 
     final decoded = jsonDecode(raw) as List<dynamic>;
@@ -58,7 +58,10 @@ class OfflineStorage {
   }
 
   static Future<void> _guardarTodas(List<EmergenciaLocal> emergencias) async {
-    final encoded = jsonEncode(emergencias.map((e) => e.toJson()).toList());
-    await _storage.write(key: _key, value: encoded);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _key,
+      jsonEncode(emergencias.map((e) => e.toJson()).toList()),
+    );
   }
 }

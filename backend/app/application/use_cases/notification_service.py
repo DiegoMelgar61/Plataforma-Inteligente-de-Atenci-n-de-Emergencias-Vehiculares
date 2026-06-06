@@ -25,6 +25,9 @@ CONEXIONES_ACTIVAS: dict[UUID, list[WebSocket]] = {}
 # Lista global de conexiones WebSocket (Dashboard, Mapa, etc.)
 CONEXIONES_GLOBALES: list[WebSocket] = []
 
+# Un WebSocket por incidente — el técnico asignado transmite su ubicación GPS en tiempo real
+CONEXIONES_TECNICO: dict[UUID, WebSocket] = {}
+
 
 def registrar_conexion_global(websocket: WebSocket) -> None:
     CONEXIONES_GLOBALES.append(websocket)
@@ -265,37 +268,33 @@ def broadcast_estado_actualizado(
     logger.info("Broadcast de estado enviado: incidente %s, estado %s", incidente_id, nuevo_estado)
 
 
-def _broadcast_incidente(incidente_id: UUID, datos: dict) -> None:
-    """
-    Envía datos a todos los WebSocket conectados para un incidente.
-
-    :param incidente_id: UUID del incidente
-    :param datos: Diccionario con datos a enviar
-    """
-    if incidente_id not in CONEXIONES_ACTIVAS:
-        return
-
-    conexiones = CONEXIONES_ACTIVAS[incidente_id]
-    conexiones_fallidas = []
-
-    for ws in conexiones:
+async def broadcast_incidente_async(incidente_id: UUID, datos: dict) -> None:
+    """Envía datos a todos los WebSocket suscritos a un incidente (versión async)."""
+    conexiones = CONEXIONES_ACTIVAS.get(incidente_id, [])
+    fallidas = []
+    for ws in list(conexiones):
         try:
-            # Enviamos como JSON
-            ws.send_json = lambda d: ws.send_text(json.dumps(d))
-            asyncio_loop_safe_send(ws, datos)
+            await ws.send_json(datos)
         except Exception:
-            logger.debug("Error enviando a WebSocket para incidente %s", incidente_id)
-            conexiones_fallidas.append(ws)
-
-    # Limpiar conexiones fallidas
-    for ws in conexiones_fallidas:
+            logger.debug("WS caído para incidente %s — se descarta", incidente_id)
+            fallidas.append(ws)
+    for ws in fallidas:
         try:
             conexiones.remove(ws)
         except ValueError:
             pass
-
-    if not conexiones:
+    if incidente_id in CONEXIONES_ACTIVAS and not CONEXIONES_ACTIVAS[incidente_id]:
         del CONEXIONES_ACTIVAS[incidente_id]
+
+
+def _broadcast_incidente(incidente_id: UUID, datos: dict) -> None:
+    """Wrapper síncrono — encola la coroutine en el event loop activo."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(broadcast_incidente_async(incidente_id, datos))
+    except Exception:
+        logger.exception("Error al encolar broadcast para incidente %s", incidente_id)
 
 
 def registrar_conexion_websocket(incidente_id: UUID, websocket: WebSocket) -> None:
@@ -330,13 +329,37 @@ def desregistrar_conexion_websocket(incidente_id: UUID, websocket: WebSocket) ->
     logger.debug("WebSocket desregistrado para incidente %s", incidente_id)
 
 
-def asyncio_loop_safe_send(ws: WebSocket, data: dict) -> None:
-    """
-    Envía datos de forma segura para WebSocket (helper para pruebas).
+def tiene_tracking_activo(incidente_id: UUID) -> bool:
+    """Indica si hay un técnico con sesión de tracking GPS activa para el incidente."""
+    return incidente_id in CONEXIONES_TECNICO
 
-    :param ws: WebSocket
-    :param data: Datos a enviar
-    """
-    # Este es un helper interno; en producción se usaría directamente await ws.send_json()
-    if hasattr(ws, "_send_queue"):
-        ws._send_queue.append(data)
+
+def registrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket) -> None:
+    """Registra la conexión WebSocket de tracking del técnico asignado."""
+    CONEXIONES_TECNICO[incidente_id] = websocket
+    logger.info("Tracking GPS iniciado — incidente %s", incidente_id)
+
+
+def desregistrar_tecnico_tracking(incidente_id: UUID) -> None:
+    """Elimina la conexión de tracking del técnico (al desconectarse)."""
+    CONEXIONES_TECNICO.pop(incidente_id, None)
+    logger.info("Tracking GPS finalizado — incidente %s", incidente_id)
+
+
+async def cerrar_tracking_tecnico(incidente_id: UUID) -> None:
+    """Cierra la sesión de tracking del técnico y notifica al canal del incidente."""
+    ws = CONEXIONES_TECNICO.pop(incidente_id, None)
+    if ws is None:
+        return
+    payload = {
+        "tipo": "tracking_finalizado",
+        "incidente_id": str(incidente_id),
+        "mensaje": "El incidente fue atendido. La sesión de tracking GPS ha finalizado.",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    try:
+        await ws.send_json(payload)
+        await ws.close(code=1000)
+    except Exception:
+        logger.debug("Error cerrando WS de tracking para incidente %s", incidente_id)
+    await broadcast_incidente_async(incidente_id, payload)

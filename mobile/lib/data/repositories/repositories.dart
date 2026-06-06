@@ -99,6 +99,42 @@ class IncidentRepository {
     }
   }
 
+  Future<CotizacionDetalle?> getCotizacion(String idIncidente) async {
+    try {
+      final response = await _client.dio.get(
+        '/assignments/incidents/$idIncidente/cotizacion',
+      );
+      return CotizacionDetalle.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      final detail =
+          (e.response?.data as Map?)?['detail'] ?? 'Error al cargar cotización';
+      throw Exception(detail);
+    }
+  }
+
+  Future<CotizacionDetalle> responderCotizacion(
+    String idIncidente, {
+    required bool aceptada,
+    String? motivoRechazo,
+  }) async {
+    try {
+      final response = await _client.dio.post(
+        '/assignments/incidents/$idIncidente/cotizacion/respuesta',
+        data: {
+          'aceptada': aceptada,
+          if (motivoRechazo != null && motivoRechazo.trim().isNotEmpty)
+            'motivo_rechazo': motivoRechazo.trim(),
+        },
+      );
+      return CotizacionDetalle.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final detail = (e.response?.data as Map?)?['detail'] ??
+          'Error al responder cotización';
+      throw Exception(detail);
+    }
+  }
+
   /// POST /incidents/report — multipart/form-data.
   /// Returns the new [idIncidente] (UUID string).
   Future<String> reportIncident({
@@ -140,8 +176,8 @@ class IncidentRepository {
       final data = response.data as Map<String, dynamic>;
       return data['incidente_id'] as String? ?? '';
     } on DioException catch (e) {
-      final detail =
-          (e.response?.data as Map?)?['detail'] ?? 'Error al reportar incidente';
+      final detail = (e.response?.data as Map?)?['detail'] ??
+          'Error al reportar incidente';
       throw Exception(detail);
     }
   }

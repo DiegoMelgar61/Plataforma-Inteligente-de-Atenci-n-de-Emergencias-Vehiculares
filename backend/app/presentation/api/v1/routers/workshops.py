@@ -38,7 +38,7 @@ def _puede_gestionar_taller(db: Session, usuario: USUARIOS, taller: TALLERES) ->
 def listar_talleres(
     solo_activos: bool = True,
     db: Session = Depends(get_db),
-    _: USUARIOS = Depends(get_current_active_user),
+    usuario: USUARIOS = Depends(get_current_active_user),
 ):
     """Listado de talleres (cualquier usuario autenticado). Por defecto solo activos."""
     q = db.query(TALLERES)
