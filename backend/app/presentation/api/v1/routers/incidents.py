@@ -172,6 +172,8 @@ def _datos_asignacion(db: Session, id_incidente: UUID) -> dict:
     if not asign:
         return {}
     datos: dict = {}
+    if asign.MONTO_COTIZADO is not None:
+        datos["monto_estimado"] = float(asign.MONTO_COTIZADO)
     if asign.ID_TALLER:
         taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == asign.ID_TALLER).first()
         if taller:

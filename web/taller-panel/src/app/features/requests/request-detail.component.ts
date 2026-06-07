@@ -313,28 +313,6 @@ interface TechnicianLocation {
 
           <!-- Right: Actions -->
           <div class="space-y-4">
-            <!-- Asignación automática (taller + técnico) -->
-            @if (incident()!.taller_asignado || incident()!.tecnico_asignado) {
-              <div class="surface p-5">
-                <h3 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Asignación</h3>
-                @if (incident()!.taller_asignado) {
-                  <div class="mb-3">
-                    <p class="text-xs mb-0.5" style="color: var(--text-muted);">Taller asignado</p>
-                    <p class="text-sm font-medium" style="color: var(--text-secondary);">{{ incident()!.taller_asignado }}</p>
-                  </div>
-                }
-                @if (incident()!.tecnico_asignado) {
-                  <div class="rounded-lg p-3" style="background: var(--bg-elevated); border: 1px solid var(--border);">
-                    <p class="text-xs mb-0.5" style="color: var(--text-muted);">Técnico asignado</p>
-                    <p class="text-sm font-semibold" style="color: var(--text-primary);">{{ incident()!.tecnico_asignado }}</p>
-                    @if (incident()!.tecnico_telefono) {
-                      <p class="text-xs font-mono mt-1" style="color: var(--text-muted);">{{ incident()!.tecnico_telefono }}</p>
-                    }
-                  </div>
-                }
-              </div>
-            }
-
             <!-- Accept / Reject -->
             @if (canAssign()) {
               <div class="surface p-5">
@@ -477,6 +455,37 @@ interface TechnicianLocation {
                 </div>
               }
             </div>
+
+            <!-- Asignación automática (taller + técnico) -->
+            @if (incident()!.taller_asignado || incident()!.tecnico_asignado) {
+              <div class="surface p-4 space-y-3">
+                <h3 class="text-xs font-semibold uppercase tracking-widest" style="color: var(--text-muted);">Asignación</h3>
+                @if (incident()!.taller_asignado) {
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs" style="color: var(--text-muted);">Taller</span>
+                    <span class="text-xs font-semibold" style="color: var(--text-secondary);">{{ incident()!.taller_asignado }}</span>
+                  </div>
+                }
+                @if (incident()!.tecnico_asignado) {
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs" style="color: var(--text-muted);">Técnico</span>
+                    <span class="text-xs font-semibold" style="color: var(--text-primary);">{{ incident()!.tecnico_asignado }}</span>
+                  </div>
+                }
+                @if (incident()!.tecnico_telefono) {
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs" style="color: var(--text-muted);">Teléfono</span>
+                    <span class="text-xs font-mono" style="color: var(--text-secondary);">{{ incident()!.tecnico_telefono }}</span>
+                  </div>
+                }
+                @if (incident()!.monto_estimado != null) {
+                  <div class="flex items-center justify-between pt-2" style="border-top: 1px solid var(--border);">
+                    <span class="text-xs" style="color: var(--text-muted);">Total estimado (IA)</span>
+                    <span class="text-sm font-bold" style="color: var(--success);">Bs. {{ incident()!.monto_estimado | number:'1.2-2' }}</span>
+                  </div>
+                }
+              </div>
+            }
           </div>
         </div>
       } @else {

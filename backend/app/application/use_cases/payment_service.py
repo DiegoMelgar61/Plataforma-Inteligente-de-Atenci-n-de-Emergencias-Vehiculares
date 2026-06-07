@@ -2,7 +2,7 @@
 Lógica de negocio para el sistema de pagos manuales con QR (CU13).
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -14,7 +14,12 @@ from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TALLERES, USUARIO
 
 logger = logging.getLogger(__name__)
 
-# Tarifas base por clasificación (en Bs.)
+# Zona horaria de Bolivia (UTC-4, sin horario de verano) para las franjas horarias.
+_TZ_BOLIVIA = timezone(timedelta(hours=-4))
+
+# --- Parámetros de tarificación (todos editables acá) -----------------------
+
+# Tarifa base por clasificación / tipo de problema (en Bs.)
 _TARIFAS_BASE: dict[str, Decimal] = {
     "BATERIA": Decimal("150"),
     "LLANTA": Decimal("100"),
@@ -24,20 +29,72 @@ _TARIFAS_BASE: dict[str, Decimal] = {
     "INCIERTO": Decimal("120"),
 }
 
-_RECARGO_PRIORIDAD_ALTA = Decimal("1.20")
+# Multiplicador por gravedad/urgencia (prioridad del incidente)
+_RECARGO_PRIORIDAD: dict[str, Decimal] = {
+    "ALTA": Decimal("1.20"),
+    "MEDIA": Decimal("1.00"),
+    "BAJA": Decimal("0.90"),
+}
+
+# Multiplicador por franja horaria del servicio
+_RECARGO_HORA_NOCTURNA = Decimal("1.35")  # 21:00–05:59
+_RECARGO_HORA_PICO = Decimal("1.25")      # 07:00–08:59 y 18:00–20:59
+_RECARGO_HORA_NORMAL = Decimal("1.00")    # resto del día
+
 _TASA_COMISION = Decimal("0.15")
 
+# ---------------------------------------------------------------------------
 
-def calcular_tarifa(clasificacion: str, prioridad: str) -> tuple[Decimal, Decimal]:
+
+def _factor_horario(momento: datetime) -> tuple[Decimal, str]:
+    """Devuelve (multiplicador, etiqueta) según la hora local del servicio."""
+    hora = momento.astimezone(_TZ_BOLIVIA).hour
+    if hora >= 21 or hora < 6:
+        return _RECARGO_HORA_NOCTURNA, "nocturna"
+    if (7 <= hora < 9) or (18 <= hora < 21):
+        return _RECARGO_HORA_PICO, "pico"
+    return _RECARGO_HORA_NORMAL, "normal"
+
+
+def calcular_tarifa(
+    clasificacion: str,
+    prioridad: str,
+    momento: datetime | None = None,
+) -> tuple[Decimal, Decimal]:
     """
-    Calcula monto y comisión según clasificación y prioridad.
+    Calcula monto y comisión según tipo de problema, gravedad (prioridad) y
+    franja horaria del servicio. Determinístico y auditable.
+
     Retorna (monto, comision_plataforma).
     """
+    monto, comision, _ = cotizar(clasificacion, prioridad, momento)
+    return monto, comision
+
+
+def cotizar(
+    clasificacion: str,
+    prioridad: str,
+    momento: datetime | None = None,
+) -> tuple[Decimal, Decimal, str]:
+    """
+    Igual que calcular_tarifa pero también devuelve un detalle legible del cálculo.
+
+    Retorna (monto, comision_plataforma, detalle).
+    """
+    momento = momento or datetime.now(timezone.utc)
     base = _TARIFAS_BASE.get(clasificacion.upper(), Decimal("120"))
-    if prioridad.upper() == "ALTA":
-        base = (base * _RECARGO_PRIORIDAD_ALTA).quantize(Decimal("0.01"))
-    comision = (base * _TASA_COMISION).quantize(Decimal("0.01"))
-    return base, comision
+    factor_prio = _RECARGO_PRIORIDAD.get(prioridad.upper(), Decimal("1.00"))
+    factor_hora, etiqueta_hora = _factor_horario(momento)
+
+    monto = (base * factor_prio * factor_hora).quantize(Decimal("0.01"))
+    comision = (monto * _TASA_COMISION).quantize(Decimal("0.01"))
+
+    detalle = (
+        f"Tarifa automática — base {clasificacion.upper()} Bs.{base}, "
+        f"prioridad {prioridad.upper()} x{factor_prio}, "
+        f"franja {etiqueta_hora} x{factor_hora}. Total Bs.{monto}."
+    )
+    return monto, comision, detalle
 
 
 def crear_pago_pendiente(db: Session, incidente: INCIDENTES, asignacion: ASIGNACIONES) -> PAGOS:
@@ -57,7 +114,12 @@ def crear_pago_pendiente(db: Session, incidente: INCIDENTES, asignacion: ASIGNAC
         incidente.PRIORIDAD.value if hasattr(incidente.PRIORIDAD, "value")
         else str(incidente.PRIORIDAD)
     )
-    monto, comision = calcular_tarifa(clasificacion, prioridad)
+    # Preferir el monto ya cotizado automáticamente al asignar; recalcular solo si falta.
+    if asignacion.MONTO_COTIZADO is not None:
+        monto = Decimal(str(asignacion.MONTO_COTIZADO))
+        comision = (monto * _TASA_COMISION).quantize(Decimal("0.01"))
+    else:
+        monto, comision = calcular_tarifa(clasificacion, prioridad)
 
     pago = PAGOS(
         ID_INCIDENTE=incidente.ID_INCIDENTE,

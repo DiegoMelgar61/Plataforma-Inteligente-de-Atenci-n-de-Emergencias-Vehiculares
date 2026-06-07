@@ -165,6 +165,16 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
             ID_TALLER=id_taller,
             ID_TECNICO=id_tecnico,
         )
+
+        # Cotización automática (precio generado por reglas, no por el taller).
+        from app.application.use_cases import payment_service
+        clasificacion_txt = (
+            incidente.CLASIFICACION.value if hasattr(incidente.CLASIFICACION, "value")
+            else str(incidente.CLASIFICACION)
+        )
+        monto, _comision, detalle = payment_service.cotizar(clasificacion_txt, nueva_prioridad)
+        asignacion.MONTO_COTIZADO = monto
+        asignacion.NOTAS_COTIZACION = detalle
         db.add(asignacion)
 
         incidente.ESTADO = "ASIGNADO"

@@ -107,6 +107,7 @@ class IncidentResponse(BaseModel):
     taller_asignado: str | None = None
     tecnico_asignado: str | None = None
     tecnico_telefono: str | None = None
+    monto_estimado: float | None = None
 
 
 class ReporteIncidenteResponse(BaseModel):
