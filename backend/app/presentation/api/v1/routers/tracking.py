@@ -24,7 +24,6 @@ from app.application.use_cases.notification_service import (
     broadcast_incidente_async,
     desregistrar_tecnico_tracking,
     registrar_tecnico_tracking,
-    tiene_tracking_activo,
 )
 
 router = APIRouter(prefix="/tracking", tags=["Tracking GPS"])
@@ -133,14 +132,9 @@ async def tracking_websocket(
         await websocket.close(code=1011, reason="Error interno del servidor")
         return
 
-    # ── 3. Evitar sesiones duplicadas ─────────────────────────────────────────
-    if tiene_tracking_activo(id_incidente):
-        await websocket.close(code=1008, reason="Ya existe una sesión de tracking activa para este incidente")
-        return
-
-    # ── 4. Aceptar y registrar ────────────────────────────────────────────────
+    # ── 3. Aceptar y registrar (una reconexión toma el control de la anterior) ─
     await websocket.accept()
-    registrar_tecnico_tracking(id_incidente, websocket)
+    await registrar_tecnico_tracking(id_incidente, websocket)
 
     logger.info("Tracking GPS activo — técnico %s, incidente %s", tecnico_id, id_incidente)
 
@@ -213,5 +207,5 @@ async def tracking_websocket(
     except Exception:
         logger.exception("Error inesperado en tracking WS — incidente %s", id_incidente)
     finally:
-        desregistrar_tecnico_tracking(id_incidente)
+        desregistrar_tecnico_tracking(id_incidente, websocket)
         logger.info("Tracking GPS cerrado — técnico %s, incidente %s", tecnico_id, id_incidente)
