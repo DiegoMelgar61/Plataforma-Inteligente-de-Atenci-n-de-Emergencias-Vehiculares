@@ -2,12 +2,13 @@ class AppConfig {
   AppConfig._();
 
   static const String baseUrl =
-      'https://plataforma-inteligente-de-atenci-n-de-emergencia-production.up.railway.app';
+      'https://atencion-de-emergencias-vehiculares.onrender.com';
 
   static const String wsBaseUrl =
-      'wss://plataforma-inteligente-de-atenci-n-de-emergencia-production.up.railway.app';
+      'wss://atencion-de-emergencias-vehiculares.onrender.com';
 
   static const String tokenKey = 'auth_token';
-  static const int connectTimeout = 30000;
-  static const int receiveTimeout = 30000;
+  // Render free tier sleeps after inactivity; cold start can take 40-60s.
+  static const int connectTimeout = 60000;
+  static const int receiveTimeout = 60000;
 }
