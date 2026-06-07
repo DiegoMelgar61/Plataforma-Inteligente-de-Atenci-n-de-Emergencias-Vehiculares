@@ -5,10 +5,11 @@ y asigna automáticamente al taller más cercano con técnico disponible.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+from math import asin, cos, radians, sin, sqrt
 from uuid import UUID
 
-from sqlalchemy import and_, func, text
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 
@@ -46,103 +47,77 @@ def calcular_prioridad(incidente: INCIDENTES) -> str:
     return "BAJA"
 
 
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in km between two WGS84 points."""
+    r = 6371.0
+    d_lat = radians(lat2 - lat1)
+    d_lon = radians(lon2 - lon1)
+    a = sin(d_lat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2
+    return 2 * r * asin(sqrt(a))
+
+
 def buscar_talleres_candidatos(db: Session, incidente: INCIDENTES) -> list[dict]:
     """
-    Busca talleres con técnicos disponibles dentro del radio de búsqueda,
-    usando ST_DWithin de PostGIS para distancia real.
+    Busca técnicos elegibles y los ordena por cercanía del taller al incidente.
 
-    :param db: Sesión de base de datos
-    :param incidente: Modelo ORM del incidente
-    :return: Lista de diccionarios con {id_taller, id_tecnico, distancia_km, taller}
+    Reglas:
+    - Solo técnicos DISPONIBLES con cuenta móvil (ID_USUARIO no nulo): así la
+      notificación de asignación les llega al teléfono.
+    - Solo talleres ACTIVOS.
+    - Orden por distancia (haversine) entre el incidente y la ubicación fija del
+      taller (LATITUD/LONGITUD). Talleres sin coordenadas quedan al final.
+
+    :return: Lista de dicts {id_taller, id_tecnico, distancia_km, taller} (más cercano primero).
     """
     if incidente.UBICACION is None:
         logger.warning("Incidente %s sin ubicación", incidente.ID_INCIDENTE)
         return []
 
     try:
-        # Obtener punto del incidente
         punto_incidente = to_shape(incidente.UBICACION)
         lat_incidente = punto_incidente.y
         lon_incidente = punto_incidente.x
+    except Exception:
+        logger.exception("No se pudo leer la ubicación del incidente %s", incidente.ID_INCIDENTE)
+        return []
 
-        # Query PostGIS: encontrar talleres y técnicos en radio de búsqueda
-        query = db.query(
-            TALLERES.ID_TALLER,
-            TECNICOS.ID_TECNICO,
-            func.ST_Distance(
-                func.ST_GeographyFromText(
-                    text(f"'POINT({lon_incidente} {lat_incidente})'")
-                ),
-                TECNICOS.UBICACION_ACTUAL,
-                False,
-            )
-            / 1000.0,  # Distancia en km
-        ).join(
-            TECNICOS, TALLERES.ID_TALLER == TECNICOS.ID_TALLER
-        ).filter(
+    filas = (
+        db.query(TALLERES, TECNICOS)
+        .join(TECNICOS, TALLERES.ID_TALLER == TECNICOS.ID_TALLER)
+        .filter(
             TALLERES.ACTIVO.is_(True),
             TECNICOS.DISPONIBLE.is_(True),
-            func.ST_DWithin(
-                func.ST_GeographyFromText(
-                    text(f"'POINT({lon_incidente} {lat_incidente})'")
-                ),
-                TECNICOS.UBICACION_ACTUAL,
-                RADIO_BUSQUEDA_KM * 1000,  # Convertir a metros
-            ),
-        ).order_by(
-            func.ST_Distance(
-                func.ST_GeographyFromText(
-                    text(f"'POINT({lon_incidente} {lat_incidente})'")
-                ),
-                TECNICOS.UBICACION_ACTUAL,
-                False,
-            )
-        ).all()
-
-        candidatos = []
-        for id_taller, id_tecnico, distancia_km in query:
-            taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == id_taller).first()
-            candidatos.append({
-                "id_taller": id_taller,
-                "id_tecnico": id_tecnico,
-                "distancia_km": float(distancia_km),
-                "taller": taller,
-            })
-
-        # Fallback: si nadie tiene ubicación registrada, incluir cualquier técnico disponible
-        if not candidatos:
-            logger.info(
-                "Sin candidatos por ubicación para %s, usando fallback sin distancia",
-                incidente.ID_INCIDENTE,
-            )
-            query_fallback = (
-                db.query(TALLERES.ID_TALLER, TECNICOS.ID_TECNICO)
-                .join(TECNICOS, TALLERES.ID_TALLER == TECNICOS.ID_TALLER)
-                .filter(
-                    TALLERES.ACTIVO.is_(True),
-                    TECNICOS.DISPONIBLE.is_(True),
-                )
-                .all()
-            )
-            for id_taller, id_tecnico in query_fallback:
-                taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == id_taller).first()
-                candidatos.append({
-                    "id_taller": id_taller,
-                    "id_tecnico": id_tecnico,
-                    "distancia_km": 0.0,
-                    "taller": taller,
-                })
-
-        logger.debug(
-            "Encontrados %d candidatos para incidente %s",
-            len(candidatos),
-            incidente.ID_INCIDENTE,
+            TECNICOS.ID_USUARIO.isnot(None),  # solo técnicos con cuenta móvil
         )
-        return candidatos
+        .all()
+    )
 
-    except Exception as e:
-        logger.exception("Error al buscar talleres candidatos para %s", incidente.ID_INCIDENTE)
-        return []
+    candidatos = []
+    for taller, tecnico in filas:
+        if taller.LATITUD is not None and taller.LONGITUD is not None:
+            distancia = _haversine_km(
+                lat_incidente, lon_incidente, float(taller.LATITUD), float(taller.LONGITUD)
+            )
+        else:
+            distancia = float("inf")  # sin coords: que quede al final del orden
+        candidatos.append({
+            "id_taller": taller.ID_TALLER,
+            "id_tecnico": tecnico.ID_TECNICO,
+            "distancia_km": distancia,
+            "taller": taller,
+        })
+
+    candidatos.sort(key=lambda c: c["distancia_km"])
+    for c in candidatos:
+        if c["distancia_km"] == float("inf"):
+            c["distancia_km"] = 0.0  # normalizar para logging/persistencia
+
+    logger.debug(
+        "Encontrados %d candidatos (con cuenta móvil) para incidente %s",
+        len(candidatos),
+        incidente.ID_INCIDENTE,
+    )
+    return candidatos
 
 
 def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIONES | None:
@@ -204,6 +179,28 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
             id_taller,
             distancia_km,
         )
+
+        # Notificar en tiempo real al panel (Dashboard/Mapa/Talleres) que hay
+        # una nueva asignación, para que el taller la vea sin recargar.
+        taller_obj = candidato_elegido.get("taller")
+        notif = {
+            "tipo": "nueva_asignacion",
+            "incidente_id": str(incidente_id),
+            "asignacion_id": str(asignacion.ID_ASIGNACION),
+            "taller_id": str(id_taller),
+            "taller_nombre": getattr(taller_obj, "NOMBRE_NEGOCIO", None),
+            "tecnico_id": str(id_tecnico),
+            "tecnico_nombre": getattr(tecnico, "NOMBRE_COMPLETO", None) if tecnico else None,
+            "mensaje": "Nuevo incidente asignado a tu taller",
+        }
+        try:
+            from app.application.use_cases.notification_service import broadcast_global
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(broadcast_global(notif))
+        except Exception:
+            logger.exception("No se pudo emitir nueva_asignacion para incidente %s", incidente_id)
+
         return asignacion
 
     except Exception:
