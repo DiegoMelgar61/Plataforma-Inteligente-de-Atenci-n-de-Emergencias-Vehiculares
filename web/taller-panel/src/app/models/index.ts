@@ -103,6 +103,7 @@ export interface Incident {
   taller_asignado?: string | null;
   tecnico_asignado?: string | null;
   tecnico_telefono?: string | null;
+  monto_estimado?: number | null;
 }
 
 export interface Asignacion {
