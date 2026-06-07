@@ -168,6 +168,20 @@ class IncidentRepository {
     }
   }
 
+  /// POST /incidents/{id}/cancelar — el cliente cancela el servicio.
+  Future<CancelacionResultado> cancelarServicio(String idIncidente) async {
+    try {
+      final response =
+          await _client.dio.post('/incidents/$idIncidente/cancelar');
+      return CancelacionResultado.fromJson(
+          response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final detail =
+          (e.response?.data as Map?)?['detail'] ?? 'Error al cancelar servicio';
+      throw Exception(detail);
+    }
+  }
+
   /// POST /incidents/report — multipart/form-data.
   /// Returns the new [idIncidente] (UUID string).
   Future<String> reportIncident({

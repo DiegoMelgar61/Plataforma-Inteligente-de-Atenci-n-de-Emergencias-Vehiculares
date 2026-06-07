@@ -127,6 +127,16 @@ class SeleccionarTallerRequest(BaseModel):
     id_taller: UUID = Field(..., description="UUID del taller elegido por el cliente")
 
 
+class CancelacionResponse(BaseModel):
+    """Respuesta de POST /incidents/{id}/cancelar."""
+
+    incidente_id: UUID
+    estado: str = "CANCELADO"
+    con_penalidad: bool
+    monto_multa: float
+    mensaje: str
+
+
 class ReporteIncidenteResponse(BaseModel):
     """Respuesta de POST /incidents/report."""
 

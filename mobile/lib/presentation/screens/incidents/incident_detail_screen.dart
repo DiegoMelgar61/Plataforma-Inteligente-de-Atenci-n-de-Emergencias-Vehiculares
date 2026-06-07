@@ -26,6 +26,7 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
   StreamSubscription<dynamic>? _subscription;
   final List<Map<String, dynamic>> _wsMessages = [];
   bool _wsConnected = false;
+  bool _canceling = false;
   TechnicianLocation? _technicianLocation;
 
   @override
@@ -173,9 +174,97 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
         ),
         const SizedBox(height: 16),
         _NotificationsSection(messages: _wsMessages),
+        if (_puedeCancelar(incident.estado)) ...[
+          const SizedBox(height: 16),
+          _buildCancelButton(incident),
+        ],
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  static const _estadosCancelables = {
+    'PENDIENTE',
+    'EN_PROCESO_IA',
+    'CLASIFICADO',
+    'ASIGNADO',
+    'EN_CAMINO',
+    'EN_PROCESO',
+  };
+
+  bool _puedeCancelar(String estado) =>
+      _estadosCancelables.contains(estado.toUpperCase());
+
+  Widget _buildCancelButton(Incident incident) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        icon: _canceling
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(Icons.cancel_outlined, color: colorScheme.error),
+        label: Text(
+          'Cancelar servicio',
+          style: TextStyle(color: colorScheme.error),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colorScheme.error),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        onPressed: _canceling ? null : () => _cancelarServicio(incident),
+      ),
+    );
+  }
+
+  Future<void> _cancelarServicio(Incident incident) async {
+    final estado = incident.estado.toUpperCase();
+    final conMulta = estado == 'EN_CAMINO' || estado == 'EN_PROCESO';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar servicio'),
+        content: Text(
+          conMulta
+              ? 'El técnico ya está en camino. Si cancelás ahora se te aplicará una '
+                  'MULTA del 20% y no podrás solicitar nuevos servicios hasta pagarla. '
+                  '¿Confirmás la cancelación?'
+              : '¿Confirmás que querés cancelar este servicio?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('No'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _canceling = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await ref
+          .read(incidentRepositoryProvider)
+          .cancelarServicio(incident.idIncidente);
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(res.mensaje)));
+      ref.invalidate(selectedIncidentProvider(widget.incidentId));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString().withoutException)),
+      );
+    } finally {
+      if (mounted) setState(() => _canceling = false);
+    }
   }
 
   Future<void> _respondToQuotation(bool accepted) async {

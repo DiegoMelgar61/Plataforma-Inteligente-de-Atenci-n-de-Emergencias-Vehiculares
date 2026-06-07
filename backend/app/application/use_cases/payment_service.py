@@ -47,6 +47,12 @@ _TASA_COMISION = Decimal("0.15")
 # diferencia la oferta de cada taller (más lejos = más caro), estilo InDrive.
 _RECARGO_POR_KM = Decimal("8")
 
+# Multa por cancelar el servicio cuando el técnico ya está en camino: 20% del
+# monto cotizado. El cliente queda bloqueado para nuevos pedidos hasta pagarla.
+_MULTA_PORCENTAJE = Decimal("0.20")
+# Marcador en METODO_PAGO para distinguir una multa de un pago de servicio.
+METODO_MULTA = "MULTA"
+
 # ---------------------------------------------------------------------------
 
 
@@ -131,6 +137,64 @@ def cotizar_oferta(
         f"+ Bs.{fee} de traslado ({km} km)"
     )
     return monto, descripcion
+
+
+def cliente_tiene_multa_pendiente(db: Session, id_usuario_cliente) -> bool:
+    """True si el cliente tiene alguna multa sin pagar (bloquea nuevos pedidos)."""
+    existe = (
+        db.query(PAGOS.ID_PAGO)
+        .filter(
+            PAGOS.ID_USUARIO_CLIENTE == id_usuario_cliente,
+            PAGOS.METODO_PAGO == METODO_MULTA,
+            PAGOS.ESTADO != "PAGADO",
+        )
+        .first()
+    )
+    return existe is not None
+
+
+def crear_multa_cancelacion(
+    db: Session, incidente: INCIDENTES, asignacion: ASIGNACIONES | None
+) -> PAGOS:
+    """
+    Registra una multa (20% del monto cotizado) como un PAGOS en estado NO_PAGO
+    marcado con METODO_PAGO=MULTA. El cliente la paga con el flujo de pagos normal.
+    """
+    base = None
+    if asignacion is not None and asignacion.MONTO_COTIZADO is not None:
+        base = Decimal(str(asignacion.MONTO_COTIZADO))
+    if base is None:
+        clasificacion = (
+            incidente.CLASIFICACION.value if hasattr(incidente.CLASIFICACION, "value")
+            else str(incidente.CLASIFICACION)
+        )
+        prioridad = (
+            incidente.PRIORIDAD.value if hasattr(incidente.PRIORIDAD, "value")
+            else str(incidente.PRIORIDAD)
+        )
+        base, _ = calcular_tarifa(clasificacion, prioridad)
+
+    monto_multa = (base * _MULTA_PORCENTAJE).quantize(Decimal("0.01"))
+
+    pago = PAGOS(
+        ID_INCIDENTE=incidente.ID_INCIDENTE,
+        ID_USUARIO_CLIENTE=incidente.ID_USUARIO_CLIENTE,
+        ID_TALLER=asignacion.ID_TALLER if asignacion else None,
+        ID_ASIGNACION=asignacion.ID_ASIGNACION if asignacion else None,
+        MONTO=monto_multa,
+        COMISION_PLATAFORMA=Decimal("0.00"),
+        ESTADO="NO_PAGO",
+        METODO_PAGO=METODO_MULTA,
+        NOTAS_CLIENTE="Multa por cancelar el servicio cuando el técnico ya estaba en camino (20%).",
+        ID_TENANT=incidente.ID_TENANT,
+    )
+    db.add(pago)
+    db.flush()
+    logger.info(
+        "Multa creada para cliente %s, incidente %s: Bs.%s",
+        incidente.ID_USUARIO_CLIENTE, incidente.ID_INCIDENTE, monto_multa,
+    )
+    return pago
 
 
 def crear_pago_pendiente(db: Session, incidente: INCIDENTES, asignacion: ASIGNACIONES) -> PAGOS:
