@@ -532,6 +532,27 @@ class CotizacionOferta {
       );
 }
 
+// ── Resultado de cancelación ──────────────────────────────────────────────────
+
+class CancelacionResultado {
+  final bool conPenalidad;
+  final double montoMulta;
+  final String mensaje;
+
+  const CancelacionResultado({
+    required this.conPenalidad,
+    required this.montoMulta,
+    required this.mensaje,
+  });
+
+  factory CancelacionResultado.fromJson(Map<String, dynamic> json) =>
+      CancelacionResultado(
+        conPenalidad: json['con_penalidad'] as bool? ?? false,
+        montoMulta: _toDouble(json['monto_multa']) ?? 0,
+        mensaje: json['mensaje'] as String? ?? 'Servicio cancelado',
+      );
+}
+
 // ── WebSocket Notification ────────────────────────────────────────────────────
 
 class WsNotification {

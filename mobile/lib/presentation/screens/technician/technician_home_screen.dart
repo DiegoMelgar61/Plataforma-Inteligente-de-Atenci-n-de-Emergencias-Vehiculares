@@ -38,6 +38,21 @@ class TechnicianHomeScreen extends ConsumerWidget {
       });
     });
 
+    // Aviso push cuando el cliente cancela el servicio en camino.
+    ref.listen(technicianTrackingProvider, (prev, next) {
+      final aviso = next.avisoCancelacion;
+      if (aviso == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(aviso),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      ref.read(technicianTrackingProvider.notifier).limpiarAviso();
+      ref.invalidate(miAsignacionProvider); // queda libre
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Orden'),

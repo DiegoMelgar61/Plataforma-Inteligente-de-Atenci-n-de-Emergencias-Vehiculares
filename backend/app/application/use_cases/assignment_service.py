@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 from math import asin, cos, radians, sin, sqrt
 from uuid import UUID
 
@@ -382,3 +383,95 @@ def seleccionar_taller(
         logger.exception("No se pudo emitir estado EN_CAMINO para incidente %s", incidente_id)
 
     return asignacion
+
+
+# Estados en los que cancelar implica multa (el técnico ya fue despachado).
+ESTADOS_CON_MULTA = {"EN_CAMINO", "EN_PROCESO"}
+
+
+def cancelar_por_cliente(db: Session, incidente_id: UUID) -> dict | None:
+    """
+    Cancela el servicio a pedido del cliente.
+
+    - Libera al técnico (DISPONIBLE = True) y marca la asignación como cancelada.
+    - Si el técnico ya estaba en camino/en proceso, aplica una multa del 20%.
+    - Pasa el incidente a CANCELADO, notifica al técnico y a todos los canales.
+
+    :return: dict {con_penalidad, monto_multa, estado_anterior} o None si no existe.
+    """
+    incidente = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == incidente_id).first()
+    if not incidente:
+        return None
+
+    estado_anterior = (
+        incidente.ESTADO.value if hasattr(incidente.ESTADO, "value") else str(incidente.ESTADO)
+    )
+    con_penalidad = estado_anterior in ESTADOS_CON_MULTA
+
+    asignacion = (
+        db.query(ASIGNACIONES)
+        .filter(ASIGNACIONES.ID_INCIDENTE == incidente_id, ASIGNACIONES.FECHA_RECHAZO.is_(None))
+        .first()
+    )
+
+    monto_multa = 0.0
+    try:
+        # Liberar al técnico asignado.
+        if asignacion and asignacion.ID_TECNICO:
+            tecnico = db.query(TECNICOS).filter(TECNICOS.ID_TECNICO == asignacion.ID_TECNICO).first()
+            if tecnico:
+                tecnico.DISPONIBLE = True
+                db.add(tecnico)
+
+        # Multa si el servicio ya estaba en camino/proceso.
+        if con_penalidad:
+            from app.application.use_cases import payment_service
+            multa = payment_service.crear_multa_cancelacion(db, incidente, asignacion)
+            monto_multa = float(multa.MONTO)
+
+        # Marcar la asignación como cerrada por cancelación.
+        if asignacion:
+            asignacion.FECHA_RECHAZO = datetime.now(timezone.utc)
+            asignacion.MOTIVO_RECHAZO = "Cancelado por el cliente"
+            db.add(asignacion)
+
+        incidente.ESTADO = "CANCELADO"
+        db.add(incidente)
+
+        db.add(
+            HISTORIAL_INCIDENTES(
+                ID_INCIDENTE=incidente_id,
+                ESTADO="CANCELADO",
+                NOTAS=(
+                    "Cancelado por el cliente."
+                    + (f" Multa aplicada: Bs.{monto_multa}." if con_penalidad else "")
+                ),
+                ID_USUARIO_CAMBIO=incidente.ID_USUARIO_CLIENTE,
+            )
+        )
+
+        db.commit()
+        db.refresh(incidente)
+    except Exception:
+        logger.exception("Error al cancelar incidente %s por el cliente", incidente_id)
+        db.rollback()
+        return None
+
+    # Notificaciones: estado CANCELADO a todos + aviso/cierre al técnico.
+    try:
+        from app.application.use_cases.notification_service import (
+            broadcast_estado_actualizado,
+            notificar_cancelacion_tecnico,
+        )
+        broadcast_estado_actualizado(db, incidente_id, "CANCELADO")
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(notificar_cancelacion_tecnico(incidente_id))
+    except Exception:
+        logger.exception("No se pudo notificar la cancelación del incidente %s", incidente_id)
+
+    return {
+        "con_penalidad": con_penalidad,
+        "monto_multa": monto_multa,
+        "estado_anterior": estado_anterior,
+    }

@@ -32,6 +32,7 @@ from app.models.models import (
 from app.presentation.api.v1.dependencies.auth import get_current_user
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
+    CancelacionResponse,
     CotizacionOferta,
     EvidenceItemResponse,
     IncidentListResponse,
@@ -72,6 +73,20 @@ def _solo_cliente(usuario: USUARIOS) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo los clientes pueden usar este módulo de incidentes",
+        )
+
+
+def _bloquear_si_multa_pendiente(db: Session, usuario: USUARIOS) -> None:
+    """Impide solicitar servicios si el cliente tiene una multa sin pagar."""
+    from app.application.use_cases.payment_service import cliente_tiene_multa_pendiente
+
+    if cliente_tiene_multa_pendiente(db, usuario.ID_USUARIO):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Tenés una multa pendiente por cancelar un servicio en camino. "
+                "Pagala para poder solicitar nuevos servicios."
+            ),
         )
 
 
@@ -261,6 +276,7 @@ async def reportar_incidente_multimodal(
     Los archivos se guardan en disco bajo `UPLOADS_DIR` para procesamiento interno (IA, antivirus, etc.).
     """
     _solo_cliente(usuario)
+    _bloquear_si_multa_pendiente(db, usuario)
 
     if id_vehiculo is not None:
         v = (
@@ -453,6 +469,7 @@ def sincronizar_incidentes(
     db: Session = Depends(get_db),
 ):
     _solo_cliente(usuario)
+    _bloquear_si_multa_pendiente(db, usuario)
 
     sincronizados = 0
     omitidos = 0
@@ -716,3 +733,56 @@ def seleccionar_taller_endpoint(
         .all()
     )
     return _a_detalle(db, inc, evs)
+
+
+@router.post(
+    "/{id_incidente}/cancelar",
+    response_model=CancelacionResponse,
+    summary="Cancelar servicio (cliente)",
+    description=(
+        "El cliente cancela su servicio. Libera al técnico y, si ya estaba en "
+        "camino, aplica una multa del 20%. El cliente no podrá solicitar nuevos "
+        "servicios hasta pagar la multa."
+    ),
+)
+def cancelar_incidente(
+    id_incidente: UUID,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    from app.application.use_cases.assignment_service import cancelar_por_cliente
+
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    rol = _rol_texto(usuario)
+    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(status_code=403, detail="No autorizado a cancelar este incidente")
+
+    estado_actual = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
+    if estado_actual in ("ATENDIDO", "CANCELADO"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"El servicio no se puede cancelar (estado: {estado_actual})",
+        )
+
+    res = cancelar_por_cliente(db, id_incidente)
+    if res is None:
+        raise HTTPException(status_code=500, detail="No se pudo cancelar el servicio")
+
+    if res["con_penalidad"]:
+        mensaje = (
+            f"Servicio cancelado. Se aplicó una multa de Bs.{res['monto_multa']:.2f} "
+            "por cancelar con el técnico en camino. Pagala para volver a solicitar servicios."
+        )
+    else:
+        mensaje = "Servicio cancelado sin penalidad."
+
+    return CancelacionResponse(
+        incidente_id=id_incidente,
+        estado="CANCELADO",
+        con_penalidad=res["con_penalidad"],
+        monto_multa=res["monto_multa"],
+        mensaje=mensaje,
+    )

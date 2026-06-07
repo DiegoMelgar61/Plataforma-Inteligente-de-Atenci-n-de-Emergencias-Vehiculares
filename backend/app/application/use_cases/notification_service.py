@@ -378,3 +378,25 @@ async def cerrar_tracking_tecnico(incidente_id: UUID) -> None:
     except Exception:
         logger.debug("Error cerrando WS de tracking para incidente %s", incidente_id)
     await broadcast_incidente_async(incidente_id, payload)
+
+
+async def notificar_cancelacion_tecnico(incidente_id: UUID) -> None:
+    """
+    Avisa al técnico (canal de tracking + canal del incidente) que el cliente
+    canceló el servicio, y cierra su sesión de tracking. La app del técnico
+    muestra el aviso y queda libre.
+    """
+    payload = {
+        "tipo": "servicio_cancelado",
+        "incidente_id": str(incidente_id),
+        "mensaje": "El servicio fue cancelado por el cliente.",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    ws = CONEXIONES_TECNICO.pop(incidente_id, None)
+    if ws is not None:
+        try:
+            await ws.send_json(payload)
+            await ws.close(code=1000)
+        except Exception:
+            logger.debug("Error cerrando WS de tracking (cancelación) para %s", incidente_id)
+    await broadcast_incidente_async(incidente_id, payload)

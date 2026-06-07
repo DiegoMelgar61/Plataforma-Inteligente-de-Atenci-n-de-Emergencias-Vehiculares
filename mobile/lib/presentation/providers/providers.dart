@@ -463,6 +463,7 @@ class TechnicianTrackingState {
   final String? incidentId;
   final TechnicianLocation? lastLocation;
   final String? errorMessage;
+  final String? avisoCancelacion; // aviso push cuando el cliente cancela
 
   const TechnicianTrackingState({
     this.isTracking = false,
@@ -470,6 +471,7 @@ class TechnicianTrackingState {
     this.incidentId,
     this.lastLocation,
     this.errorMessage,
+    this.avisoCancelacion,
   });
 
   TechnicianTrackingState copyWith({
@@ -600,11 +602,33 @@ class TechnicianTrackingNotifier
   void _handleServerMessage(dynamic message) {
     try {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
-      if (data['tipo'] == 'tracking_finalizado') {
+      final tipo = data['tipo'];
+      if (tipo == 'servicio_cancelado') {
+        // El cliente canceló: cortar el tracking y dejar un aviso para la UI.
+        _timer?.cancel();
+        _timer = null;
+        _wsSubscription?.cancel();
+        _wsSubscription = null;
+        _channel?.sink.close();
+        _channel = null;
+        state = TechnicianTrackingState(
+          avisoCancelacion: (data['mensaje'] as String?) ??
+              'El servicio fue cancelado por el cliente.',
+        );
+        return;
+      }
+      if (tipo == 'tracking_finalizado') {
         stop();
       }
     } catch (_) {
       // Messages from the tracking server are informational; invalid payloads do not stop GPS.
+    }
+  }
+
+  /// Limpia el aviso de cancelación una vez mostrado en pantalla.
+  void limpiarAviso() {
+    if (state.avisoCancelacion != null) {
+      state = const TechnicianTrackingState();
     }
   }
 
