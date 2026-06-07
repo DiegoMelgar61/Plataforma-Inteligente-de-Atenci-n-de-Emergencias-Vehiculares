@@ -334,16 +334,31 @@ def tiene_tracking_activo(incidente_id: UUID) -> bool:
     return incidente_id in CONEXIONES_TECNICO
 
 
-def registrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket) -> None:
-    """Registra la conexión WebSocket de tracking del técnico asignado."""
+async def registrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket) -> None:
+    """
+    Registra la conexión de tracking del técnico. Si ya había una sesión activa
+    (p. ej. una reconexión tras un corte de red), cierra la anterior y la nueva
+    toma el control — evita que el técnico quede bloqueado por una sesión stale.
+    """
+    anterior = CONEXIONES_TECNICO.get(incidente_id)
+    if anterior is not None and anterior is not websocket:
+        try:
+            await anterior.close(code=1000)
+        except Exception:
+            pass
     CONEXIONES_TECNICO[incidente_id] = websocket
     logger.info("Tracking GPS iniciado — incidente %s", incidente_id)
 
 
-def desregistrar_tecnico_tracking(incidente_id: UUID) -> None:
-    """Elimina la conexión de tracking del técnico (al desconectarse)."""
-    CONEXIONES_TECNICO.pop(incidente_id, None)
-    logger.info("Tracking GPS finalizado — incidente %s", incidente_id)
+def desregistrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket | None = None) -> None:
+    """
+    Elimina la conexión de tracking del técnico al desconectarse.
+    Solo borra si coincide con el socket dado (o si no se pasa ninguno), para no
+    pisar una sesión nueva que ya tomó el control.
+    """
+    if websocket is None or CONEXIONES_TECNICO.get(incidente_id) is websocket:
+        CONEXIONES_TECNICO.pop(incidente_id, None)
+        logger.info("Tracking GPS finalizado — incidente %s", incidente_id)
 
 
 async def cerrar_tracking_tecnico(incidente_id: UUID) -> None:

@@ -1,4 +1,6 @@
+import ssl
 from urllib.parse import quote_plus
+from uuid import uuid4
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -40,9 +42,31 @@ engine = create_engine(
     connect_args=PSYCOPG2_CONNECT_ARGS,
 )
 
-_async_connect: dict = {}
+def _asyncpg_ssl_context() -> ssl.SSLContext:
+    """
+    SSL para asyncpg equivalente a psycopg2 `sslmode=require`: encripta la
+    conexión pero NO verifica el certificado. Supabase presenta una cadena de
+    certificados self-signed que `ssl=True` (verificación por defecto de asyncpg)
+    rechaza con CERTIFICATE_VERIFY_FAILED, lo que rompía el WebSocket de tracking.
+    """
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+_async_connect: dict = {
+    # Supabase enruta por pgbouncer (modo transacción), que NO soporta prepared
+    # statements persistentes. asyncpg los usa por defecto y rompe con
+    # DuplicatePreparedStatementError. Hay que: (1) desactivar los cachés y
+    # (2) darle un nombre ÚNICO a cada prepared statement, porque el pooler
+    # reusa conexiones backend y los nombres fijos (__asyncpg_stmt_N__) chocan.
+    "statement_cache_size": 0,
+    "prepared_statement_cache_size": 0,
+    "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
+}
 if PSYCOPG2_CONNECT_ARGS.get("sslmode") == "require":
-    _async_connect["ssl"] = True
+    _async_connect["ssl"] = _asyncpg_ssl_context()
 elif PSYCOPG2_CONNECT_ARGS.get("sslmode") == "disable":
     _async_connect["ssl"] = False
 

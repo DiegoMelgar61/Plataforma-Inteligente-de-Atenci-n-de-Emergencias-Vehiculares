@@ -437,6 +437,16 @@ class _LiveMapSection extends StatelessWidget {
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.plataforma.emergencias',
                 ),
+                if (technicianPoint != null)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: [technicianPoint, incidentPoint],
+                        color: colorScheme.primary,
+                        strokeWidth: 4,
+                      ),
+                    ],
+                  ),
                 MarkerLayer(
                   markers: [
                     Marker(
