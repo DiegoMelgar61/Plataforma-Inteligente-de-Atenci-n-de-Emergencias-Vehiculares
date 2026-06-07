@@ -33,7 +33,7 @@ _ALLOWED_PRIORIDAD = {"ALTA", "MEDIA", "BAJA"}
 _PROMPT = """Analiza este incidente vehicular y responde UNICAMENTE con un objeto JSON valido, sin texto adicional.
 
 El JSON debe contener exactamente:
-{
+{{
   "transcripcion_audio": "string o null",
   "clasificacion": "Bateria descargada | Llanta pinchada | Choque frontal | Motor sobrecalentado | Otros",
   "nivel_confianza": 0.0,
@@ -41,7 +41,7 @@ El JSON debe contener exactamente:
   "prioridad": "alta | normal | baja",
   "resumen_automatico": "2-3 oraciones utiles para el tecnico",
   "recomendaciones": "acciones puntuales para atender el incidente"
-}
+}}
 
 Reglas de prioridad:
 - alta: peligro inmediato (accidente, humo, incendio, perdida de control, frenos)
