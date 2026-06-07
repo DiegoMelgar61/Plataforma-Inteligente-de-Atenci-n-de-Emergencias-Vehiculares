@@ -110,6 +110,23 @@ class IncidentResponse(BaseModel):
     monto_estimado: float | None = None
 
 
+class CotizacionOferta(BaseModel):
+    """Oferta de un taller cercano para que el cliente elija (flujo InDrive)."""
+
+    id_taller: UUID
+    nombre_taller: str
+    distancia_km: float
+    monto: float
+    descripcion: str
+    id_tecnico_sugerido: UUID | None = None
+
+
+class SeleccionarTallerRequest(BaseModel):
+    """Cuerpo de POST /incidents/{id}/seleccionar-taller."""
+
+    id_taller: UUID = Field(..., description="UUID del taller elegido por el cliente")
+
+
 class ReporteIncidenteResponse(BaseModel):
     """Respuesta de POST /incidents/report."""
 

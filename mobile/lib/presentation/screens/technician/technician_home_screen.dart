@@ -20,6 +20,24 @@ class TechnicianHomeScreen extends ConsumerWidget {
     final nombre =
         authState.currentUser?.nombreCompleto.split(' ').first ?? 'Técnico';
 
+    // Si el cliente eligió este taller, la orden llega ya en EN_CAMINO: arrancar
+    // el tracking GPS automáticamente (sin que el técnico toque nada).
+    ref.listen(miAsignacionProvider, (prev, next) {
+      next.whenData((asignacion) {
+        if (asignacion == null) return;
+        final estado = asignacion.estadoIncidente.toUpperCase();
+        if (estado != 'EN_CAMINO' && estado != 'EN_PROCESO') return;
+        final tracking = ref.read(technicianTrackingProvider);
+        final yaActivo =
+            tracking.isTracking && tracking.incidentId == asignacion.idIncidente;
+        if (!yaActivo && !tracking.isConnecting) {
+          ref
+              .read(technicianTrackingProvider.notifier)
+              .start(asignacion.idIncidente);
+        }
+      });
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Orden'),

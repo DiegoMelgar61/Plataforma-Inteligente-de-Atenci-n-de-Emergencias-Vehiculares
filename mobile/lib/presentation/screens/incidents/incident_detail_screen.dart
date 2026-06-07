@@ -144,6 +144,10 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         _StatusCard(incident: incident),
+        if (incident.estado == 'CLASIFICADO') ...[
+          _OffersSection(incidentId: widget.incidentId),
+          const SizedBox(height: 16),
+        ],
         _QuotationSection(
           quotationAsync: quotationAsync,
           responseState:
@@ -212,6 +216,171 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
             : 'Cotización rechazada. Buscaremos otra asignación.';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _OffersSection extends ConsumerWidget {
+  final String incidentId;
+  const _OffersSection({required this.incidentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ofertasAsync = ref.watch(cotizacionesProvider(incidentId));
+    final seleccion = ref.watch(seleccionTallerProvider(incidentId));
+    final colorScheme = Theme.of(context).colorScheme;
+    final busy = seleccion.isLoading;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.local_offer_outlined, color: colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Elegí un taller',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 20),
+                  onPressed: busy
+                      ? null
+                      : () => ref.invalidate(cotizacionesProvider(incidentId)),
+                ),
+              ],
+            ),
+            Text(
+              'Talleres cercanos disponibles. Cada uno tiene su precio según distancia, hora y problema.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            ofertasAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, _) => Text(error.toString().withoutException),
+              data: (ofertas) {
+                if (ofertas.isEmpty) {
+                  return Text(
+                    'No hay talleres disponibles cerca por ahora. Tocá actualizar en unos segundos.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final o in ofertas)
+                      _offerTile(context, ref, o, busy),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _offerTile(
+      BuildContext context, WidgetRef ref, CotizacionOferta o, bool busy) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      o.nombreTaller,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'A ${o.distanciaKm.toStringAsFixed(1)} km',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                'Bs. ${o.monto.toStringAsFixed(2)}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            o.descripcion,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: busy ? null : () => _elegir(context, ref, o),
+              child: busy
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Elegir este taller'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _elegir(
+      BuildContext context, WidgetRef ref, CotizacionOferta o) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await ref
+        .read(seleccionTallerProvider(incidentId).notifier)
+        .seleccionar(o.idTaller);
+    final estado = ref.read(seleccionTallerProvider(incidentId));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? '${o.nombreTaller} elegido. El técnico va en camino.'
+              : estado.hasError
+                  ? estado.error.toString().withoutException
+                  : 'No se pudo elegir el taller. Intentá de nuevo.',
+        ),
+      ),
+    );
   }
 }
 

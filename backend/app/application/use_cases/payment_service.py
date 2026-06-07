@@ -43,6 +43,10 @@ _RECARGO_HORA_NORMAL = Decimal("1.00")    # resto del día
 
 _TASA_COMISION = Decimal("0.15")
 
+# Recargo de traslado por km de distancia del taller al incidente. Es lo que
+# diferencia la oferta de cada taller (más lejos = más caro), estilo InDrive.
+_RECARGO_POR_KM = Decimal("8")
+
 # ---------------------------------------------------------------------------
 
 
@@ -95,6 +99,38 @@ def cotizar(
         f"franja {etiqueta_hora} x{factor_hora}. Total Bs.{monto}."
     )
     return monto, comision, detalle
+
+
+def cotizar_oferta(
+    clasificacion: str,
+    prioridad: str,
+    distancia_km: float,
+    momento: datetime | None = None,
+) -> tuple[Decimal, str]:
+    """
+    Cotización de un taller concreto para el flujo de ofertas (estilo InDrive).
+
+    Igual que `cotizar` (problema + gravedad + franja horaria) más un recargo de
+    traslado proporcional a la distancia del taller al incidente, que es lo que
+    hace que cada taller ofrezca un precio distinto según su ubicación.
+
+    Retorna (monto, descripcion_corta).
+    """
+    momento = momento or datetime.now(timezone.utc)
+    base = _TARIFAS_BASE.get(clasificacion.upper(), Decimal("120"))
+    factor_prio = _RECARGO_PRIORIDAD.get(prioridad.upper(), Decimal("1.00"))
+    factor_hora, etiqueta_hora = _factor_horario(momento)
+
+    subtotal = (base * factor_prio * factor_hora).quantize(Decimal("0.01"))
+    km = round(max(0.0, float(distancia_km)), 1)
+    fee = (Decimal(str(km)) * _RECARGO_POR_KM).quantize(Decimal("0.01"))
+    monto = (subtotal + fee).quantize(Decimal("0.01"))
+
+    descripcion = (
+        f"Bs.{subtotal} por {clasificacion.lower()} (franja {etiqueta_hora}) "
+        f"+ Bs.{fee} de traslado ({km} km)"
+    )
+    return monto, descripcion
 
 
 def crear_pago_pendiente(db: Session, incidente: INCIDENTES, asignacion: ASIGNACIONES) -> PAGOS:

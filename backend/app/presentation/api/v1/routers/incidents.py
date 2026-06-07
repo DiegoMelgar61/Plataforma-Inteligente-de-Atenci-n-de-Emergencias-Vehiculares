@@ -32,12 +32,14 @@ from app.models.models import (
 from app.presentation.api.v1.dependencies.auth import get_current_user
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
+    CotizacionOferta,
     EvidenceItemResponse,
     IncidentListResponse,
     IncidentResponse,
     IncidentSyncItem,
     IncidentSyncResponse,
     ReporteIncidenteResponse,
+    SeleccionarTallerRequest,
 )
 
 router = APIRouter(prefix="/incidents", tags=["Incidentes"])
@@ -630,6 +632,83 @@ def obtener_incidente(
     if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
         raise HTTPException(status_code=403, detail="No autorizado a ver este incidente")
 
+    evs = (
+        db.query(EVIDENCIAS)
+        .filter(EVIDENCIAS.ID_INCIDENTE == id_incidente)
+        .order_by(EVIDENCIAS.FECHA_CREACION)
+        .all()
+    )
+    return _a_detalle(db, inc, evs)
+
+
+@router.get(
+    "/{id_incidente}/cotizaciones",
+    response_model=list[CotizacionOferta],
+    summary="Ofertas de talleres cercanos (cliente)",
+    description=(
+        "Devuelve las ofertas de talleres cercanos con técnico disponible, cada "
+        "una con su precio según ubicación, hora y problema. El cliente elige una "
+        "con POST /incidents/{id}/seleccionar-taller."
+    ),
+)
+def listar_cotizaciones(
+    id_incidente: UUID,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    from app.application.use_cases.assignment_service import generar_ofertas
+
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    rol = _rol_texto(usuario)
+    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(status_code=403, detail="No autorizado a ver este incidente")
+
+    return generar_ofertas(db, inc)
+
+
+@router.post(
+    "/{id_incidente}/seleccionar-taller",
+    response_model=IncidentResponse,
+    summary="Elegir taller de las ofertas (cliente)",
+    description=(
+        "El cliente elige un taller de las ofertas. Se asigna automáticamente un "
+        "técnico de ese taller, se fija la cotización y el incidente pasa a EN_CAMINO."
+    ),
+)
+def seleccionar_taller_endpoint(
+    id_incidente: UUID,
+    body: SeleccionarTallerRequest,
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_user),
+):
+    from app.application.use_cases.assignment_service import seleccionar_taller
+
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    rol = _rol_texto(usuario)
+    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(status_code=403, detail="No autorizado sobre este incidente")
+
+    estado_actual = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
+    if estado_actual not in ("CLASIFICADO", "INCIERTO"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"El incidente no está disponible para selección (estado: {estado_actual})",
+        )
+
+    asignacion = seleccionar_taller(db, id_incidente, body.id_taller)
+    if not asignacion:
+        raise HTTPException(
+            status_code=409,
+            detail="El taller elegido no tiene técnicos disponibles en este momento",
+        )
+
+    db.refresh(inc)
     evs = (
         db.query(EVIDENCIAS)
         .filter(EVIDENCIAS.ID_INCIDENTE == id_incidente)
