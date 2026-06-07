@@ -103,6 +103,10 @@ class IncidentResponse(BaseModel):
     id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
     id_local: str | None = Field(None, validation_alias="ID_LOCAL")
     evidencias: list[EvidenceItemResponse] = Field(default_factory=list)
+    # Asignación (poblada en el router cuando el incidente ya fue asignado).
+    taller_asignado: str | None = None
+    tecnico_asignado: str | None = None
+    tecnico_telefono: str | None = None
 
 
 class ReporteIncidenteResponse(BaseModel):

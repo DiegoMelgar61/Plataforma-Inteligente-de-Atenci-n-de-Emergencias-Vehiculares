@@ -20,7 +20,15 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
-from app.models.models import EVIDENCIAS, INCIDENTES, USUARIOS, VEHICULOS
+from app.models.models import (
+    ASIGNACIONES,
+    EVIDENCIAS,
+    INCIDENTES,
+    TALLERES,
+    TECNICOS,
+    USUARIOS,
+    VEHICULOS,
+)
 from app.presentation.api.v1.dependencies.auth import get_current_user
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
@@ -154,7 +162,29 @@ def _a_lista(inc: INCIDENTES) -> IncidentListResponse:
     return base.model_copy(update={"latitud": lat, "longitud": lon})
 
 
-def _a_detalle(inc: INCIDENTES, evidencias: list[EVIDENCIAS]) -> IncidentResponse:
+def _datos_asignacion(db: Session, id_incidente: UUID) -> dict:
+    """Devuelve nombre de taller y técnico asignados (si existe asignación)."""
+    asign = (
+        db.query(ASIGNACIONES)
+        .filter(ASIGNACIONES.ID_INCIDENTE == id_incidente)
+        .first()
+    )
+    if not asign:
+        return {}
+    datos: dict = {}
+    if asign.ID_TALLER:
+        taller = db.query(TALLERES).filter(TALLERES.ID_TALLER == asign.ID_TALLER).first()
+        if taller:
+            datos["taller_asignado"] = taller.NOMBRE_NEGOCIO
+    if asign.ID_TECNICO:
+        tecnico = db.query(TECNICOS).filter(TECNICOS.ID_TECNICO == asign.ID_TECNICO).first()
+        if tecnico:
+            datos["tecnico_asignado"] = tecnico.NOMBRE_COMPLETO
+            datos["tecnico_telefono"] = tecnico.TELEFONO
+    return datos
+
+
+def _a_detalle(db: Session, inc: INCIDENTES, evidencias: list[EVIDENCIAS]) -> IncidentResponse:
     lat, lon = _coords_desde_orm(inc)
     evs = []
     for e in evidencias:
@@ -162,7 +192,9 @@ def _a_detalle(inc: INCIDENTES, evidencias: list[EVIDENCIAS]) -> IncidentRespons
         ev_response = ev_response.model_copy(update={"url_archivo": _construir_url_evidencia(e)})
         evs.append(ev_response)
     base = IncidentResponse.model_validate(inc)
-    return base.model_copy(update={"latitud": lat, "longitud": lon, "evidencias": evs})
+    update = {"latitud": lat, "longitud": lon, "evidencias": evs}
+    update.update(_datos_asignacion(db, inc.ID_INCIDENTE))
+    return base.model_copy(update=update)
 
 
 @router.post(
@@ -602,4 +634,4 @@ def obtener_incidente(
         .order_by(EVIDENCIAS.FECHA_CREACION)
         .all()
     )
-    return _a_detalle(inc, evs)
+    return _a_detalle(db, inc, evs)

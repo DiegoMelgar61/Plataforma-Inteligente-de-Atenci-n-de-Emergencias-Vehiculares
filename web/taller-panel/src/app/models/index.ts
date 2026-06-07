@@ -100,6 +100,9 @@ export interface Incident {
   fecha_creacion: string;
   fecha_actualizacion?: string;
   evidencias?: Evidencia[];
+  taller_asignado?: string | null;
+  tecnico_asignado?: string | null;
+  tecnico_telefono?: string | null;
 }
 
 export interface Asignacion {

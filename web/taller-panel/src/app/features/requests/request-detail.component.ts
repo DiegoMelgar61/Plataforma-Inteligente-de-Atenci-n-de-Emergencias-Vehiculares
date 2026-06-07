@@ -313,6 +313,28 @@ interface TechnicianLocation {
 
           <!-- Right: Actions -->
           <div class="space-y-4">
+            <!-- Asignación automática (taller + técnico) -->
+            @if (incident()!.taller_asignado || incident()!.tecnico_asignado) {
+              <div class="surface p-5">
+                <h3 class="text-sm font-semibold mb-3" style="color: var(--text-primary);">Asignación</h3>
+                @if (incident()!.taller_asignado) {
+                  <div class="mb-3">
+                    <p class="text-xs mb-0.5" style="color: var(--text-muted);">Taller asignado</p>
+                    <p class="text-sm font-medium" style="color: var(--text-secondary);">{{ incident()!.taller_asignado }}</p>
+                  </div>
+                }
+                @if (incident()!.tecnico_asignado) {
+                  <div class="rounded-lg p-3" style="background: var(--bg-elevated); border: 1px solid var(--border);">
+                    <p class="text-xs mb-0.5" style="color: var(--text-muted);">Técnico asignado</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-primary);">{{ incident()!.tecnico_asignado }}</p>
+                    @if (incident()!.tecnico_telefono) {
+                      <p class="text-xs font-mono mt-1" style="color: var(--text-muted);">{{ incident()!.tecnico_telefono }}</p>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
             <!-- Accept / Reject -->
             @if (canAssign()) {
               <div class="surface p-5">
