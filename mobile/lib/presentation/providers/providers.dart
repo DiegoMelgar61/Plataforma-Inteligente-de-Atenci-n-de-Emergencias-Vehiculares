@@ -216,6 +216,43 @@ final incidentQuotationProvider = FutureProvider.autoDispose
   return ref.read(incidentRepositoryProvider).getCotizacion(id);
 });
 
+// Ofertas de talleres cercanos (flujo InDrive), visibles cuando el incidente
+// está CLASIFICADO y el cliente aún no eligió taller.
+final cotizacionesProvider = FutureProvider.autoDispose
+    .family<List<CotizacionOferta>, String>((ref, id) async {
+  return ref.read(incidentRepositoryProvider).getCotizaciones(id);
+});
+
+/// Selección de taller por el cliente. Al elegir, el incidente pasa a EN_CAMINO.
+class SeleccionTallerNotifier extends StateNotifier<AsyncValue<void>> {
+  SeleccionTallerNotifier(this._repo, this._ref, this._incidentId)
+      : super(const AsyncValue.data(null));
+
+  final IncidentRepository _repo;
+  final Ref _ref;
+  final String _incidentId;
+
+  Future<bool> seleccionar(String idTaller) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.seleccionarTaller(_incidentId, idTaller);
+      state = const AsyncValue.data(null);
+      _ref.invalidate(selectedIncidentProvider(_incidentId));
+      _ref.invalidate(cotizacionesProvider(_incidentId));
+      return true;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+}
+
+final seleccionTallerProvider = StateNotifierProvider.autoDispose
+    .family<SeleccionTallerNotifier, AsyncValue<void>, String>((ref, id) {
+  return SeleccionTallerNotifier(
+      ref.watch(incidentRepositoryProvider), ref, id);
+});
+
 class QuotationResponseNotifier extends StateNotifier<AsyncValue<void>> {
   QuotationResponseNotifier(this._repo, this._ref, this._incidentId)
       : super(const AsyncValue.data(null));

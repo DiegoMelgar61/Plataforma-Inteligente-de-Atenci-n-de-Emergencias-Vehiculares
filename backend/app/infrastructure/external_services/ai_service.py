@@ -16,7 +16,6 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.application.use_cases.assignment_service import asignar_taller_automaticamente
 from app.core.config import settings
 from app.models.models import EVIDENCIAS, HISTORIAL_INCIDENTES, INCIDENTES
 
@@ -336,11 +335,13 @@ def ejecutar_pipeline_procesamiento_incidente(db: Session, id_incidente: UUID) -
         db.commit()
         db.refresh(incidente)
 
-        try:
-            logger.info("Iniciando asignacion automatica para incidente %s", id_incidente)
-            asignar_taller_automaticamente(db, id_incidente)
-        except Exception:
-            logger.exception("Asignacion automatica fallo para incidente %s", id_incidente)
+        # Ya NO se asigna automáticamente: el incidente queda CLASIFICADO y el
+        # cliente elige entre las ofertas de talleres cercanos (flujo InDrive).
+        # La asignación ocurre en seleccionar_taller() al elegir el cliente.
+        logger.info(
+            "Incidente %s clasificado; a la espera de que el cliente elija taller",
+            id_incidente,
+        )
 
         return incidente
     except Exception:

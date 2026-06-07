@@ -135,6 +135,39 @@ class IncidentRepository {
     }
   }
 
+  /// GET /incidents/{id}/cotizaciones — ofertas de talleres cercanos (InDrive).
+  Future<List<CotizacionOferta>> getCotizaciones(String idIncidente) async {
+    try {
+      final response =
+          await _client.dio.get('/incidents/$idIncidente/cotizaciones');
+      final data = response.data as List<dynamic>;
+      return data
+          .map((e) => CotizacionOferta.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      final detail =
+          (e.response?.data as Map?)?['detail'] ?? 'Error al cargar ofertas';
+      throw Exception(detail);
+    }
+  }
+
+  /// POST /incidents/{id}/seleccionar-taller — el cliente elige un taller.
+  /// El incidente pasa a EN_CAMINO. Devuelve el incidente actualizado.
+  Future<Incident> seleccionarTaller(
+      String idIncidente, String idTaller) async {
+    try {
+      final response = await _client.dio.post(
+        '/incidents/$idIncidente/seleccionar-taller',
+        data: {'id_taller': idTaller},
+      );
+      return Incident.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final detail =
+          (e.response?.data as Map?)?['detail'] ?? 'Error al elegir taller';
+      throw Exception(detail);
+    }
+  }
+
   /// POST /incidents/report — multipart/form-data.
   /// Returns the new [idIncidente] (UUID string).
   Future<String> reportIncident({

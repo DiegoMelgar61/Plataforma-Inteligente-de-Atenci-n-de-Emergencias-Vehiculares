@@ -503,6 +503,35 @@ double? _toDouble(dynamic value) {
   return null;
 }
 
+// ── Oferta de cotización (flujo InDrive) ──────────────────────────────────────
+
+class CotizacionOferta {
+  final String idTaller;
+  final String nombreTaller;
+  final double distanciaKm;
+  final double monto;
+  final String descripcion;
+  final String? idTecnicoSugerido;
+
+  const CotizacionOferta({
+    required this.idTaller,
+    required this.nombreTaller,
+    required this.distanciaKm,
+    required this.monto,
+    required this.descripcion,
+    this.idTecnicoSugerido,
+  });
+
+  factory CotizacionOferta.fromJson(Map<String, dynamic> json) => CotizacionOferta(
+        idTaller: json['id_taller'] as String? ?? '',
+        nombreTaller: json['nombre_taller'] as String? ?? 'Taller',
+        distanciaKm: _toDouble(json['distancia_km']) ?? 0,
+        monto: _toDouble(json['monto']) ?? 0,
+        descripcion: json['descripcion'] as String? ?? '',
+        idTecnicoSugerido: json['id_tecnico_sugerido'] as String?,
+      );
+}
+
 // ── WebSocket Notification ────────────────────────────────────────────────────
 
 class WsNotification {
