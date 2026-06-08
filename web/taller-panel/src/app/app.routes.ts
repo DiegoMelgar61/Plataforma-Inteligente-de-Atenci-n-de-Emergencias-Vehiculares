@@ -16,6 +16,7 @@ import { TenantsComponent } from './features/tenants/tenants.component';
 import { OperationsComponent } from './features/operations/operations.component';
 import { BitacoraComponent } from './features/bitacora/bitacora.component';
 import { BackupsComponent } from './features/backups/backups.component';
+import { DashboardsIaComponent } from './features/dashboards-ia/dashboards-ia.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -36,6 +37,7 @@ export const routes: Routes = [
       { path: 'history', component: HistoryComponent },
       { path: 'bitacora', component: BitacoraComponent },
       { path: 'backups', component: BackupsComponent },
+      { path: 'dashboards-ia', component: DashboardsIaComponent },
       { path: 'tenants', component: TenantsComponent },
       {
         path: 'admin',

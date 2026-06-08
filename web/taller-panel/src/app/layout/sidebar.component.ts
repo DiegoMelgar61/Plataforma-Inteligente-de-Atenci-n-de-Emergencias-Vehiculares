@@ -5,7 +5,7 @@ import { AuthService } from '../core/services/auth.service';
 
 interface NavItem {
   label: string;
-  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'operations' | 'history' | 'users' | 'workshops' | 'tenants' | 'bitacora' | 'backups';
+  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'operations' | 'history' | 'users' | 'workshops' | 'tenants' | 'bitacora' | 'backups' | 'dashboards-ia';
   route: string;
   adminOnly?: boolean;
   badge?: string;
@@ -188,6 +188,7 @@ export class SidebarComponent {
     { label: 'Tenants', icon: 'tenants', route: '/tenants' },
     { label: 'Bitácora', icon: 'bitacora', route: '/bitacora' },
     { label: 'Copias de respaldo', icon: 'backups', route: '/backups' },
+    { label: 'Dashboards IA', icon: 'dashboards-ia', route: '/dashboards-ia' },
   ];
 
   navIcon(icon: NavItem['icon']): string {
@@ -205,6 +206,7 @@ export class SidebarComponent {
       tenants: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-3h4l2 3h4a2 2 0 012 2v12a2 2 0 01-2 2zM12 11a3 3 0 100 6 3 3 0 000-6z"/></svg>',
       bitacora: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>',
       backups: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zm0 0v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>',
+      'dashboards-ia': '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M8 16V9m4 7V5m4 11v-4"/></svg>',
     };
     return icons[icon];
   }

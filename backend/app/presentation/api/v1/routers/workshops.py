@@ -56,12 +56,16 @@ def listar_talleres(
 def obtener_taller(
     id_taller: UUID,
     db: Session = Depends(get_db),
-    _: USUARIOS = Depends(get_current_active_user),
+    usuario: USUARIOS = Depends(get_current_active_user),
 ):
-    """Detalle de un taller."""
+    """Detalle de un taller. Los no-admin solo pueden ver talleres de su tenant."""
     t = db.query(TALLERES).filter(TALLERES.ID_TALLER == id_taller).first()
     if not t:
         raise HTTPException(status_code=404, detail="Taller no encontrado")
+    if _rol_texto(usuario) != "ADMIN":
+        id_tenant = getattr(usuario, "_id_tenant", None)
+        if id_tenant is not None and t.ID_TENANT != id_tenant:
+            raise HTTPException(status_code=403, detail="Taller de otra red de talleres")
     return WorkshopResponse.model_validate(t)
 
 
