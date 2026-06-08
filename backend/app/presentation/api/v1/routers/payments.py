@@ -270,6 +270,15 @@ async def confirmar_pago(
 
     pago = payment_service.confirmar_pago(db, id_pago=id_pago, id_usuario_confirma=usuario.ID_USUARIO)
 
+    from app.application.use_cases import bitacora_service
+    bitacora_service.registrar(
+        "PAGO_CONFIRMADO",
+        f"Pago Bs.{pago.MONTO} confirmado",
+        usuario=usuario,
+        entidad="PAGO",
+        id_entidad=pago.ID_PAGO,
+    )
+
     await _broadcast({
         "tipo": "pago_confirmado",
         "pago_id": str(pago.ID_PAGO),
@@ -301,6 +310,15 @@ async def rechazar_pago(
         id_pago=id_pago,
         id_usuario_confirma=usuario.ID_USUARIO,
         motivo=body.motivo_rechazo,
+    )
+
+    from app.application.use_cases import bitacora_service
+    bitacora_service.registrar(
+        "PAGO_RECHAZADO",
+        f"Pago Bs.{pago.MONTO} rechazado: {body.motivo_rechazo}",
+        usuario=usuario,
+        entidad="PAGO",
+        id_entidad=pago.ID_PAGO,
     )
 
     await _broadcast({

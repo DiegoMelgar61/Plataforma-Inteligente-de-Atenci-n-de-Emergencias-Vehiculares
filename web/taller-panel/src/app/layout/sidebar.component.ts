@@ -5,7 +5,7 @@ import { AuthService } from '../core/services/auth.service';
 
 interface NavItem {
   label: string;
-  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'operations' | 'history' | 'users' | 'workshops' | 'tenants';
+  icon: 'dashboard' | 'requests' | 'assignments' | 'technicians' | 'map' | 'payments' | 'operations' | 'history' | 'users' | 'workshops' | 'tenants' | 'bitacora';
   route: string;
   adminOnly?: boolean;
   badge?: string;
@@ -186,6 +186,7 @@ export class SidebarComponent {
     { label: 'Usuarios', icon: 'users', route: '/admin/users' },
     { label: 'Talleres', icon: 'workshops', route: '/admin/workshops' },
     { label: 'Tenants', icon: 'tenants', route: '/tenants' },
+    { label: 'Bitácora', icon: 'bitacora', route: '/bitacora' },
   ];
 
   navIcon(icon: NavItem['icon']): string {
@@ -201,6 +202,7 @@ export class SidebarComponent {
       users: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m8-10a4 4 0 100-8 4 4 0 000 8m14 10v-2a4 4 0 00-3-3.87m-4-11.26a4 4 0 010 7.75"/></svg>',
       workshops: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>',
       tenants: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-3h4l2 3h4a2 2 0 012 2v12a2 2 0 01-2 2zM12 11a3 3 0 100 6 3 3 0 000-6z"/></svg>',
+      bitacora: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>',
     };
     return icons[icon];
   }

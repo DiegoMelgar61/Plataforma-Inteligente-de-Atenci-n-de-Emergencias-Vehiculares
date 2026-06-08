@@ -14,6 +14,7 @@ import { AdminWorkshopsComponent } from './features/admin/admin-workshops.compon
 import { PaymentsListComponent } from './features/payments/payments-list.component';
 import { TenantsComponent } from './features/tenants/tenants.component';
 import { OperationsComponent } from './features/operations/operations.component';
+import { BitacoraComponent } from './features/bitacora/bitacora.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -32,6 +33,7 @@ export const routes: Routes = [
       { path: 'payments', component: PaymentsListComponent },
       { path: 'operations', component: OperationsComponent },
       { path: 'history', component: HistoryComponent },
+      { path: 'bitacora', component: BitacoraComponent },
       { path: 'tenants', component: TenantsComponent },
       {
         path: 'admin',
