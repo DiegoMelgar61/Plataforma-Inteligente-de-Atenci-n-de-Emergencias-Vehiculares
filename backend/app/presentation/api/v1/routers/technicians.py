@@ -296,6 +296,16 @@ def actualizar_estado_incidente_tecnico(
     db.commit()
     db.refresh(incidente)
 
+    from app.application.use_cases import bitacora_service
+    bitacora_service.registrar(
+        "ESTADO_ACTUALIZADO",
+        f"Técnico cambió estado {estado_actual} → {nuevo_estado}",
+        id_usuario=tecnico.ID_USUARIO,
+        id_tenant=incidente.ID_TENANT,
+        entidad="INCIDENTE",
+        id_entidad=id_incidente,
+    )
+
     _broadcast({
         "tipo": "estado_actualizado",
         "incidente_id": str(id_incidente),

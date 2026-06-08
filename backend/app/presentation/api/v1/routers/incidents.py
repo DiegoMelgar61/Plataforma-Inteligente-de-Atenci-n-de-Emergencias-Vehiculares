@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
+from app.application.use_cases import bitacora_service
 from app.core.config import settings
 from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
@@ -405,6 +406,13 @@ async def reportar_incidente_multimodal(
 
         db.commit()
         db.refresh(incidente)
+        bitacora_service.registrar(
+            "INCIDENTE_REPORTADO",
+            f"Cliente reportó un incidente ({incidente.CLASIFICACION})",
+            usuario=usuario,
+            entidad="INCIDENTE",
+            id_entidad=incidente.ID_INCIDENTE,
+        )
         try:
             ejecutar_pipeline_procesamiento_incidente(db, incidente.ID_INCIDENTE)
         except Exception:
@@ -725,6 +733,14 @@ def seleccionar_taller_endpoint(
             detail="El taller elegido no tiene técnicos disponibles en este momento",
         )
 
+    bitacora_service.registrar(
+        "TALLER_SELECCIONADO",
+        f"Cliente eligió taller {body.id_taller} (monto Bs.{asignacion.MONTO_COTIZADO})",
+        usuario=usuario,
+        entidad="INCIDENTE",
+        id_entidad=id_incidente,
+    )
+
     db.refresh(inc)
     evs = (
         db.query(EVIDENCIAS)
@@ -770,6 +786,17 @@ def cancelar_incidente(
     res = cancelar_por_cliente(db, id_incidente)
     if res is None:
         raise HTTPException(status_code=500, detail="No se pudo cancelar el servicio")
+
+    bitacora_service.registrar(
+        "SERVICIO_CANCELADO",
+        (
+            f"Cliente canceló el servicio (estado previo {res['estado_anterior']})."
+            + (f" Multa Bs.{res['monto_multa']:.2f}." if res["con_penalidad"] else " Sin multa.")
+        ),
+        usuario=usuario,
+        entidad="INCIDENTE",
+        id_entidad=id_incidente,
+    )
 
     if res["con_penalidad"]:
         mensaje = (

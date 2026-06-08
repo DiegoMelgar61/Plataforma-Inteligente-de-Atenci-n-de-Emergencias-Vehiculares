@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.models import TALLERES, USUARIOS
@@ -6,6 +6,11 @@ from app.presentation.api.v1.schemas.auth import UserCreate, UserLogin, Token
 from app.core.security import hashear_contrasena, verificar_contrasena, crear_access_token
 from app.core.config import settings
 from app.application.use_cases.tenant_service import TENANT_DEFAULT_ID
+from app.application.use_cases import bitacora_service
+
+
+def _ip(request: Request | None) -> str | None:
+    return request.client.host if request and request.client else None
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -45,10 +50,20 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
             "id_tenant": str(id_tenant_asignado),
         }
     )
+
+    rol_txt = nuevo_usuario.ROL.value if hasattr(nuevo_usuario.ROL, "value") else str(nuevo_usuario.ROL)
+    bitacora_service.registrar(
+        "USUARIO_REGISTRADO",
+        f"Registro de {nuevo_usuario.CORREO_ELECTRONICO} (rol {rol_txt})",
+        id_usuario=nuevo_usuario.ID_USUARIO,
+        id_tenant=id_tenant_asignado,
+        entidad="USUARIO",
+        id_entidad=nuevo_usuario.ID_USUARIO,
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+def login(user: UserLogin, request: Request = None, db: Session = Depends(get_db)):
     usuario = db.query(USUARIOS).filter(USUARIOS.CORREO_ELECTRONICO == user.correo_electronico).first()
     if not usuario or not verificar_contrasena(user.contrasena, usuario.HASH_CONTRASENA):
         raise HTTPException(
@@ -65,5 +80,15 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             "rol": usuario.ROL,
             "id_tenant": str(id_tenant),
         }
+    )
+
+    bitacora_service.registrar(
+        "LOGIN",
+        f"Inicio de sesión de {usuario.CORREO_ELECTRONICO}",
+        id_usuario=usuario.ID_USUARIO,
+        id_tenant=id_tenant,
+        entidad="USUARIO",
+        id_entidad=usuario.ID_USUARIO,
+        ip=_ip(request),
     )
     return {"access_token": access_token, "token_type": "bearer"}
