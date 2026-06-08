@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -214,3 +214,59 @@ def dashboard_stats(
         porcentaje_atendidos=porcentaje_atendidos,
         filtrado_por_tenant=str(tenant_efectivo) if tenant_efectivo else None,
     )
+
+
+@router.get(
+    "/zonas",
+    summary="Zonas con más incidentes (mapa de calor)",
+    description="Agrupa los incidentes por celda geográfica para pintar manchas en el mapa.",
+)
+def zonas_incidentes(
+    id_tenant: UUID | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
+    db: Session = Depends(get_db),
+    usuario: USUARIOS = Depends(get_current_active_user),
+):
+    rol = _rol(usuario)
+    if rol not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden ver el mapa de calor")
+
+    if rol == "TALLER":
+        tenant_efectivo = getattr(usuario, "_id_tenant", None) or usuario.ID_TENANT
+    else:
+        tenant_efectivo = id_tenant
+
+    sql = (
+        "SELECT ST_Y(ubicacion::geometry) AS lat, ST_X(ubicacion::geometry) AS lon "
+        "FROM incidentes WHERE ubicacion IS NOT NULL"
+    )
+    params: dict = {}
+    if tenant_efectivo:
+        sql += " AND id_tenant = :t"
+        params["t"] = str(tenant_efectivo)
+
+    filas = db.execute(text(sql), params).fetchall()
+
+    # Agrupar por celda (~400m) para formar manchas.
+    celda = 0.004
+    grilla: dict[tuple, list] = {}
+    for lat, lon in filas:
+        if lat is None or lon is None:
+            continue
+        clave = (round(lat / celda), round(lon / celda))
+        g = grilla.setdefault(clave, [0, 0.0, 0.0])
+        g[0] += 1
+        g[1] += lat
+        g[2] += lon
+
+    total = sum(g[0] for g in grilla.values()) or 1
+    zonas = [
+        {
+            "lat": g[1] / g[0],
+            "lon": g[2] / g[0],
+            "total": g[0],
+            "porcentaje": round(g[0] * 100 / total, 1),
+        }
+        for g in grilla.values()
+    ]
+    zonas.sort(key=lambda z: z["total"], reverse=True)
+    return zonas
