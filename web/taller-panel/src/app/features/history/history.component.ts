@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IncidentsService } from '../../core/services/incidents.service';
+import { ReportsService } from '../../core/services/reports.service';
 import { Incident } from '../../models';
 
 @Component({
@@ -37,6 +38,14 @@ import { Incident } from '../../models';
         @if (search || filterEstado || filterClasif) {
           <button (click)="clearFilters()" class="btn-ghost text-xs">Limpiar</button>
         }
+        <div class="flex gap-2">
+          <button (click)="exportar('xlsx')" [disabled]="exportando()" class="btn-ghost text-xs">
+            {{ exportando() ? '...' : 'Excel' }}
+          </button>
+          <button (click)="exportar('pdf')" [disabled]="exportando()" class="btn-ghost text-xs">
+            {{ exportando() ? '...' : 'PDF' }}
+          </button>
+        </div>
       </div>
 
       <!-- Stats row -->
@@ -118,8 +127,10 @@ import { Incident } from '../../models';
 })
 export class HistoryComponent implements OnInit {
   private incidentsService = inject(IncidentsService);
+  private reportsService = inject(ReportsService);
 
   loading = signal(true);
+  exportando = signal(false);
   incidents = signal<Incident[]>([]);
   search = '';
   filterEstado = '';
@@ -152,6 +163,23 @@ export class HistoryComponent implements OnInit {
   }
 
   clearFilters(): void { this.search = ''; this.filterEstado = ''; this.filterClasif = ''; }
+
+  exportar(formato: 'xlsx' | 'pdf'): void {
+    this.exportando.set(true);
+    this.reportsService
+      .descargarIncidentes(formato, {
+        estado: this.filterEstado || undefined,
+        clasificacion: this.filterClasif || undefined,
+      })
+      .subscribe({
+        next: (blob) => {
+          const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '');
+          this.reportsService.guardarArchivo(blob, `reporte_incidentes_${stamp}.${formato}`);
+          this.exportando.set(false);
+        },
+        error: () => this.exportando.set(false),
+      });
+  }
 
   classIcon(c: string): string {
     return { BATERIA: 'BA', LLANTA: 'LL', CHOQUE: 'CH', MOTOR: 'MO', OTROS: 'OT', INCIERTO: '?' }[c] || 'OT';
