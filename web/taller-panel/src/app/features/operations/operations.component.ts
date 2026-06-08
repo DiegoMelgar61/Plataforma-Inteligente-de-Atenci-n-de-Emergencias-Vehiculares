@@ -193,7 +193,7 @@ export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (data) => {
         this.stats.set(this.normalizeStats(data));
         this.loading.set(false);
-        setTimeout(() => this.renderCharts(), 0);
+        this.scheduleRenderCharts();
       },
       error: (err) => {
         this.errorMsg.set(err.error?.detail || 'No se pudieron cargar las metricas operacionales');
@@ -211,9 +211,28 @@ export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private renderHeatmap(zonas: ZonaIncidente[]): void {
+  /**
+   * Reintenta renderizar hasta que el <canvas> exista en el DOM. Con
+   * eventCoalescing de zone.js, el canvas puede no estar pintado todavía justo
+   * después de setear los datos, por eso no alcanza un setTimeout(0).
+   */
+  private scheduleRenderCharts(intento = 0): void {
+    setTimeout(() => {
+      if (document.getElementById('classificationChart')) {
+        this.renderCharts();
+      } else if (intento < 12) {
+        this.scheduleRenderCharts(intento + 1);
+      }
+    }, 60);
+  }
+
+  private renderHeatmap(zonas: ZonaIncidente[], intento = 0): void {
     const el = document.getElementById('heatmap');
-    if (!el) return;
+    if (!el) {
+      // mismo motivo que los gráficos: reintentar hasta que el div exista
+      if (zonas.length && intento < 12) setTimeout(() => this.renderHeatmap(zonas, intento + 1), 60);
+      return;
+    }
     if (!this.heatMap) {
       this.heatMap = L.map('heatmap').setView(HEAT_CENTER, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
