@@ -1,14 +1,22 @@
 import { AfterViewInit, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { StatsService } from '../../core/services/stats.service';
+import { FormsModule } from '@angular/forms';
+import * as L from 'leaflet';
+import { StatsService, ZonaIncidente } from '../../core/services/stats.service';
+import { TenantsService } from '../../core/services/tenants.service';
+import { AuthService } from '../../core/services/auth.service';
+import { Tenant } from '../../models/tenant.model';
 import { DashboardStats } from '../../models';
 
 declare const Chart: any;
 
+// Santa Cruz de la Sierra
+const HEAT_CENTER: L.LatLngTuple = [-17.7833, -63.1812];
+
 @Component({
   selector: 'app-operations',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="space-y-5 fade-in">
       <div class="flex items-start justify-between gap-3">
@@ -16,7 +24,17 @@ declare const Chart: any;
           <h1 class="page-title">Operaciones</h1>
           <p class="page-subtitle">KPIs operacionales filtrados por tenant</p>
         </div>
-        <button (click)="loadData()" class="btn-ghost text-xs">Actualizar</button>
+        <div class="flex items-center gap-2">
+          @if (isAdmin()) {
+            <select [(ngModel)]="selectedTenant" (ngModelChange)="loadData()" class="input text-sm w-48">
+              <option value="">Todos los tenants</option>
+              @for (t of tenants(); track t.id_tenant) {
+                <option [value]="t.id_tenant">{{ t.nombre }}</option>
+              }
+            </select>
+          }
+          <button (click)="loadData()" class="btn-ghost text-xs">Actualizar</button>
+        </div>
       </div>
 
       @if (loading()) {
@@ -110,22 +128,50 @@ declare const Chart: any;
             <canvas id="dailyChart"></canvas>
           </div>
         </div>
+
+        <!-- Mapa de calor: zonas con más incidentes -->
+        <div class="surface p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-semibold" style="color: var(--text-primary);">Zonas con más incidentes</h2>
+              <p class="text-xs mt-1" style="color: var(--text-muted);">Mancha más intensa = mayor concentración de solicitudes</p>
+            </div>
+            @if (zonaTop()) {
+              <span class="badge badge-red" style="font-size:10px;">
+                Zona caliente: {{ zonaTop()!.porcentaje }}% ({{ zonaTop()!.total }} incidentes)
+              </span>
+            }
+          </div>
+          <div id="heatmap" style="height: 380px; width: 100%; border-radius: 12px; overflow: hidden;"></div>
+        </div>
       }
     </div>
   `,
 })
 export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
   private statsService = inject(StatsService);
+  private tenantsService = inject(TenantsService);
+  private auth = inject(AuthService);
 
   loading = signal(true);
   errorMsg = signal<string | null>(null);
   stats = signal<DashboardStats | null>(null);
+  tenants = signal<Tenant[]>([]);
+  zonas = signal<ZonaIncidente[]>([]);
+  zonaTop = signal<ZonaIncidente | null>(null);
+  selectedTenant = '';
+  isAdmin = this.auth.isAdmin;
 
   private viewReady = false;
   private classificationChart: any = null;
   private dailyChart: any = null;
+  private heatMap: L.Map | null = null;
+  private heatLayer: L.LayerGroup | null = null;
 
   ngOnInit(): void {
+    if (this.isAdmin()) {
+      this.tenantsService.listar(true).subscribe({ next: (l) => this.tenants.set(l), error: () => {} });
+    }
     this.loadData();
   }
 
@@ -136,12 +182,14 @@ export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyCharts();
+    this.destroyHeatmap();
   }
 
   loadData(): void {
     this.loading.set(true);
     this.errorMsg.set(null);
-    this.statsService.getDashboard().subscribe({
+    const tenant = this.selectedTenant || undefined;
+    this.statsService.getDashboard(tenant).subscribe({
       next: (data) => {
         this.stats.set(this.normalizeStats(data));
         this.loading.set(false);
@@ -153,6 +201,57 @@ export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.destroyCharts();
       },
     });
+    this.statsService.getZonas(tenant).subscribe({
+      next: (z) => {
+        this.zonas.set(z);
+        this.zonaTop.set(z.length ? z[0] : null);
+        setTimeout(() => this.renderHeatmap(z), 60);
+      },
+      error: () => { this.zonas.set([]); this.zonaTop.set(null); },
+    });
+  }
+
+  private renderHeatmap(zonas: ZonaIncidente[]): void {
+    const el = document.getElementById('heatmap');
+    if (!el) return;
+    if (!this.heatMap) {
+      this.heatMap = L.map('heatmap').setView(HEAT_CENTER, 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(this.heatMap);
+      this.heatLayer = L.layerGroup().addTo(this.heatMap);
+    }
+    this.heatLayer?.clearLayers();
+    const max = Math.max(...zonas.map((z) => z.total), 1);
+
+    for (const z of zonas) {
+      const intensidad = z.total / max;
+      // Dos círculos concéntricos para simular una mancha de calor radial.
+      L.circle([z.lat, z.lon], {
+        radius: 300 + intensidad * 1100,
+        stroke: false,
+        fillColor: '#ef4444',
+        fillOpacity: 0.10 + intensidad * 0.20,
+      }).addTo(this.heatLayer!);
+      L.circle([z.lat, z.lon], {
+        radius: 120 + intensidad * 400,
+        stroke: false,
+        fillColor: '#dc2626',
+        fillOpacity: 0.25 + intensidad * 0.35,
+      })
+        .bindPopup(`<b>${z.total}</b> incidentes (${z.porcentaje}%)`)
+        .addTo(this.heatLayer!);
+    }
+    this.heatMap.invalidateSize();
+  }
+
+  private destroyHeatmap(): void {
+    if (this.heatMap) {
+      this.heatMap.remove();
+      this.heatMap = null;
+      this.heatLayer = null;
+    }
   }
 
   averageTimeLabel(): string {
