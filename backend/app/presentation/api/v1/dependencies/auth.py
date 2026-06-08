@@ -67,6 +67,33 @@ def get_current_user(
     return usuario
 
 
+def verificar_acceso_incidente(usuario: USUARIOS, incidente) -> None:
+    """
+    Aislamiento por tenant a nivel de incidente (reutilizable en varios routers):
+    - ADMIN: acceso total (super-admin de plataforma).
+    - CLIENTE: solo sus propios incidentes.
+    - TALLER / TECNICO: solo incidentes de su mismo tenant.
+    Lanza 403 si no corresponde.
+    """
+    rol = _rol_como_texto(usuario.ROL)
+    if rol == "ADMIN":
+        return
+    if rol == "CLIENTE":
+        if incidente.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No autorizado sobre este incidente",
+            )
+        return
+    # TALLER / TECNICO: debe ser del mismo tenant
+    tenant_usuario = getattr(usuario, "_id_tenant", None) or usuario.ID_TENANT
+    if tenant_usuario is None or incidente.ID_TENANT != tenant_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El incidente pertenece a otra red de talleres",
+        )
+
+
 def get_current_active_user(
     usuario: USUARIOS = Depends(get_current_user),
 ) -> USUARIOS:

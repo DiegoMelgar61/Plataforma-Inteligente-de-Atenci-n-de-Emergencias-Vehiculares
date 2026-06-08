@@ -30,7 +30,7 @@ from app.models.models import (
     USUARIOS,
     VEHICULOS,
 )
-from app.presentation.api.v1.dependencies.auth import get_current_user
+from app.presentation.api.v1.dependencies.auth import get_current_user, verificar_acceso_incidente
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
     CancelacionResponse,
@@ -573,6 +573,7 @@ def actualizar_estado_incidente(
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
+    verificar_acceso_incidente(usuario, inc)
     nuevo_estado = body.get("estado")
     if nuevo_estado:
         inc.ESTADO = nuevo_estado
@@ -650,12 +651,10 @@ def obtener_incidente(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    rol = _rol_texto(usuario)
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
-    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
-        raise HTTPException(status_code=403, detail="No autorizado a ver este incidente")
+    verificar_acceso_incidente(usuario, inc)
 
     evs = (
         db.query(EVIDENCIAS)

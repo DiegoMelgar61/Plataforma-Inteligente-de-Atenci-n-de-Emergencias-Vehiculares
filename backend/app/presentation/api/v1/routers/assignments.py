@@ -25,6 +25,7 @@ from app.models.models import ASIGNACIONES, INCIDENTES, TALLERES, TECNICOS, USUA
 from app.presentation.api.v1.dependencies.auth import (
     get_current_active_user,
     get_current_user,
+    verificar_acceso_incidente,
 )
 from app.presentation.api.v1.schemas.assignment import (
     AssignmentResponse,
@@ -80,6 +81,10 @@ def asignar_incidente(
     incidente = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not incidente:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    if _rol_texto(usuario) not in ("TALLER", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo talleres y admins pueden asignar")
+    verificar_acceso_incidente(usuario, incidente)
 
     id_tecnico_manual = body.id_tecnico if body else None
 
@@ -313,10 +318,13 @@ def rechazar_asignacion(
     if not asignacion:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
 
+    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+    if inc:
+        verificar_acceso_incidente(usuario, inc)
+
     asignacion.FECHA_RECHAZO = datetime.now(timezone.utc)
     asignacion.MOTIVO_RECHAZO = body.get("motivo_rechazo", "Rechazado por el taller")
 
-    inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if inc:
         inc.ESTADO = "CANCELADO"
 
@@ -354,11 +362,8 @@ def ver_cotizacion(
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
-    rol = _rol_texto(usuario)
-    es_cliente = rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE == usuario.ID_USUARIO
-    es_taller_admin = rol in ("TALLER", "ADMIN")
-    if not (es_cliente or es_taller_admin):
-        raise HTTPException(status_code=403, detail="No autorizado")
+    # Aislamiento por tenant (CLIENTE dueño / TALLER-TECNICO mismo tenant / ADMIN todo).
+    verificar_acceso_incidente(usuario, inc)
 
     asignacion = (
         db.query(ASIGNACIONES)
@@ -405,6 +410,7 @@ def proponer_cotizacion(
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
+    verificar_acceso_incidente(usuario, inc)
 
     estado_str = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
     if estado_str != "ASIGNADO":
