@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants.dart';
 import '../../../data/local/offline_storage.dart';
 import '../../../data/models/models.dart';
 import '../../providers/providers.dart';
@@ -49,12 +50,31 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (syncState is SincronizacionCompletada)
+                if (syncState is SincronizacionCompletada) ...[
                   _ResultCard(
                     message:
                         '${syncState.sincronizados} sincronizadas, ${syncState.omitidos} omitidas',
                     color: Theme.of(context).colorScheme.primaryContainer,
                   ),
+                  if (syncState.sincronizados > 0) ...[
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        AppConstants.routeIncidents,
+                        ModalRoute.withName(AppConstants.routeHome),
+                      ),
+                      icon: const Icon(Icons.list_alt),
+                      label: const Text('Ver mis incidentes'),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Los incidentes sincronizados ya estan disponibles.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
                 if (syncState is SincronizacionError)
                   _ResultCard(
                     message: syncState.mensaje,
