@@ -353,11 +353,10 @@ class OfflineSyncRepository {
         .map(
           (e) => {
             'id_local': e.id_local,
-            'descripcion': e.descripcion,
+            'texto_descripcion': e.descripcion,
             'latitud': e.latitud,
             'longitud': e.longitud,
             'id_vehiculo': e.id_vehiculo,
-            'ubicacion': {'lat': e.latitud, 'lon': e.longitud},
           },
         )
         .toList();
@@ -373,12 +372,15 @@ class OfflineSyncRepository {
 
       if (errores is List) {
         for (final error in errores) {
-          if (error is Map && error['id_local'] is String) {
-            idsConError.add(error['id_local'] as String);
-            await OfflineStorage.marcarError(
-              error['id_local'] as String,
-              '${error['error'] ?? 'Error al sincronizar'}',
-            );
+          if (error is Map<String, dynamic>) {
+            final idLocal = error['id_local'] as String?;
+            if (idLocal != null) {
+              idsConError.add(idLocal);
+              await OfflineStorage.marcarError(
+                idLocal,
+                error['error'] as String? ?? 'Error al sincronizar',
+              );
+            }
           }
         }
       }

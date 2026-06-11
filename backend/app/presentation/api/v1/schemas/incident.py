@@ -41,12 +41,27 @@ class IncidentSyncItem(BaseModel):
     texto_descripcion: str | None = Field(None, max_length=8000)
 
 
+class IncidentSyncError(BaseModel):
+    """Error individual dentro de una sincronización por lote."""
+
+    id_local: str
+    error: str
+
+
+class IncidentSyncItemResult(BaseModel):
+    """Incidente creado exitosamente durante la sincronización."""
+
+    id_local: str
+    id_incidente: UUID
+
+
 class IncidentSyncResponse(BaseModel):
     """Respuesta de POST /incidents/sync."""
 
     sincronizados: int
     omitidos: int
-    errores: list[str]
+    errores: list[IncidentSyncError] = []
+    resultados: list[IncidentSyncItemResult] = []
 
 
 class EvidenceItemResponse(BaseModel):

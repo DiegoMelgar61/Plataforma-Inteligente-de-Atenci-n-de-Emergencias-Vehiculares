@@ -67,10 +67,13 @@ class SincronizacionEnProgreso extends SincronizacionState {
 class SincronizacionCompletada extends SincronizacionState {
   final int sincronizados;
   final int omitidos;
+  // Each entry: {'id_local': '...', 'id_incidente': '...'}
+  final List<Map<String, String>> resultados;
 
   const SincronizacionCompletada({
     required this.sincronizados,
     required this.omitidos,
+    this.resultados = const [],
   });
 }
 
@@ -95,9 +98,18 @@ class SincronizacionNotifier extends StateNotifier<SincronizacionState> {
       final result = await _repo.sincronizarPendientes();
       final sincronizados = (result['sincronizados'] as num?)?.toInt() ?? 0;
       final omitidos = (result['omitidos'] as num?)?.toInt() ?? 0;
+      final rawResultados = result['resultados'] as List<dynamic>? ?? [];
+      final resultados = rawResultados
+          .whereType<Map<String, dynamic>>()
+          .map((r) => {
+                'id_local': r['id_local']?.toString() ?? '',
+                'id_incidente': r['id_incidente']?.toString() ?? '',
+              })
+          .toList();
       state = SincronizacionCompletada(
         sincronizados: sincronizados,
         omitidos: omitidos,
+        resultados: resultados,
       );
       _ref.invalidate(pendientesCountProvider);
       _ref.invalidate(myIncidentsProvider);

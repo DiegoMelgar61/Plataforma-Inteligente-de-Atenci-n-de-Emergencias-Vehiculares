@@ -38,7 +38,9 @@ from app.presentation.api.v1.schemas.incident import (
     EvidenceItemResponse,
     IncidentListResponse,
     IncidentResponse,
+    IncidentSyncError,
     IncidentSyncItem,
+    IncidentSyncItemResult,
     IncidentSyncResponse,
     ReporteIncidenteResponse,
     SeleccionarTallerRequest,
@@ -481,7 +483,8 @@ def sincronizar_incidentes(
 
     sincronizados = 0
     omitidos = 0
-    errores: list[str] = []
+    errores: list[IncidentSyncError] = []
+    resultados: list[IncidentSyncItemResult] = []
 
     for item in items:
         try:
@@ -523,12 +526,32 @@ def sincronizar_incidentes(
                 db.add(ev_txt)
 
             db.commit()
+
+            try:
+                ejecutar_pipeline_procesamiento_incidente(db, incidente.ID_INCIDENTE)
+            except Exception:
+                logger.exception(
+                    "Pipeline IA falló en sync para incidente %s; incidente persistido como PENDIENTE.",
+                    incidente.ID_INCIDENTE,
+                )
+
+            resultados.append(
+                IncidentSyncItemResult(
+                    id_local=item.id_local,
+                    id_incidente=incidente.ID_INCIDENTE,
+                )
+            )
             sincronizados += 1
         except Exception as exc:
             db.rollback()
-            errores.append(f"{item.id_local}: {exc}")
+            errores.append(IncidentSyncError(id_local=item.id_local, error=str(exc)))
 
-    return IncidentSyncResponse(sincronizados=sincronizados, omitidos=omitidos, errores=errores)
+    return IncidentSyncResponse(
+        sincronizados=sincronizados,
+        omitidos=omitidos,
+        errores=errores,
+        resultados=resultados,
+    )
 
 
 @router.get(
