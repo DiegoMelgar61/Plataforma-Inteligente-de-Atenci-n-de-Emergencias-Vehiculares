@@ -7,7 +7,7 @@ import { IncidentsService } from '../../core/services/incidents.service';
 import { TechniciansService } from '../../core/services/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { AuthService } from '../../core/services/auth.service';
-import { AdminService } from '../../core/services/admin.service';
+import { AdminService } from '../admin/admin.service';
 import { NotificationStore } from '../../core/services/notification-store.service';
 import { Incident, Tecnico, User, Taller } from '../../models';
 

@@ -2,7 +2,7 @@ import { Component, inject, signal, OnInit, OnDestroy, computed } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as L from 'leaflet';
-import { AdminService } from '../../core/services/admin.service';
+import { AdminService } from './admin.service';
 import { Taller, TallerCreate } from '../../models';
 
 // Fix Leaflet default marker icon paths broken by bundlers

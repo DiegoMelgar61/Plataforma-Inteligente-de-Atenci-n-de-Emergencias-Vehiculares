@@ -2,7 +2,7 @@ import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TechniciansService } from '../../core/services/technicians.service';
-import { AdminService } from '../../core/services/admin.service';
+import { AdminService } from '../admin/admin.service';
 import { Taller, Tecnico, TecnicoCreate, TecnicoWithUserCreate } from '../../models';
 
 @Component({
