@@ -27,10 +27,10 @@ from app.models.models import (
     INCIDENTES,
     TALLERES,
     TECNICOS,
-    VEHICULOS,
 )
-from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
+from app.modules.users.models import USUARIOS
+from app.modules.vehicles.models import VEHICULOS
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
     CancelacionResponse,

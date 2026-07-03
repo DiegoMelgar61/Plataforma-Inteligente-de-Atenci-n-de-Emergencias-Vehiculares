@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.modules.auth.router import router as auth_router
 from app.modules.tenants.router import router as tenants_router
 from app.modules.users.router import router as users_router
-from app.presentation.api.v1.routers.vehicles import router as vehicles_router
+from app.modules.vehicles.router import router as vehicles_router
 from app.presentation.api.v1.routers.workshops import router as workshops_router
 from app.presentation.api.v1.routers.technicians import router as technicians_router
 from app.presentation.api.v1.routers.ai_processing import router as ai_processing_router
