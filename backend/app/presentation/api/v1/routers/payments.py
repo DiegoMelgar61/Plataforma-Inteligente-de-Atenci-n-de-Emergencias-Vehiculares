@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.application.use_cases import payment_service
 from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TALLERES, USUARIOS
-from app.presentation.api.v1.dependencies.auth import get_current_user
+from app.modules.auth.dependencies import get_current_user
 from app.presentation.api.v1.schemas.payment import (
     PaymentListItem,
     PaymentReject,

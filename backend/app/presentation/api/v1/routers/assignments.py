@@ -22,7 +22,7 @@ from app.application.use_cases.notification_service import (
     enviar_notificacion_taller,
 )
 from app.models.models import ASIGNACIONES, INCIDENTES, TALLERES, TECNICOS, USUARIOS
-from app.presentation.api.v1.dependencies.auth import (
+from app.modules.auth.dependencies import (
     get_current_active_user,
     get_current_user,
     verificar_acceso_incidente,

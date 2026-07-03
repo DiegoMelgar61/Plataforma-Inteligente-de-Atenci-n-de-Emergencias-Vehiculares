@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.models import TALLERES, USUARIOS
-from app.presentation.api.v1.dependencies.auth import (
+from app.modules.auth.dependencies import (
     get_current_active_user,
 )
 from app.presentation.api.v1.schemas.workshop import (

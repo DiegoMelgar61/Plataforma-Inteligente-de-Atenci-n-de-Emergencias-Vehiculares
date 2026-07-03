@@ -30,7 +30,7 @@ from app.models.models import (
     USUARIOS,
     VEHICULOS,
 )
-from app.presentation.api.v1.dependencies.auth import get_current_user, verificar_acceso_incidente
+from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
     CancelacionResponse,

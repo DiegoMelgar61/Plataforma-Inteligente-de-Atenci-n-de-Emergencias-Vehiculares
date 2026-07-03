@@ -22,7 +22,7 @@ from app.models.models import (
     TALLERES,
     USUARIOS,
 )
-from app.presentation.api.v1.dependencies.auth import get_current_active_user
+from app.modules.auth.dependencies import get_current_active_user
 from app.presentation.api.v1.schemas.stats import (
     DashboardStatsResponse,
     IncidentesPorClasificacion,

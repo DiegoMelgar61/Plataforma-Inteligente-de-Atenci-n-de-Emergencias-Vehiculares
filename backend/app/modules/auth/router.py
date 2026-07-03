@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.models import TALLERES, USUARIOS
-from app.presentation.api.v1.schemas.auth import UserCreate, UserLogin, Token
+from app.modules.auth.schemas import UserCreate, UserLogin, Token
 from app.core.security import hashear_contrasena, verificar_contrasena, crear_access_token
 from app.core.config import settings
 from app.modules.bitacora import service as bitacora_service

@@ -30,7 +30,7 @@ from app.models.models import (
     TECNICOS,
     USUARIOS,
 )
-from app.presentation.api.v1.dependencies.auth import (
+from app.modules.auth.dependencies import (
     get_current_active_user,
     get_current_tecnico,
     get_current_taller,

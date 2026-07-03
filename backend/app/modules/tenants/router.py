@@ -8,7 +8,7 @@ from app.models.models import USUARIOS
 from app.modules.bitacora import service as bitacora_service
 from app.modules.tenants import service as tenant_service
 from app.modules.tenants.schemas import TenantCreate, TenantResponse, TenantUpdate
-from app.presentation.api.v1.dependencies.auth import get_current_admin
+from app.modules.auth.dependencies import get_current_admin
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 

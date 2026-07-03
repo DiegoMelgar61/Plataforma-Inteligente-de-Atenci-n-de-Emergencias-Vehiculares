@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.models import USUARIOS, VEHICULOS
-from app.presentation.api.v1.dependencies.auth import get_current_cliente
+from app.modules.auth.dependencies import get_current_cliente
 from app.presentation.api.v1.schemas.vehicle import VehicleCreate, VehicleResponse, VehicleUpdate
 
 router = APIRouter(prefix="/vehiculos", tags=["Vehículos"])

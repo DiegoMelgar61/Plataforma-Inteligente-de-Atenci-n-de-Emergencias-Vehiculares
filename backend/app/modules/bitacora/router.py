@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.models.models import USUARIOS
 from app.modules.bitacora.models import BITACORA
 from app.modules.bitacora.schemas import BitacoraResponse
-from app.presentation.api.v1.dependencies.auth import get_current_active_user
+from app.modules.auth.dependencies import get_current_active_user
 
 router = APIRouter(prefix="/bitacora", tags=["Bitácora"])
 

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
-from app.presentation.api.v1.routers.auth import router as auth_router
+from app.modules.auth.router import router as auth_router
 from app.modules.tenants.router import router as tenants_router
 from app.presentation.api.v1.routers.users import router as users_router
 from app.presentation.api.v1.routers.vehicles import router as vehicles_router

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
 from app.models.models import INCIDENTES, USUARIOS
-from app.presentation.api.v1.dependencies.auth import get_current_user
+from app.modules.auth.dependencies import get_current_user
 from app.presentation.api.v1.routers.incidents import _solo_cliente
 from app.presentation.api.v1.schemas.ai_processing import ProcesamientoIAResponse
 
