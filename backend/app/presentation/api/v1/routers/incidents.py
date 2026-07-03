@@ -17,20 +17,20 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
-from app.application.use_cases import bitacora_service
 from app.core.config import settings
 from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
+from app.modules.bitacora import service as bitacora_service
 from app.models.models import (
-    ASIGNACIONES,
     EVIDENCIAS,
     INCIDENTES,
-    TALLERES,
-    TECNICOS,
-    USUARIOS,
-    VEHICULOS,
 )
-from app.presentation.api.v1.dependencies.auth import get_current_user, verificar_acceso_incidente
+from app.modules.assignments.models import ASIGNACIONES
+from app.modules.technicians.models import TECNICOS
+from app.modules.workshops.models import TALLERES
+from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
+from app.modules.users.models import USUARIOS
+from app.modules.vehicles.models import VEHICULOS
 from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
 from app.presentation.api.v1.schemas.incident import (
     CancelacionResponse,
@@ -81,7 +81,7 @@ def _solo_cliente(usuario: USUARIOS) -> None:
 
 def _bloquear_si_multa_pendiente(db: Session, usuario: USUARIOS) -> None:
     """Impide solicitar servicios si el cliente tiene una multa sin pagar."""
-    from app.application.use_cases.payment_service import cliente_tiene_multa_pendiente
+    from app.modules.payments.service import cliente_tiene_multa_pendiente
 
     if cliente_tiene_multa_pendiente(db, usuario.ID_USUARIO):
         raise HTTPException(
@@ -449,7 +449,7 @@ async def reportar_incidente_multimodal(
         "timestamp": datetime.utcnow().isoformat(),
     }
     try:
-        from app.application.use_cases.notification_service import broadcast_global
+        from app.modules.notifications.service import broadcast_global
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.ensure_future(broadcast_global(notif))
@@ -605,8 +605,8 @@ def actualizar_estado_incidente(
 
     if nuevo_estado == "ATENDIDO":
         try:
-            from app.models.models import ASIGNACIONES
-            from app.application.use_cases import payment_service
+            from app.modules.assignments.models import ASIGNACIONES
+            from app.modules.payments import service as payment_service
             asignacion = db.query(ASIGNACIONES).filter(ASIGNACIONES.ID_INCIDENTE == id_incidente).first()
             if asignacion:
                 pago = payment_service.crear_pago_pendiente(db, inc, asignacion)
@@ -619,7 +619,7 @@ def actualizar_estado_incidente(
                     "timestamp": datetime.utcnow().isoformat(),
                 }
                 try:
-                    from app.application.use_cases.notification_service import broadcast_global
+                    from app.modules.notifications.service import broadcast_global
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         asyncio.ensure_future(broadcast_global(notif))
@@ -703,7 +703,7 @@ def listar_cotizaciones(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    from app.application.use_cases.assignment_service import generar_ofertas
+    from app.modules.assignments.service import generar_ofertas
 
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
@@ -731,7 +731,7 @@ def seleccionar_taller_endpoint(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    from app.application.use_cases.assignment_service import seleccionar_taller
+    from app.modules.assignments.service import seleccionar_taller
 
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
@@ -788,7 +788,7 @@ def cancelar_incidente(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    from app.application.use_cases.assignment_service import cancelar_por_cliente
+    from app.modules.assignments.service import cancelar_por_cliente
 
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:

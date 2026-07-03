@@ -6,7 +6,6 @@ from app.core.database import Base
 import uuid
 
 # ==================== ENUMS ====================
-RolEnum = Enum('CLIENTE', 'TALLER', 'ADMIN', 'TECNICO', name='rol_enum')
 EstadoIncidenteEnum = Enum('PENDIENTE', 'EN_PROCESO_IA', 'CLASIFICADO', 'ASIGNADO',
                            'EN_CAMINO', 'EN_PROCESO', 'ATENDIDO', 'CANCELADO', 'INCIERTO',
                            name='estado_incidente_enum')
@@ -14,79 +13,8 @@ PrioridadEnum = Enum('BAJA', 'MEDIA', 'ALTA', name='prioridad_enum')
 ClasificacionEnum = Enum('BATERIA', 'LLANTA', 'CHOQUE', 'MOTOR', 'OTROS', 'INCIERTO',
                          name='clasificacion_enum')
 TipoEvidenciaEnum = Enum('IMAGEN', 'AUDIO', 'TEXTO', name='tipo_evidencia_enum')
-EstadoPagoEnum = Enum('NO_PAGO', 'PENDIENTE', 'PAGADO', 'RECHAZADO', name='estado_pago_enum')
 
 # ==================== MODELOS ====================
-
-class USUARIOS(Base):
-    __tablename__ = "usuarios"
-
-    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    CORREO_ELECTRONICO = Column("correo_electronico", String(255), unique=True, nullable=False)
-    HASH_CONTRASENA = Column("hash_contrasena", Text, nullable=False)
-    NOMBRE_COMPLETO = Column("nombre_completo", String(255), nullable=False)
-    TELEFONO = Column("telefono", String(20))
-    ROL = Column("rol", RolEnum, nullable=False)
-    ACTIVO = Column("activo", Boolean, default=True)
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
-    FECHA_ELIMINACION = Column("fecha_eliminacion", DateTime(timezone=True), nullable=True)
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
-    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
-
-
-class CLIENTES(Base):
-    __tablename__ = "clientes"
-
-    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), primary_key=True)
-
-
-class TALLERES(Base):
-    __tablename__ = "talleres"
-
-    ID_TALLER = Column("id_taller", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), unique=True)
-    NOMBRE_NEGOCIO = Column("nombre_negocio", String(255), nullable=False)
-    NIT = Column("nit", String(50), unique=True)
-    DIRECCION = Column("direccion", Text)
-    TASA_COMISION = Column("tasa_comision", DECIMAL(5, 2), default=10.00)
-    LATITUD = Column("latitud", DECIMAL(10, 7), nullable=True)
-    LONGITUD = Column("longitud", DECIMAL(10, 7), nullable=True)
-    ACTIVO = Column("activo", Boolean, default=True)
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
-    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
-
-
-class TECNICOS(Base):
-    __tablename__ = "tecnicos"
-
-    ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller", ondelete="CASCADE"), nullable=False)
-    # Cuenta de login del técnico (usuario con rol TECNICO). Nullable para
-    # compatibilidad con técnicos creados antes de esta columna.
-    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="SET NULL"), unique=True, nullable=True)
-    NOMBRE_COMPLETO = Column("nombre_completo", String(255), nullable=False)
-    TELEFONO = Column("telefono", String(20))
-    DISPONIBLE = Column("disponible", Boolean, default=True)
-    UBICACION_ACTUAL = Column("ubicacion_actual", Geography(geometry_type='POINT', srid=4326))
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
-
-
-class VEHICULOS(Base):
-    __tablename__ = "vehiculos"
-
-    ID_VEHICULO = Column("id_vehiculo", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), nullable=False)
-    MARCA = Column("marca", String(100))
-    MODELO = Column("modelo", String(100))
-    ANIO = Column("anio", Integer)
-    PLACA = Column("placa", String(20), unique=True)
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
-
 
 class INCIDENTES(Base):
     __tablename__ = "incidentes"
@@ -131,71 +59,3 @@ class HISTORIAL_INCIDENTES(Base):
     FECHA_CAMBIO = Column("fecha_cambio", DateTime(timezone=True), server_default=func.now())
 
 
-class ASIGNACIONES(Base):
-    __tablename__ = "asignaciones"
-
-    ID_ASIGNACION = Column("id_asignacion", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente"), unique=True)
-    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller"))
-    ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), ForeignKey("tecnicos.id_tecnico"))
-    FECHA_ASIGNACION = Column("fecha_asignacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_ACEPTACION = Column("fecha_aceptacion", DateTime(timezone=True))
-    FECHA_RECHAZO = Column("fecha_rechazo", DateTime(timezone=True))
-    MOTIVO_RECHAZO = Column("motivo_rechazo", Text)
-    MONTO_COTIZADO = Column("monto_cotizado", DECIMAL(10, 2), nullable=True)
-    TIEMPO_ESTIMADO_REPARACION = Column("tiempo_estimado_reparacion", Integer, nullable=True)
-    COTIZACION_ACEPTADA = Column("cotizacion_aceptada", Boolean, nullable=True)
-    NOTAS_COTIZACION = Column("notas_cotizacion", Text, nullable=True)
-
-
-class PAGOS(Base):
-    __tablename__ = "pagos"
-
-    ID_PAGO = Column("id_pago", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente"), unique=True)
-    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"))
-    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller"))
-    ID_ASIGNACION = Column("id_asignacion", UUID(as_uuid=True), ForeignKey("asignaciones.id_asignacion"))
-    MONTO = Column("monto", DECIMAL(10, 2), nullable=False)
-    COMISION_PLATAFORMA = Column("comision_plataforma", DECIMAL(10, 2), nullable=False)
-    ESTADO = Column("estado", EstadoPagoEnum, default="NO_PAGO")
-    METODO_PAGO = Column("metodo_pago", String(50))
-    ID_TRANSACCION = Column("id_transaccion", String(255))
-    COMPROBANTE_URL = Column("comprobante_url", Text)
-    COMPROBANTE_CLAVE = Column("comprobante_clave", Text)
-    NOTAS_CLIENTE = Column("notas_cliente", Text)
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_MARCADO_PAGO = Column("fecha_marcado_pago", DateTime(timezone=True))
-    FECHA_CONFIRMACION = Column("fecha_confirmacion", DateTime(timezone=True))
-    FECHA_RECHAZO = Column("fecha_rechazo", DateTime(timezone=True))
-    MOTIVO_RECHAZO = Column("motivo_rechazo", Text)
-    ID_USUARIO_CONFIRMO = Column("id_usuario_confirmo", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"))
-    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
-    tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
-
-
-class BITACORA(Base):
-    """Bitácora de auditoría: registra acciones relevantes de los usuarios."""
-    __tablename__ = "bitacora"
-
-    ID_BITACORA = Column("id_bitacora", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="SET NULL"), nullable=True)
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
-    ACCION = Column("accion", String(100), nullable=False)
-    ENTIDAD = Column("entidad", String(50), nullable=True)
-    ID_ENTIDAD = Column("id_entidad", String(64), nullable=True)
-    DESCRIPCION = Column("descripcion", Text, nullable=True)
-    IP = Column("ip", String(64), nullable=True)
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-
-
-class Tenant(Base):
-    __tablename__ = "tenants"
-
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    NOMBRE = Column("nombre", String(255), unique=True, nullable=False)
-    DESCRIPCION = Column("descripcion", Text, nullable=True)
-    ACTIVO = Column("activo", Boolean, default=True)
-    FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
-    FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())

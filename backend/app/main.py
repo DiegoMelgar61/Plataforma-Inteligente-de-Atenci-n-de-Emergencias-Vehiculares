@@ -9,23 +9,23 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
-from app.presentation.api.v1.routers.auth import router as auth_router
-from app.presentation.api.v1.routers.tenants import router as tenants_router
-from app.presentation.api.v1.routers.users import router as users_router
-from app.presentation.api.v1.routers.vehicles import router as vehicles_router
-from app.presentation.api.v1.routers.workshops import router as workshops_router
-from app.presentation.api.v1.routers.technicians import router as technicians_router
+from app.modules.auth.router import router as auth_router
+from app.modules.tenants.router import router as tenants_router
+from app.modules.users.router import router as users_router
+from app.modules.vehicles.router import router as vehicles_router
+from app.modules.workshops.router import router as workshops_router
+from app.modules.technicians.router import router as technicians_router
 from app.presentation.api.v1.routers.ai_processing import router as ai_processing_router
 from app.presentation.api.v1.routers.incidents import router as incidents_router
-from app.presentation.api.v1.routers.assignments import router as assignments_router
-from app.presentation.api.v1.routers.notifications import router as notifications_router
-from app.presentation.api.v1.routers.payments import router as payments_router
-from app.presentation.api.v1.routers.tracking import router as tracking_router
-from app.presentation.api.v1.routers.stats import router as stats_router
-from app.presentation.api.v1.routers.bitacora import router as bitacora_router
-from app.presentation.api.v1.routers.reports import router as reports_router
-from app.presentation.api.v1.routers.backups import router as backups_router
-from app.presentation.api.v1.routers.dashboards_ia import router as dashboards_ia_router
+from app.modules.assignments.router import router as assignments_router
+from app.modules.notifications.router import router as notifications_router
+from app.modules.payments.router import router as payments_router
+from app.modules.tracking.router import router as tracking_router
+from app.modules.stats.router import router as stats_router
+from app.modules.bitacora.router import router as bitacora_router
+from app.modules.reports.router import router as reports_router
+from app.modules.backups.router import router as backups_router
+from app.modules.dashboards_ia.router import router as dashboards_ia_router
 
 logger = logging.getLogger(__name__)
 
