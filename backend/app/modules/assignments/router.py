@@ -13,24 +13,9 @@ from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 
 from app.core.database import get_db
-from app.application.use_cases.assignment_service import (
-    asignar_taller_automaticamente,
-    buscar_talleres_candidatos,
-)
-from app.modules.notifications.service import (
-    enviar_notificacion_cliente,
-    enviar_notificacion_taller,
-)
-from app.models.models import ASIGNACIONES, INCIDENTES
-from app.modules.technicians.models import TECNICOS
-from app.modules.workshops.models import TALLERES
-from app.modules.users.models import USUARIOS
-from app.modules.auth.dependencies import (
-    get_current_active_user,
-    get_current_user,
-    verificar_acceso_incidente,
-)
-from app.presentation.api.v1.schemas.assignment import (
+from app.models.models import INCIDENTES
+from app.modules.assignments.models import ASIGNACIONES
+from app.modules.assignments.schemas import (
     AssignmentResponse,
     AvailableWorkshopsResponse,
     CotizacionCreate,
@@ -38,6 +23,22 @@ from app.presentation.api.v1.schemas.assignment import (
     CotizacionRespuesta,
     WorkshopCandidateResponse,
 )
+from app.modules.assignments.service import (
+    asignar_taller_automaticamente,
+    buscar_talleres_candidatos,
+)
+from app.modules.auth.dependencies import (
+    get_current_active_user,
+    get_current_user,
+    verificar_acceso_incidente,
+)
+from app.modules.notifications.service import (
+    enviar_notificacion_cliente,
+    enviar_notificacion_taller,
+)
+from app.modules.technicians.models import TECNICOS
+from app.modules.users.models import USUARIOS
+from app.modules.workshops.models import TALLERES
 
 router = APIRouter(prefix="/assignments", tags=["Asignación Inteligente"])
 

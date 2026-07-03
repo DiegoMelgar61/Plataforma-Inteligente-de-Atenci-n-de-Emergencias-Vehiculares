@@ -154,7 +154,7 @@ def enviar_notificacion_taller(db: Session, incidente_id: UUID, mensaje: str) ->
     :param incidente_id: UUID del incidente
     :param mensaje: Mensaje de notificación
     """
-    from app.models.models import ASIGNACIONES
+    from app.modules.assignments.models import ASIGNACIONES
     from app.modules.workshops.models import TALLERES
 
     asignacion = (

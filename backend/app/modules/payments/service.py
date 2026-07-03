@@ -10,7 +10,9 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.models import ASIGNACIONES, INCIDENTES
+from app.models.models import INCIDENTES
+
+from app.modules.assignments.models import ASIGNACIONES
 from app.modules.payments.models import PAGOS
 from app.modules.users.models import USUARIOS
 from app.modules.workshops.models import TALLERES

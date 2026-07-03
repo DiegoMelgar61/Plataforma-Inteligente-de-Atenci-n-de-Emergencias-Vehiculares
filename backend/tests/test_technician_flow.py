@@ -35,10 +35,10 @@ from app.core.database import Base, get_db  # noqa: E402
 from app.core.security import crear_access_token, hashear_contrasena  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.models import (  # noqa: E402
-    ASIGNACIONES,
     HISTORIAL_INCIDENTES,
     INCIDENTES,
 )
+from app.modules.assignments.models import ASIGNACIONES  # noqa: E402
 from app.modules.technicians.models import TECNICOS  # noqa: E402
 from app.modules.users.models import USUARIOS  # noqa: E402
 from app.modules.workshops.models import TALLERES  # noqa: E402

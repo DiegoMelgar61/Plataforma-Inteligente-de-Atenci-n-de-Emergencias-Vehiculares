@@ -22,10 +22,10 @@ from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
 from app.modules.bitacora import service as bitacora_service
 from app.models.models import (
-    ASIGNACIONES,
     EVIDENCIAS,
     INCIDENTES,
 )
+from app.modules.assignments.models import ASIGNACIONES
 from app.modules.technicians.models import TECNICOS
 from app.modules.workshops.models import TALLERES
 from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
@@ -605,7 +605,7 @@ def actualizar_estado_incidente(
 
     if nuevo_estado == "ATENDIDO":
         try:
-            from app.models.models import ASIGNACIONES
+            from app.modules.assignments.models import ASIGNACIONES
             from app.modules.payments import service as payment_service
             asignacion = db.query(ASIGNACIONES).filter(ASIGNACIONES.ID_INCIDENTE == id_incidente).first()
             if asignacion:
@@ -703,7 +703,7 @@ def listar_cotizaciones(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    from app.application.use_cases.assignment_service import generar_ofertas
+    from app.modules.assignments.service import generar_ofertas
 
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
@@ -731,7 +731,7 @@ def seleccionar_taller_endpoint(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    from app.application.use_cases.assignment_service import seleccionar_taller
+    from app.modules.assignments.service import seleccionar_taller
 
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:
@@ -788,7 +788,7 @@ def cancelar_incidente(
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
-    from app.application.use_cases.assignment_service import cancelar_por_cliente
+    from app.modules.assignments.service import cancelar_por_cliente
 
     inc = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
     if not inc:

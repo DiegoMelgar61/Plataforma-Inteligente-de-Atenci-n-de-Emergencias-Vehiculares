@@ -9,7 +9,9 @@ from io import BytesIO
 
 from sqlalchemy.orm import Session
 
-from app.models.models import ASIGNACIONES, INCIDENTES
+from app.models.models import INCIDENTES
+
+from app.modules.assignments.models import ASIGNACIONES
 from app.modules.workshops.models import TALLERES
 
 

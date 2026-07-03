@@ -23,10 +23,10 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import hashear_contrasena
 from app.models.models import (
-    ASIGNACIONES,
     HISTORIAL_INCIDENTES,
     INCIDENTES,
 )
+from app.modules.assignments.models import ASIGNACIONES
 from app.modules.auth.dependencies import (
     get_current_active_user,
     get_current_tecnico,

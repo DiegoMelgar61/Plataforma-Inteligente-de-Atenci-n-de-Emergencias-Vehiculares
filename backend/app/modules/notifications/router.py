@@ -246,7 +246,7 @@ def actualizar_estado_incidente(
     es_admin = rol == "ADMIN"
 
     # Los talleres también pueden actualizar si tienen asignación
-    from app.models.models import ASIGNACIONES
+    from app.modules.assignments.models import ASIGNACIONES
 
     tiene_asignacion = (
         db.query(ASIGNACIONES)
