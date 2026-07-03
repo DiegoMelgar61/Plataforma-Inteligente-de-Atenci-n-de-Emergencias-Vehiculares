@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 import { IncidentsService } from '../../core/services/incidents.service';
-import { TechniciansService } from '../../core/services/technicians.service';
+import { TechniciansService } from '../technicians/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { Incident, Tecnico } from '../../models';
 import { forkJoin, interval, Subject, Subscription } from 'rxjs';

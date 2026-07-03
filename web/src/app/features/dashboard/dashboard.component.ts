@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { forkJoin, Subject } from 'rxjs';
 import { throttleTime } from 'rxjs/operators';
 import { IncidentsService } from '../../core/services/incidents.service';
-import { TechniciansService } from '../../core/services/technicians.service';
+import { TechniciansService } from '../technicians/technicians.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { AdminService } from '../admin/admin.service';
