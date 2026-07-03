@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import USUARIOS
+from app.modules.users.models import USUARIOS
 from app.modules.backups import service as backup_service
 from app.modules.bitacora import service as bitacora_service
 from app.modules.auth.dependencies import get_current_admin

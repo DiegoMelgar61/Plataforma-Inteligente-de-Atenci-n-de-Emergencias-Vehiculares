@@ -14,7 +14,8 @@ from typing import Callable, Any
 from sqlalchemy.orm import Session
 from fastapi import WebSocket
 
-from app.models.models import INCIDENTES, USUARIOS
+from app.models.models import INCIDENTES
+from app.modules.users.models import USUARIOS
 
 logger = logging.getLogger(__name__)
 

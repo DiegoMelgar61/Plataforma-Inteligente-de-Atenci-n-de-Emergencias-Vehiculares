@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import USUARIOS
+from app.modules.users.models import USUARIOS
 from app.modules.bitacora import service as bitacora_service
 from app.modules.tenants import service as tenant_service
 from app.modules.tenants.schemas import TenantCreate, TenantResponse, TenantUpdate

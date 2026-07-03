@@ -10,7 +10,8 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TALLERES, USUARIOS
+from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TALLERES
+from app.modules.users.models import USUARIOS
 
 logger = logging.getLogger(__name__)
 

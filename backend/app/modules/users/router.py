@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import USUARIOS
 from app.modules.auth.dependencies import get_current_active_user
-from app.presentation.api.v1.schemas.user import UserProfile, UserUpdate
+from app.modules.users.models import USUARIOS
+from app.modules.users.schemas import UserProfile, UserUpdate
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
