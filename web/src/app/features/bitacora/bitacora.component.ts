@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BitacoraService, BitacoraEntry } from '../../core/services/bitacora.service';
+import { BitacoraService, BitacoraEntry } from './bitacora.service';
 
 @Component({
   selector: 'app-bitacora',
