@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TenantsService } from '../../core/services/tenants.service';
 import { Tenant } from '../../models/tenant.model';
-import { DashboardsIaService, DashboardIa } from '../../core/services/dashboards-ia.service';
+import { DashboardsIaService, DashboardIa } from './dashboards-ia.service';
 
 declare const Chart: any;
 
