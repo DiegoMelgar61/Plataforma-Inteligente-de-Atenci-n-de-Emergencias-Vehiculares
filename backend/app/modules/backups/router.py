@@ -9,9 +9,10 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.application.use_cases import backup_service, bitacora_service
+from app.application.use_cases import bitacora_service
 from app.core.database import get_db
 from app.models.models import USUARIOS
+from app.modules.backups import service as backup_service
 from app.presentation.api.v1.dependencies.auth import get_current_admin
 
 router = APIRouter(prefix="/backups", tags=["Copias de respaldo"])

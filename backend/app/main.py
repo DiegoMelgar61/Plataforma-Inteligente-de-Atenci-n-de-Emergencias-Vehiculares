@@ -24,7 +24,7 @@ from app.presentation.api.v1.routers.tracking import router as tracking_router
 from app.presentation.api.v1.routers.stats import router as stats_router
 from app.presentation.api.v1.routers.bitacora import router as bitacora_router
 from app.presentation.api.v1.routers.reports import router as reports_router
-from app.presentation.api.v1.routers.backups import router as backups_router
+from app.modules.backups.router import router as backups_router
 from app.presentation.api.v1.routers.dashboards_ia import router as dashboards_ia_router
 
 logger = logging.getLogger(__name__)
