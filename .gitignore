@@ -45,5 +45,21 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 .claude
+
+# Node / frontend
+node_modules/
+coverage/
+.angular/
+
+# Build outputs
+dist/
+build/
+.gradle/
+.kotlin/
+
+# Runtime uploads
+uploads/
+backend/uploads/
+
 # Alembic (opcional: descomentar si no versionas revisiones generadas localmente)
 # app/migrations/versions/*.py

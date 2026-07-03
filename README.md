@@ -1,27 +1,62 @@
 # Plataforma Inteligente de Atención de Emergencias Vehiculares
 
-Plataforma para coordinar emergencias vehiculares: gestión de incidentes, talleres, técnicos, evidencias, asignaciones, pagos e integración con procesamiento asistido por IA y notificaciones. Este repositorio incluye el **backend** en FastAPI; las carpetas `web/` y `mobile/` están reservadas para futuros clientes.
+Monorepo para coordinar emergencias vehiculares: reporte de incidentes, evidencias, talleres, técnicos, asignaciones, pagos, procesamiento con IA y notificaciones en tiempo real.
 
-## Requisitos
+## Estructura
 
-- [Docker](https://docs.docker.com/get-docker/) y Docker Compose
+| Carpeta | Rol |
+|--------|-----|
+| `backend/` | API FastAPI, PostgreSQL/PostGIS, Alembic, JWT, IA y WebSockets. |
+| `frontend/` | Panel Angular para talleres y administración. |
+| `mobile/` | Cliente Flutter para usuarios y técnicos. |
 
-## Ejecutar con Docker Compose
+## Backend Con Docker
 
-1. Copia las variables de entorno del backend (si aún no existe tu `.env`):
+1. Crear el archivo local de variables:
 
    ```bash
    cp backend/.env.example backend/.env
    ```
 
-2. Desde la raíz del proyecto (`plataforma-emergencias-vehiculares`):
+2. Ajustar los valores sensibles en `backend/.env`.
+
+3. Levantar servicios:
 
    ```bash
    docker compose up --build
    ```
 
-3. API: [http://localhost:8000](http://localhost:8000)  
-   Documentación interactiva: [http://localhost:8000/docs](http://localhost:8000/docs)  
-   Salud del servicio: [http://localhost:8000/health](http://localhost:8000/health)
+4. Verificar:
 
-Para detener los contenedores: `docker compose down`. Para eliminar también el volumen de PostgreSQL: `docker compose down -v`.
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+API docs: `http://localhost:8000/docs`
+
+## Desarrollo Local
+
+Backend:
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\uvicorn app.main:app --reload
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Frontend local: `http://localhost:4200`
+
+## Notas De Seguridad
+
+- No commitear `.env`; usar `backend/.env.example` como plantilla.
+- Los WebSockets requieren JWT por query string: `?token=<jwt>`.
+- El registro público crea usuarios `CLIENTE`; roles privilegiados deben gestionarse desde endpoints protegidos.
