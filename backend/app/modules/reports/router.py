@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.application.use_cases import report_service
 from app.core.database import get_db
 from app.models.models import USUARIOS
+from app.modules.reports import service as report_service
 from app.presentation.api.v1.dependencies.auth import get_current_active_user
 
 router = APIRouter(prefix="/reports", tags=["Reportes"])
