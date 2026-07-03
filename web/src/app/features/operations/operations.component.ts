@@ -2,7 +2,7 @@ import { AfterViewInit, Component, OnDestroy, OnInit, inject, signal } from '@an
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as L from 'leaflet';
-import { StatsService, ZonaIncidente } from '../../core/services/stats.service';
+import { StatsService, ZonaIncidente } from './stats.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Tenant } from '../tenants/tenant.model';
