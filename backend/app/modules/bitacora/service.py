@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 
 from app.core.database import SessionLocal
-from app.models.models import BITACORA, USUARIOS
+from app.models.models import USUARIOS
+from app.modules.bitacora.models import BITACORA
 
 logger = logging.getLogger(__name__)
 

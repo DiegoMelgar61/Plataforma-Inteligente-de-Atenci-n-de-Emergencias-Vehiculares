@@ -17,10 +17,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
-from app.application.use_cases import bitacora_service
 from app.core.config import settings
 from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
+from app.modules.bitacora import service as bitacora_service
 from app.models.models import (
     ASIGNACIONES,
     EVIDENCIAS,

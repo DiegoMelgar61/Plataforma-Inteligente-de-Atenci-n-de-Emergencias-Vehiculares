@@ -296,7 +296,7 @@ def actualizar_estado_incidente_tecnico(
     db.commit()
     db.refresh(incidente)
 
-    from app.application.use_cases import bitacora_service
+    from app.modules.bitacora import service as bitacora_service
     bitacora_service.registrar(
         "ESTADO_ACTUALIZADO",
         f"Técnico cambió estado {estado_actual} → {nuevo_estado}",

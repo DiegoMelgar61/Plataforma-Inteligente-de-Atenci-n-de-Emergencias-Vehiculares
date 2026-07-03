@@ -6,7 +6,7 @@ from app.presentation.api.v1.schemas.auth import UserCreate, UserLogin, Token
 from app.core.security import hashear_contrasena, verificar_contrasena, crear_access_token
 from app.core.config import settings
 from app.application.use_cases.tenant_service import TENANT_DEFAULT_ID
-from app.application.use_cases import bitacora_service
+from app.modules.bitacora import service as bitacora_service
 
 
 def _ip(request: Request | None) -> str | None:

@@ -270,7 +270,7 @@ async def confirmar_pago(
 
     pago = payment_service.confirmar_pago(db, id_pago=id_pago, id_usuario_confirma=usuario.ID_USUARIO)
 
-    from app.application.use_cases import bitacora_service
+    from app.modules.bitacora import service as bitacora_service
     bitacora_service.registrar(
         "PAGO_CONFIRMADO",
         f"Pago Bs.{pago.MONTO} confirmado",
@@ -312,7 +312,7 @@ async def rechazar_pago(
         motivo=body.motivo_rechazo,
     )
 
-    from app.application.use_cases import bitacora_service
+    from app.modules.bitacora import service as bitacora_service
     bitacora_service.registrar(
         "PAGO_RECHAZADO",
         f"Pago Bs.{pago.MONTO} rechazado: {body.motivo_rechazo}",
