@@ -2,7 +2,7 @@ import { Component, inject, signal, Input, Output, EventEmitter } from '@angular
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { NotificationStore } from '../core/services/notification-store.service';
+import { NotificationStore } from '../features/notifications/notification-store.service';
 
 @Component({
   selector: 'app-navbar',

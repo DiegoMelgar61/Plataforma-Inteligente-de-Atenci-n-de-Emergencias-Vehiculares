@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IncidentsService } from './incidents.service';
 import { WebSocketService } from '../../core/services/websocket.service';
-import { NotificationStore } from '../../core/services/notification-store.service';
+import { NotificationStore } from '../notifications/notification-store.service';
 import { Incident } from '../../models';
 
 @Component({
