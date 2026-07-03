@@ -286,7 +286,7 @@ def actualizar_estado_incidente_tecnico(
 
         # Cerrar la sesión de tracking GPS del técnico si está activa
         try:
-            from app.application.use_cases.notification_service import cerrar_tracking_tecnico
+            from app.modules.notifications.service import cerrar_tracking_tecnico
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 asyncio.ensure_future(cerrar_tracking_tecnico(id_incidente))
@@ -319,7 +319,7 @@ def actualizar_estado_incidente_tecnico(
 
 def _broadcast(payload: dict) -> None:
     try:
-        from app.application.use_cases.notification_service import broadcast_global
+        from app.modules.notifications.service import broadcast_global
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.ensure_future(broadcast_global(payload))

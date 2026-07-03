@@ -449,7 +449,7 @@ async def reportar_incidente_multimodal(
         "timestamp": datetime.utcnow().isoformat(),
     }
     try:
-        from app.application.use_cases.notification_service import broadcast_global
+        from app.modules.notifications.service import broadcast_global
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.ensure_future(broadcast_global(notif))
@@ -619,7 +619,7 @@ def actualizar_estado_incidente(
                     "timestamp": datetime.utcnow().isoformat(),
                 }
                 try:
-                    from app.application.use_cases.notification_service import broadcast_global
+                    from app.modules.notifications.service import broadcast_global
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         asyncio.ensure_future(broadcast_global(notif))

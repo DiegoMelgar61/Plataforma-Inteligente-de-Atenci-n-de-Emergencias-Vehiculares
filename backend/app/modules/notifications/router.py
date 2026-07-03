@@ -14,7 +14,7 @@ from app.core.database import get_db
 from app.models.models import INCIDENTES
 from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import get_current_user
-from app.application.use_cases.notification_service import (
+from app.modules.notifications.service import (
     registrar_conexion_websocket,
     desregistrar_conexion_websocket,
     broadcast_estado_actualizado,

@@ -18,7 +18,7 @@ from app.modules.technicians.router import router as technicians_router
 from app.presentation.api.v1.routers.ai_processing import router as ai_processing_router
 from app.presentation.api.v1.routers.incidents import router as incidents_router
 from app.presentation.api.v1.routers.assignments import router as assignments_router
-from app.presentation.api.v1.routers.notifications import router as notifications_router
+from app.modules.notifications.router import router as notifications_router
 from app.presentation.api.v1.routers.payments import router as payments_router
 from app.presentation.api.v1.routers.tracking import router as tracking_router
 from app.presentation.api.v1.routers.stats import router as stats_router

@@ -214,7 +214,7 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
             "mensaje": "Nuevo incidente asignado a tu taller",
         }
         try:
-            from app.application.use_cases.notification_service import broadcast_global
+            from app.modules.notifications.service import broadcast_global
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 asyncio.ensure_future(broadcast_global(notif))
@@ -379,7 +379,7 @@ def seleccionar_taller(
     # Notificar a todos los canales (cliente móvil incluido) el paso a EN_CAMINO,
     # para que arranque el seguimiento en tiempo real del técnico.
     try:
-        from app.application.use_cases.notification_service import broadcast_estado_actualizado
+        from app.modules.notifications.service import broadcast_estado_actualizado
         broadcast_estado_actualizado(db, incidente_id, "EN_CAMINO")
     except Exception:
         logger.exception("No se pudo emitir estado EN_CAMINO para incidente %s", incidente_id)
@@ -461,7 +461,7 @@ def cancelar_por_cliente(db: Session, incidente_id: UUID) -> dict | None:
 
     # Notificaciones: estado CANCELADO a todos + aviso/cierre al técnico.
     try:
-        from app.application.use_cases.notification_service import (
+        from app.modules.notifications.service import (
             broadcast_estado_actualizado,
             notificar_cancelacion_tecnico,
         )

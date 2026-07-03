@@ -17,7 +17,7 @@ from app.application.use_cases.assignment_service import (
     asignar_taller_automaticamente,
     buscar_talleres_candidatos,
 )
-from app.application.use_cases.notification_service import (
+from app.modules.notifications.service import (
     enviar_notificacion_cliente,
     enviar_notificacion_taller,
 )
@@ -155,7 +155,7 @@ def asignar_incidente(
         "timestamp": datetime.utcnow().isoformat(),
     }
     try:
-        from app.application.use_cases.notification_service import broadcast_global
+        from app.modules.notifications.service import broadcast_global
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.ensure_future(broadcast_global(notif))
@@ -340,7 +340,7 @@ def rechazar_asignacion(
 def _notify_incidente(incidente_id: UUID, payload: dict) -> None:
     """Encola un broadcast al canal WebSocket del incidente."""
     try:
-        from app.application.use_cases.notification_service import broadcast_incidente_async
+        from app.modules.notifications.service import broadcast_incidente_async
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.ensure_future(broadcast_incidente_async(incidente_id, payload))
@@ -599,7 +599,7 @@ def responder_cotizacion(
 
     # También notificar al canal global para actualizar dashboards con el cambio de estado
     try:
-        from app.application.use_cases.notification_service import broadcast_global
+        from app.modules.notifications.service import broadcast_global
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.ensure_future(broadcast_global({
