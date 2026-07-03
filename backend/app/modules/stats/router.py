@@ -20,16 +20,16 @@ from app.models.models import (
     INCIDENTES,
     PAGOS,
 )
-from app.modules.workshops.models import TALLERES
-from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import get_current_active_user
-from app.presentation.api.v1.schemas.stats import (
+from app.modules.stats.schemas import (
     DashboardStatsResponse,
     IncidentesPorClasificacion,
     IncidentesPorDia,
     IncidentesPorEstado,
     TallerTop,
 )
+from app.modules.users.models import USUARIOS
+from app.modules.workshops.models import TALLERES
 
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
 

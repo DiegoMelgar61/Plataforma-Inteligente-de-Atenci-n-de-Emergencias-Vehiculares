@@ -21,7 +21,7 @@ from app.presentation.api.v1.routers.assignments import router as assignments_ro
 from app.modules.notifications.router import router as notifications_router
 from app.presentation.api.v1.routers.payments import router as payments_router
 from app.modules.tracking.router import router as tracking_router
-from app.presentation.api.v1.routers.stats import router as stats_router
+from app.modules.stats.router import router as stats_router
 from app.modules.bitacora.router import router as bitacora_router
 from app.modules.reports.router import router as reports_router
 from app.modules.backups.router import router as backups_router
