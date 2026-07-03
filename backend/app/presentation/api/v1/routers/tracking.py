@@ -19,7 +19,8 @@ from sqlalchemy import func, select, update
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import verificar_token
-from app.models.models import ASIGNACIONES, INCIDENTES, TECNICOS
+from app.models.models import ASIGNACIONES, INCIDENTES
+from app.modules.technicians.models import TECNICOS
 from app.modules.users.models import USUARIOS
 from app.application.use_cases.notification_service import (
     broadcast_incidente_async,

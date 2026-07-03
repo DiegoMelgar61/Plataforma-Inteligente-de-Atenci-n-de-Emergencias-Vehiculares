@@ -13,7 +13,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TECNICOS
+from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS
+from app.modules.technicians.models import TECNICOS
 from app.modules.workshops.models import TALLERES
 
 logger = logging.getLogger(__name__)

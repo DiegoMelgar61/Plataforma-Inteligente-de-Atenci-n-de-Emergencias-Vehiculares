@@ -38,8 +38,8 @@ from app.models.models import (  # noqa: E402
     ASIGNACIONES,
     HISTORIAL_INCIDENTES,
     INCIDENTES,
-    TECNICOS,
 )
+from app.modules.technicians.models import TECNICOS  # noqa: E402
 from app.modules.users.models import USUARIOS  # noqa: E402
 from app.modules.workshops.models import TALLERES  # noqa: E402
 

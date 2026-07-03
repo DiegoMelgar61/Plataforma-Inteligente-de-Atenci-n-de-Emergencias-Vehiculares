@@ -21,7 +21,8 @@ from app.application.use_cases.notification_service import (
     enviar_notificacion_cliente,
     enviar_notificacion_taller,
 )
-from app.models.models import ASIGNACIONES, INCIDENTES, TECNICOS
+from app.models.models import ASIGNACIONES, INCIDENTES
+from app.modules.technicians.models import TECNICOS
 from app.modules.workshops.models import TALLERES
 from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import (

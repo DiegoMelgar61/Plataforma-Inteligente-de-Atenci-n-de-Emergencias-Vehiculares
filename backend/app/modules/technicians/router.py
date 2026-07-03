@@ -26,18 +26,15 @@ from app.models.models import (
     ASIGNACIONES,
     HISTORIAL_INCIDENTES,
     INCIDENTES,
-    TECNICOS,
 )
-from app.modules.workshops.models import TALLERES
-from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import (
     get_current_active_user,
     get_current_tecnico,
     get_current_taller,
     get_current_user,
 )
-from app.presentation.api.v1.schemas.incident import IncidentListResponse
-from app.presentation.api.v1.schemas.technician import (
+from app.modules.technicians.models import TECNICOS
+from app.modules.technicians.schemas import (
     TechnicianActiveAssignmentResponse,
     TechnicianCreate,
     TechnicianResponse,
@@ -45,6 +42,9 @@ from app.presentation.api.v1.schemas.technician import (
     TechnicianWithUserCreate,
     UpdateIncidentStateRequest,
 )
+from app.modules.users.models import USUARIOS
+from app.modules.workshops.models import TALLERES
+from app.presentation.api.v1.schemas.incident import IncidentListResponse
 
 router = APIRouter(prefix="/tecnicos", tags=["Técnicos"])
 

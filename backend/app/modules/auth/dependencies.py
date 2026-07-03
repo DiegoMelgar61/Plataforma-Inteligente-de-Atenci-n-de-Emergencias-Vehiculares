@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import verificar_token
-from app.models.models import TECNICOS
+from app.modules.technicians.models import TECNICOS
 from app.modules.users.models import USUARIOS
 
 # Debe coincidir con la ruta real del login (router auth: prefix /auth + /login)

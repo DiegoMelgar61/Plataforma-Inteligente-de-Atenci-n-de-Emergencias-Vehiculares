@@ -25,8 +25,8 @@ from app.models.models import (
     ASIGNACIONES,
     EVIDENCIAS,
     INCIDENTES,
-    TECNICOS,
 )
+from app.modules.technicians.models import TECNICOS
 from app.modules.workshops.models import TALLERES
 from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
 from app.modules.users.models import USUARIOS
