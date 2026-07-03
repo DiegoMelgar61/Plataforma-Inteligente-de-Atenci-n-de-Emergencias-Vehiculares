@@ -368,7 +368,7 @@ class _IncidentLocationCard extends StatelessWidget {
               color: Theme.of(context).colorScheme.error, size: 20),
         ),
         title: Text(
-            '${incident.clasificacionLabel} #${incident.idIncidente.substring(0, 8)}',
+            '${incident.clasificacionLabel} #${incident.idIncidente}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

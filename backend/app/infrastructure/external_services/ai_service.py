@@ -12,12 +12,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.models import EVIDENCIAS, HISTORIAL_INCIDENTES, INCIDENTES
+from app.modules.incidents.models import EVIDENCIAS, HISTORIAL_INCIDENTES, INCIDENTES
 
 try:
     import google.generativeai as genai
@@ -247,7 +246,7 @@ def _fallback_result(textos: list[str]) -> dict:
     }
 
 
-def ejecutar_pipeline_procesamiento_incidente(db: Session, id_incidente: UUID) -> INCIDENTES | None:
+def ejecutar_pipeline_procesamiento_incidente(db: Session, id_incidente: int) -> INCIDENTES | None:
     """
     Pipeline IA real con fallback:
     1) recupera evidencias

@@ -34,7 +34,7 @@ class AppRoutes {
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     if (settings.name == AppConstants.routeIncidentDetail) {
-      final incidentId = settings.arguments as String;
+      final incidentId = settings.arguments as int;
       return MaterialPageRoute(
         builder: (_) => IncidentDetailScreen(incidentId: incidentId),
         settings: settings,

@@ -351,7 +351,7 @@ class IncidentCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${incident.clasificacionLabel} — #${incident.idIncidente.substring(0, 8)}',
+                          '${incident.clasificacionLabel} — #${incident.idIncidente}',
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,

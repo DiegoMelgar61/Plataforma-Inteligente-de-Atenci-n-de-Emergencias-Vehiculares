@@ -166,7 +166,7 @@ class _PaymentCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Incidente #${payment.idIncidente.substring(0, 8).toUpperCase()}',
+                        'Incidente #${payment.idIncidente}',
                         style: Theme.of(context)
                             .textTheme
                             .titleSmall

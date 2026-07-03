@@ -34,14 +34,14 @@ _Geography.__init_subclass__ = classmethod(lambda cls, **kw: None)
 from app.core.database import Base, get_db  # noqa: E402
 from app.core.security import crear_access_token, hashear_contrasena  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models.models import (  # noqa: E402
-    ASIGNACIONES,
+from app.modules.incidents.models import (  # noqa: E402
     HISTORIAL_INCIDENTES,
     INCIDENTES,
-    TALLERES,
-    TECNICOS,
-    USUARIOS,
 )
+from app.modules.assignments.models import ASIGNACIONES  # noqa: E402
+from app.modules.technicians.models import TECNICOS  # noqa: E402
+from app.modules.users.models import USUARIOS  # noqa: E402
+from app.modules.workshops.models import TALLERES  # noqa: E402
 
 # ─────────────────────── SQLite engine ───────────────────────────────────────
 
@@ -295,7 +295,7 @@ class TestMaquinaEstados:
         u_tec, tec, inc, _ = self._setup(db, "t3", "EN_PROCESO")
         url = f"/tecnicos/incidente/{inc.ID_INCIDENTE}/estado"
 
-        with patch("app.application.use_cases.payment_service.crear_pago_pendiente") as mock_pay:
+        with patch("app.modules.payments.service.crear_pago_pendiente") as mock_pay:
             mock_pay.return_value = MagicMock(ID_PAGO=uuid.uuid4(), MONTO=100)
             resp = client.patch(
                 url, json={"nuevo_estado": "ATENDIDO"}, headers=_auth_headers(u_tec)
