@@ -3,9 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as L from 'leaflet';
 import { StatsService, ZonaIncidente } from '../../core/services/stats.service';
-import { TenantsService } from '../../core/services/tenants.service';
+import { TenantsService } from '../tenants/tenants.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Tenant } from '../../models/tenant.model';
+import { Tenant } from '../tenants/tenant.model';
 import { DashboardStats } from '../../models';
 
 declare const Chart: any;

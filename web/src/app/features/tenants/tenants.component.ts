@@ -2,8 +2,8 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
-import { TenantsService } from '../../core/services/tenants.service';
-import { Tenant, TenantCreate, TenantUpdate } from '../../models/tenant.model';
+import { TenantsService } from './tenants.service';
+import { Tenant, TenantCreate, TenantUpdate } from './tenant.model';
 
 @Component({
   selector: 'app-tenants',
