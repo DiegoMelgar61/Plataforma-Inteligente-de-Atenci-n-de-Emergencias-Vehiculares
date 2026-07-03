@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models.models import TALLERES
+from app.modules.workshops.models import TALLERES
 from app.modules.users.models import USUARIOS
 from app.modules.auth.schemas import UserCreate, UserLogin, Token
 from app.core.security import hashear_contrasena, verificar_contrasena, crear_access_token

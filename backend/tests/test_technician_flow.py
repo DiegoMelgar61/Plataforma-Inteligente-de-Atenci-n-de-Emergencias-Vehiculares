@@ -38,10 +38,10 @@ from app.models.models import (  # noqa: E402
     ASIGNACIONES,
     HISTORIAL_INCIDENTES,
     INCIDENTES,
-    TALLERES,
     TECNICOS,
 )
 from app.modules.users.models import USUARIOS  # noqa: E402
+from app.modules.workshops.models import TALLERES  # noqa: E402
 
 # ─────────────────────── SQLite engine ───────────────────────────────────────
 

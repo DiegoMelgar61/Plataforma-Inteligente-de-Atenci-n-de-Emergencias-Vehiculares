@@ -5,3 +5,4 @@ import app.modules.bitacora.models  # noqa: F401
 import app.modules.tenants.models  # noqa: F401
 import app.modules.users.models  # noqa: F401
 import app.modules.vehicles.models  # noqa: F401
+import app.modules.workshops.models  # noqa: F401

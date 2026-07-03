@@ -256,7 +256,7 @@ def actualizar_estado_incidente(
     es_taller_asignado = False
     if tiene_asignacion and rol == "TALLER":
         # Verificar si el usuario es el dueño del taller asignado
-        from app.models.models import TALLERES
+        from app.modules.workshops.models import TALLERES
 
         taller = (
             db.query(TALLERES)

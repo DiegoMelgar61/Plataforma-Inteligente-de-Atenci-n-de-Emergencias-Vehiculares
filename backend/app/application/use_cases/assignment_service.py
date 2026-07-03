@@ -14,7 +14,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 
-from app.models.models import INCIDENTES, TALLERES, TECNICOS, ASIGNACIONES, HISTORIAL_INCIDENTES
+from app.models.models import INCIDENTES, TECNICOS, ASIGNACIONES, HISTORIAL_INCIDENTES
+from app.modules.workshops.models import TALLERES
 
 logger = logging.getLogger(__name__)
 

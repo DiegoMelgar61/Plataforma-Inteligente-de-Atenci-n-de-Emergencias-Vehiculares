@@ -17,7 +17,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.application.use_cases import payment_service
-from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS, TALLERES
+from app.models.models import ASIGNACIONES, INCIDENTES, PAGOS
+from app.modules.workshops.models import TALLERES
 from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import get_current_user
 from app.presentation.api.v1.schemas.payment import (

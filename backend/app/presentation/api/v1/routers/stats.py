@@ -19,8 +19,8 @@ from app.models.models import (
     HISTORIAL_INCIDENTES,
     INCIDENTES,
     PAGOS,
-    TALLERES,
 )
+from app.modules.workshops.models import TALLERES
 from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import get_current_active_user
 from app.presentation.api.v1.schemas.stats import (

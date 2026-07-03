@@ -9,7 +9,8 @@ from io import BytesIO
 
 from sqlalchemy.orm import Session
 
-from app.models.models import ASIGNACIONES, INCIDENTES, TALLERES
+from app.models.models import ASIGNACIONES, INCIDENTES
+from app.modules.workshops.models import TALLERES
 
 
 def _val(v) -> str:

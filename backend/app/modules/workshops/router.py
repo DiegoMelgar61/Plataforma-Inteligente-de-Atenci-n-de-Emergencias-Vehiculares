@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import TALLERES
-from app.modules.users.models import USUARIOS
 from app.modules.auth.dependencies import (
     get_current_active_user,
 )
-from app.presentation.api.v1.schemas.workshop import (
+from app.modules.users.models import USUARIOS
+from app.modules.workshops.models import TALLERES
+from app.modules.workshops.schemas import (
     WorkshopCreate,
     WorkshopResponse,
     WorkshopUpdate,
