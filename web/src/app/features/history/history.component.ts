@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IncidentsService } from '../../core/services/incidents.service';
-import { ReportsService } from '../../core/services/reports.service';
+import { ReportsService } from './reports.service';
 import { Incident } from '../../models';
 
 @Component({
