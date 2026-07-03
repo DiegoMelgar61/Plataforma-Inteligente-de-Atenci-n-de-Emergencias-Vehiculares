@@ -1,8 +1,14 @@
 // ── Vehicle ───────────────────────────────────────────────────────────────────
 
+int _parseInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
 class Vehicle {
   final String idVehiculo;
-  final String idUsuarioCliente;
+  final int idUsuarioCliente;
   final String? marca;
   final String? modelo;
   final int? anio;
@@ -21,7 +27,7 @@ class Vehicle {
 
   factory Vehicle.fromJson(Map<String, dynamic> json) => Vehicle(
         idVehiculo: json['id_vehiculo'] as String? ?? '',
-        idUsuarioCliente: json['id_usuario_cliente'] as String? ?? '',
+        idUsuarioCliente: _parseInt(json['id_usuario_cliente']),
         marca: json['marca'] as String?,
         modelo: json['modelo'] as String?,
         anio: (json['anio'] as num?)?.toInt(),

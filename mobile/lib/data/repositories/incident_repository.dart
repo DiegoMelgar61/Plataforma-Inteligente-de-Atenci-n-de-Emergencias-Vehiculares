@@ -22,7 +22,7 @@ class IncidentRepository {
     }
   }
 
-  Future<Incident> getIncidentById(String id) async {
+  Future<Incident> getIncidentById(int id) async {
     try {
       final response = await _client.dio.get('/incidents/$id');
       return Incident.fromJson(response.data as Map<String, dynamic>);
@@ -33,7 +33,7 @@ class IncidentRepository {
     }
   }
 
-  Future<CotizacionDetalle?> getCotizacion(String idIncidente) async {
+  Future<CotizacionDetalle?> getCotizacion(int idIncidente) async {
     try {
       final response = await _client.dio.get(
         '/assignments/incidents/$idIncidente/cotizacion',
@@ -48,7 +48,7 @@ class IncidentRepository {
   }
 
   Future<CotizacionDetalle> responderCotizacion(
-    String idIncidente, {
+    int idIncidente, {
     required bool aceptada,
     String? motivoRechazo,
   }) async {
@@ -70,7 +70,7 @@ class IncidentRepository {
   }
 
   /// GET /incidents/{id}/cotizaciones — ofertas de talleres cercanos (InDrive).
-  Future<List<CotizacionOferta>> getCotizaciones(String idIncidente) async {
+  Future<List<CotizacionOferta>> getCotizaciones(int idIncidente) async {
     try {
       final response =
           await _client.dio.get('/incidents/$idIncidente/cotizaciones');
@@ -88,7 +88,7 @@ class IncidentRepository {
   /// POST /incidents/{id}/seleccionar-taller — el cliente elige un taller.
   /// El incidente pasa a EN_CAMINO. Devuelve el incidente actualizado.
   Future<Incident> seleccionarTaller(
-      String idIncidente, String idTaller) async {
+      int idIncidente, int idTaller) async {
     try {
       final response = await _client.dio.post(
         '/incidents/$idIncidente/seleccionar-taller',
@@ -103,7 +103,7 @@ class IncidentRepository {
   }
 
   /// POST /incidents/{id}/cancelar — el cliente cancela el servicio.
-  Future<CancelacionResultado> cancelarServicio(String idIncidente) async {
+  Future<CancelacionResultado> cancelarServicio(int idIncidente) async {
     try {
       final response =
           await _client.dio.post('/incidents/$idIncidente/cancelar');
@@ -118,7 +118,7 @@ class IncidentRepository {
 
   /// POST /incidents/report — multipart/form-data.
   /// Returns the new [idIncidente] (UUID string).
-  Future<String> reportIncident({
+  Future<int> reportIncident({
     required double latitud,
     required double longitud,
     String? idVehiculo,
@@ -155,7 +155,7 @@ class IncidentRepository {
         options: Options(contentType: 'multipart/form-data'),
       );
       final data = response.data as Map<String, dynamic>;
-      return data['incidente_id'] as String? ?? '';
+      return (data['incidente_id'] as num?)?.toInt() ?? 0;
     } on DioException catch (e) {
       final detail = (e.response?.data as Map?)?['detail'] ??
           'Error al reportar incidente';

@@ -17,7 +17,7 @@ class AuthResponse {
 // ── User ──────────────────────────────────────────────────────────────────────
 
 class User {
-  final String idUsuario;
+  final int idUsuario;
   final String correoElectronico;
   final String nombreCompleto;
   final String? telefono;
@@ -36,7 +36,7 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
-        idUsuario: json['id_usuario'] as String? ?? '',
+        idUsuario: (json['id_usuario'] as num?)?.toInt() ?? 0,
         correoElectronico: json['correo_electronico'] as String? ?? '',
         nombreCompleto: json['nombre_completo'] as String? ?? '',
         telefono: json['telefono'] as String?,

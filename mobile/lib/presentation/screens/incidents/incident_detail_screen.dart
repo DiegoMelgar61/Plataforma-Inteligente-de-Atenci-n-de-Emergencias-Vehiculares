@@ -13,7 +13,7 @@ import '../../providers/providers.dart';
 import '../../../shared/widgets.dart';
 
 class IncidentDetailScreen extends ConsumerStatefulWidget {
-  final String incidentId; // UUID string
+  final int incidentId;
   const IncidentDetailScreen({super.key, required this.incidentId});
 
   @override
@@ -90,7 +90,7 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Incidente #${widget.incidentId.substring(0, 8)}…'),
+        title: Text('Incidente #${widget.incidentId}'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -309,7 +309,7 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
 }
 
 class _OffersSection extends ConsumerWidget {
-  final String incidentId;
+  final int incidentId;
   const _OffersSection({required this.incidentId});
 
   @override

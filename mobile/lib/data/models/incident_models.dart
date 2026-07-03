@@ -1,8 +1,23 @@
+int _parseInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
+int? _parseIntNullable(dynamic v) {
+  if (v is int) return v;
+  if (v is String) {
+    final p = int.tryParse(v);
+    if (p != null) return p;
+  }
+  return null;
+}
+
 // ── Evidence ──────────────────────────────────────────────────────────────────
 
 class Evidence {
   final String idEvidencia;
-  final String idIncidente;
+  final int idIncidente;
   final String tipo; // IMAGEN | AUDIO | TEXTO
   final String urlArchivo;
   final String? claveArchivo;
@@ -21,7 +36,7 @@ class Evidence {
 
   factory Evidence.fromJson(Map<String, dynamic> json) => Evidence(
         idEvidencia: json['id_evidencia'] as String? ?? '',
-        idIncidente: json['id_incidente'] as String? ?? '',
+        idIncidente: _parseInt(json['id_incidente']),
         tipo: json['tipo'] as String? ?? '',
         urlArchivo: json['url_archivo'] as String? ?? '',
         claveArchivo: json['clave_archivo'] as String?,
@@ -37,8 +52,8 @@ class Evidence {
 
 class Incident {
   // Present in both list (GET /incidents/my) and detail (GET /incidents/{id})
-  final String idIncidente;
-  final String idUsuarioCliente;
+  final int idIncidente;
+  final int idUsuarioCliente;
   final String? idVehiculo;
   final double? latitud;
   final double? longitud;
@@ -70,8 +85,8 @@ class Incident {
   });
 
   factory Incident.fromJson(Map<String, dynamic> json) => Incident(
-        idIncidente: json['id_incidente'] as String? ?? '',
-        idUsuarioCliente: json['id_usuario_cliente'] as String? ?? '',
+        idIncidente: _parseInt(json['id_incidente']),
+        idUsuarioCliente: _parseInt(json['id_usuario_cliente']),
         idVehiculo: json['id_vehiculo'] as String?,
         latitud: (json['latitud'] as num?)?.toDouble(),
         longitud: (json['longitud'] as num?)?.toDouble(),
@@ -173,8 +188,8 @@ class Incident {
 // ── CotizacionDetalle ─────────────────────────────────────────────────────────
 
 class CotizacionDetalle {
-  final String idAsignacion;
-  final String idIncidente;
+  final int idAsignacion;
+  final int idIncidente;
   final num? montoCotizado;
   final int? tiempoEstimadoReparacion;
   final String? notasCotizacion;
@@ -195,8 +210,8 @@ class CotizacionDetalle {
 
   factory CotizacionDetalle.fromJson(Map<String, dynamic> json) =>
       CotizacionDetalle(
-        idAsignacion: json['id_asignacion'] as String? ?? '',
-        idIncidente: json['id_incidente'] as String? ?? '',
+        idAsignacion: _parseInt(json['id_asignacion']),
+        idIncidente: _parseInt(json['id_incidente']),
         montoCotizado: _toNum(json['monto_cotizado']),
         tiempoEstimadoReparacion:
             (json['tiempo_estimado_reparacion'] as num?)?.toInt(),
@@ -226,12 +241,12 @@ double? _toDouble(dynamic value) {
 // ── Oferta de cotización (flujo InDrive) ──────────────────────────────────────
 
 class CotizacionOferta {
-  final String idTaller;
+  final int idTaller;
   final String nombreTaller;
   final double distanciaKm;
   final double monto;
   final String descripcion;
-  final String? idTecnicoSugerido;
+  final int? idTecnicoSugerido;
 
   const CotizacionOferta({
     required this.idTaller,
@@ -243,12 +258,12 @@ class CotizacionOferta {
   });
 
   factory CotizacionOferta.fromJson(Map<String, dynamic> json) => CotizacionOferta(
-        idTaller: json['id_taller'] as String? ?? '',
+        idTaller: _parseInt(json['id_taller']),
         nombreTaller: json['nombre_taller'] as String? ?? 'Taller',
         distanciaKm: _toDouble(json['distancia_km']) ?? 0,
         monto: _toDouble(json['monto']) ?? 0,
         descripcion: json['descripcion'] as String? ?? '',
-        idTecnicoSugerido: json['id_tecnico_sugerido'] as String?,
+        idTecnicoSugerido: _parseIntNullable(json['id_tecnico_sugerido']),
       );
 }
 

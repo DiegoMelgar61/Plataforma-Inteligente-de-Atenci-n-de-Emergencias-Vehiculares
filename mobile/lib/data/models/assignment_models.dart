@@ -1,10 +1,25 @@
 // ── Assignment ────────────────────────────────────────────────────────────────
 
+int _parseInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
+int? _parseIntNullable(dynamic v) {
+  if (v is int) return v;
+  if (v is String) {
+    final p = int.tryParse(v);
+    if (p != null) return p;
+  }
+  return null;
+}
+
 class Assignment {
-  final String idAsignacion;
-  final String idIncidente;
-  final String idTaller;
-  final String? idTecnico;
+  final int idAsignacion;
+  final int idIncidente;
+  final int idTaller;
+  final int? idTecnico;
   final DateTime? fechaAsignacion;
   final num? montoCotizado;
   final int? tiempoEstimadoReparacion;
@@ -24,10 +39,10 @@ class Assignment {
   });
 
   factory Assignment.fromJson(Map<String, dynamic> json) => Assignment(
-        idAsignacion: json['id_asignacion'] as String? ?? '',
-        idIncidente: json['id_incidente'] as String? ?? '',
-        idTaller: json['id_taller'] as String? ?? '',
-        idTecnico: json['id_tecnico'] as String?,
+        idAsignacion: _parseInt(json['id_asignacion']),
+        idIncidente: _parseInt(json['id_incidente']),
+        idTaller: _parseInt(json['id_taller']),
+        idTecnico: _parseIntNullable(json['id_tecnico']),
         fechaAsignacion:
             DateTime.tryParse(json['fecha_asignacion'] as String? ?? ''),
         montoCotizado: _toNum(json['monto_cotizado']),
@@ -54,10 +69,10 @@ double? _toDouble(dynamic value) {
 // ── TechnicianAssignment ──────────────────────────────────────────────────────
 
 class TechnicianAssignment {
-  final String idAsignacion;
-  final String idIncidente;
-  final String idTaller;
-  final String idTecnico;
+  final int idAsignacion;
+  final int idIncidente;
+  final int idTaller;
+  final int idTecnico;
   final String estadoIncidente;
   final String clasificacion;
   final String prioridad;
@@ -90,10 +105,10 @@ class TechnicianAssignment {
 
   factory TechnicianAssignment.fromJson(Map<String, dynamic> json) =>
       TechnicianAssignment(
-        idAsignacion: json['id_asignacion'] as String? ?? '',
-        idIncidente: json['id_incidente'] as String? ?? '',
-        idTaller: json['id_taller'] as String? ?? '',
-        idTecnico: json['id_tecnico'] as String? ?? '',
+        idAsignacion: _parseInt(json['id_asignacion']),
+        idIncidente: _parseInt(json['id_incidente']),
+        idTaller: _parseInt(json['id_taller']),
+        idTecnico: _parseInt(json['id_tecnico']),
         estadoIncidente: json['estado_incidente'] as String? ?? 'ASIGNADO',
         clasificacion: json['clasificacion'] as String? ?? 'OTROS',
         prioridad: json['prioridad'] as String? ?? 'MEDIA',
@@ -158,8 +173,8 @@ class TechnicianAssignment {
 }
 
 class TechnicianLocation {
-  final String idIncidente;
-  final String? idTecnico;
+  final int idIncidente;
+  final int? idTecnico;
   final double latitud;
   final double longitud;
   final DateTime? timestamp;
@@ -174,9 +189,8 @@ class TechnicianLocation {
 
   factory TechnicianLocation.fromJson(Map<String, dynamic> json) =>
       TechnicianLocation(
-        idIncidente:
-            (json['incidente_id'] ?? json['id_incidente']) as String? ?? '',
-        idTecnico: (json['tecnico_id'] ?? json['id_tecnico']) as String?,
+        idIncidente: _parseInt(json['incidente_id'] ?? json['id_incidente']),
+        idTecnico: _parseIntNullable(json['tecnico_id'] ?? json['id_tecnico']),
         latitud: _toDouble(json['lat'] ?? json['latitud']) ?? 0,
         longitud: _toDouble(json['lng'] ?? json['longitud']) ?? 0,
         timestamp: DateTime.tryParse(json['timestamp'] as String? ?? ''),

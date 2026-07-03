@@ -57,11 +57,17 @@ num? _toNum(dynamic v) {
   return null;
 }
 
+int _parseInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
 class Payment {
-  final String idPago;
-  final String idIncidente;
-  final String? idTaller;
-  final String? idAsignacion;
+  final int idPago;
+  final int idIncidente;
+  final int? idTaller;
+  final int? idAsignacion;
   final num monto;
   final num? comisionPlataforma;
   final EstadoPago estado;
@@ -91,10 +97,10 @@ class Payment {
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) => Payment(
-        idPago: json['id_pago'] as String? ?? '',
-        idIncidente: json['id_incidente'] as String? ?? '',
-        idTaller: json['id_taller'] as String?,
-        idAsignacion: json['id_asignacion'] as String?,
+        idPago: _parseInt(json['id_pago']),
+        idIncidente: _parseInt(json['id_incidente']),
+        idTaller: json['id_taller'] != null ? _parseInt(json['id_taller']) : null,
+        idAsignacion: json['id_asignacion'] != null ? _parseInt(json['id_asignacion']) : null,
         monto: _toNum(json['monto']) ?? 0,
         comisionPlataforma: _toNum(json['comision_plataforma']),
         estado: EstadoPago.fromString(json['estado'] as String? ?? 'NO_PAGO'),

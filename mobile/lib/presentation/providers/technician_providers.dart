@@ -29,7 +29,7 @@ class TechnicianStateUpdateNotifier extends StateNotifier<AsyncValue<void>> {
 
   final TechnicianRepository _repo;
 
-  Future<void> updateState(String idIncidente, String nuevoEstado) async {
+  Future<void> updateState(int idIncidente, String nuevoEstado) async {
     state = const AsyncValue.loading();
     try {
       await _repo.updateIncidentState(idIncidente, nuevoEstado);
@@ -53,7 +53,7 @@ final technicianStateUpdateProvider = StateNotifierProvider.autoDispose<
 class TechnicianTrackingState {
   final bool isTracking;
   final bool isConnecting;
-  final String? incidentId;
+  final int? incidentId;
   final TechnicianLocation? lastLocation;
   final String? errorMessage;
   final String? avisoCancelacion; // aviso push cuando el cliente cancela
@@ -70,7 +70,7 @@ class TechnicianTrackingState {
   TechnicianTrackingState copyWith({
     bool? isTracking,
     bool? isConnecting,
-    String? incidentId,
+    int? incidentId,
     TechnicianLocation? lastLocation,
     String? errorMessage,
     bool clearError = false,
@@ -95,7 +95,7 @@ class TechnicianTrackingNotifier
   StreamSubscription<dynamic>? _wsSubscription;
   Timer? _timer;
 
-  Future<void> start(String incidentId) async {
+  Future<void> start(int incidentId) async {
     if (state.isTracking && state.incidentId == incidentId) return;
     await stop();
     state = TechnicianTrackingState(isConnecting: true, incidentId: incidentId);

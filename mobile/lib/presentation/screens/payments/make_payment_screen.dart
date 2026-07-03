@@ -179,7 +179,7 @@ class _MakePaymentScreenState extends ConsumerState<MakePaymentScreen> {
                     ],
                     const Divider(height: 24),
                     Text(
-                      'Incidente #${widget.payment.idIncidente.substring(0, 8).toUpperCase()}',
+                      'Incidente #${widget.payment.idIncidente}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             fontFamily: 'monospace',
                             color: colorScheme.onSurfaceVariant,

@@ -25,7 +25,7 @@ class TechnicianRepository {
   /// PATCH /tecnicos/incidente/{id}/estado — transición de estado.
   /// Devuelve el incidente actualizado (como mapa JSON crudo).
   Future<Map<String, dynamic>> updateIncidentState(
-      String idIncidente, String nuevoEstado) async {
+      int idIncidente, String nuevoEstado) async {
     try {
       final response = await _client.dio.patch(
         '/tecnicos/incidente/$idIncidente/estado',

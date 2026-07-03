@@ -117,7 +117,7 @@ class ProfileScreen extends ConsumerWidget {
                     _ProfileRow(
                       icon: Icons.tag,
                       label: 'ID de usuario',
-                      value: user.idUsuario.substring(0, 8),
+                      value: '#${user.idUsuario}',
                     ),
                   ],
                 ),

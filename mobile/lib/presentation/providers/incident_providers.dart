@@ -14,21 +14,20 @@ final myIncidentsProvider =
   return ref.read(incidentRepositoryProvider).getMyIncidents();
 });
 
-/// Family key is the UUID string of the incident.
 final selectedIncidentProvider =
-    FutureProvider.autoDispose.family<Incident, String>((ref, id) async {
+    FutureProvider.autoDispose.family<Incident, int>((ref, id) async {
   return ref.read(incidentRepositoryProvider).getIncidentById(id);
 });
 
 final incidentQuotationProvider = FutureProvider.autoDispose
-    .family<CotizacionDetalle?, String>((ref, id) async {
+    .family<CotizacionDetalle?, int>((ref, id) async {
   return ref.read(incidentRepositoryProvider).getCotizacion(id);
 });
 
 // Ofertas de talleres cercanos (flujo InDrive), visibles cuando el incidente
 // está CLASIFICADO y el cliente aún no eligió taller.
 final cotizacionesProvider = FutureProvider.autoDispose
-    .family<List<CotizacionOferta>, String>((ref, id) async {
+    .family<List<CotizacionOferta>, int>((ref, id) async {
   return ref.read(incidentRepositoryProvider).getCotizaciones(id);
 });
 
@@ -39,9 +38,9 @@ class SeleccionTallerNotifier extends StateNotifier<AsyncValue<void>> {
 
   final IncidentRepository _repo;
   final Ref _ref;
-  final String _incidentId;
+  final int _incidentId;
 
-  Future<bool> seleccionar(String idTaller) async {
+  Future<bool> seleccionar(int idTaller) async {
     state = const AsyncValue.loading();
     try {
       await _repo.seleccionarTaller(_incidentId, idTaller);
@@ -57,7 +56,7 @@ class SeleccionTallerNotifier extends StateNotifier<AsyncValue<void>> {
 }
 
 final seleccionTallerProvider = StateNotifierProvider.autoDispose
-    .family<SeleccionTallerNotifier, AsyncValue<void>, String>((ref, id) {
+    .family<SeleccionTallerNotifier, AsyncValue<void>, int>((ref, id) {
   return SeleccionTallerNotifier(
       ref.watch(incidentRepositoryProvider), ref, id);
 });
@@ -68,7 +67,7 @@ class QuotationResponseNotifier extends StateNotifier<AsyncValue<void>> {
 
   final IncidentRepository _repo;
   final Ref _ref;
-  final String _incidentId;
+  final int _incidentId;
 
   Future<void> respond({
     required bool accepted,
@@ -94,7 +93,7 @@ class QuotationResponseNotifier extends StateNotifier<AsyncValue<void>> {
 }
 
 final quotationResponseProvider = StateNotifierProvider.autoDispose
-    .family<QuotationResponseNotifier, AsyncValue<void>, String>((ref, id) {
+    .family<QuotationResponseNotifier, AsyncValue<void>, int>((ref, id) {
   return QuotationResponseNotifier(
     ref.watch(incidentRepositoryProvider),
     ref,

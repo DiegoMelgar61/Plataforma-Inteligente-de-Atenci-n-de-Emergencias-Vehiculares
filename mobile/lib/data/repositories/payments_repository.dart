@@ -25,7 +25,7 @@ class PaymentsRepository {
   }
 
   Future<Payment> marcarComoPagado(
-    String idPago,
+    int idPago,
     File comprobante, {
     String? notas,
   }) async {
