@@ -54,7 +54,7 @@ def get_current_user(
         )
 
     # Inyectar id_tenant efectivo desde el token (con fallback al valor en DB o al default)
-    from app.application.use_cases.tenant_service import TENANT_DEFAULT_ID
+    from app.modules.tenants.service import TENANT_DEFAULT_ID
     id_tenant_str = payload.get("id_tenant")
     if id_tenant_str:
         try:

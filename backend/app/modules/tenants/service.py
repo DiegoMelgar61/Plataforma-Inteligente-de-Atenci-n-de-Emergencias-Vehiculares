@@ -3,8 +3,8 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.models import Tenant
-from app.presentation.api.v1.schemas.tenants import TenantCreate, TenantUpdate
+from app.modules.tenants.models import Tenant
+from app.modules.tenants.schemas import TenantCreate, TenantUpdate
 
 TENANT_DEFAULT_ID = UUID("e76212eb-e845-411d-b37f-e0ec986564d8")
 

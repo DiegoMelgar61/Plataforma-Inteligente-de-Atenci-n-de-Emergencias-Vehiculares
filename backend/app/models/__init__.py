@@ -2,3 +2,4 @@
 
 import app.models.models  # noqa: F401
 import app.modules.bitacora.models  # noqa: F401
+import app.modules.tenants.models  # noqa: F401
