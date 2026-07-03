@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Literal
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -23,7 +22,7 @@ class TechnicianWithUserCreate(BaseModel):
     telefono: str | None = Field(None, max_length=20)
     correo_electronico: EmailStr
     contrasena: str = Field(..., min_length=8, description="Mínimo 8 caracteres")
-    id_taller: UUID | None = None
+    id_taller: int | None = None
 
 
 class TechnicianUpdate(BaseModel):
@@ -39,9 +38,9 @@ class TechnicianResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id_tecnico: UUID = Field(validation_alias="ID_TECNICO")
-    id_taller: UUID = Field(validation_alias="ID_TALLER")
-    id_usuario: UUID | None = Field(None, validation_alias="ID_USUARIO")
+    id_tecnico: int = Field(validation_alias="ID_TECNICO")
+    id_taller: int = Field(validation_alias="ID_TALLER")
+    id_usuario: int | None = Field(None, validation_alias="ID_USUARIO")
     nombre_completo: str = Field(validation_alias="NOMBRE_COMPLETO")
     telefono: str | None = Field(validation_alias="TELEFONO")
     disponible: bool = Field(validation_alias="DISPONIBLE")
@@ -52,10 +51,10 @@ class TechnicianResponse(BaseModel):
 class TechnicianActiveAssignmentResponse(BaseModel):
     """Asignación activa del técnico autenticado con contexto completo del incidente."""
 
-    id_asignacion: UUID
-    id_incidente: UUID
-    id_taller: UUID
-    id_tecnico: UUID
+    id_asignacion: int
+    id_incidente: int
+    id_taller: int
+    id_tecnico: int
     estado_incidente: str
     clasificacion: str
     prioridad: str

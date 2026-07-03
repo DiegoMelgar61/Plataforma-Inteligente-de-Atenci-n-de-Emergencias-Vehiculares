@@ -9,7 +9,7 @@ from io import BytesIO
 
 from sqlalchemy.orm import Session
 
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.workshops.models import TALLERES
@@ -65,7 +65,7 @@ def construir_reporte_incidentes(
         if len(resumen) > 180:
             resumen = resumen[:177] + "..."
         filas.append([
-            str(inc.ID_INCIDENTE)[:8].upper(),
+            f"#{inc.ID_INCIDENTE:04d}",
             fecha,
             _val(inc.ESTADO),
             _val(inc.PRIORIDAD),

@@ -1,6 +1,4 @@
 from datetime import datetime
-from typing import Literal
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -10,7 +8,7 @@ class UserProfile(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id_usuario: UUID = Field(validation_alias="ID_USUARIO")
+    id_usuario: int = Field(validation_alias="ID_USUARIO")
     correo_electronico: EmailStr = Field(validation_alias="CORREO_ELECTRONICO")
     nombre_completo: str = Field(validation_alias="NOMBRE_COMPLETO")
     telefono: str | None = Field(validation_alias="TELEFONO")
@@ -18,7 +16,7 @@ class UserProfile(BaseModel):
     activo: bool = Field(validation_alias="ACTIVO")
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
     fecha_actualizacion: datetime | None = Field(validation_alias="FECHA_ACTUALIZACION")
-    id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
+    id_tenant: int | None = Field(None, validation_alias="ID_TENANT")
 
 
 class UserUpdate(BaseModel):

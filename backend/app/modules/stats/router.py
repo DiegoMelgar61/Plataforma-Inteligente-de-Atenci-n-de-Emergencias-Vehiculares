@@ -7,14 +7,12 @@ Roles:
 """
 import logging
 from datetime import datetime, timedelta
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import (
+from app.modules.incidents.models import (
     HISTORIAL_INCIDENTES,
     INCIDENTES,
 )
@@ -52,7 +50,7 @@ def _rol(usuario: USUARIOS) -> str:
     ),
 )
 def dashboard_stats(
-    id_tenant: UUID | None = Query(
+    id_tenant: int | None = Query(
         None, description="Filtrar por tenant (solo ADMIN). TALLER siempre ve el suyo."
     ),
     db: Session = Depends(get_db),
@@ -222,7 +220,7 @@ def dashboard_stats(
     description="Agrupa los incidentes por celda geográfica para pintar manchas en el mapa.",
 )
 def zonas_incidentes(
-    id_tenant: UUID | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
+    id_tenant: int | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):

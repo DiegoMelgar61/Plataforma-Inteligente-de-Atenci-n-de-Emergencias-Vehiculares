@@ -5,8 +5,6 @@ solo decide qué métricas y qué gráficos mostrar.
 """
 import logging
 from typing import Annotated
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -46,7 +44,7 @@ def listar_metricas(_: USUARIOS = Depends(get_current_admin)):
     ),
 )
 async def generar_dashboard(
-    id_tenant: Annotated[UUID | None, Form(description="Tenant a analizar (ADMIN). Omitir = todos.")] = None,
+    id_tenant: Annotated[int | None, Form(description="Tenant a analizar (ADMIN). Omitir = todos.")] = None,
     texto: Annotated[str | None, Form(description="Pedido en texto")] = None,
     audio: Annotated[UploadFile | None, File(description="Pedido en audio (opcional)")] = None,
     db: Session = Depends(get_db),

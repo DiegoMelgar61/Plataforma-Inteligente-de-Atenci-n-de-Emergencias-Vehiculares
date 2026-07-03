@@ -1,7 +1,4 @@
-import uuid
-
-from sqlalchemy import Boolean, Column, DateTime, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 
 from app.core.database import Base
 
@@ -9,7 +6,7 @@ from app.core.database import Base
 class Tenant(Base):
     __tablename__ = "tenants"
 
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ID_TENANT = Column("id_tenant", Integer, primary_key=True)
     NOMBRE = Column("nombre", String(255), unique=True, nullable=False)
     DESCRIPCION = Column("descripcion", Text, nullable=True)
     ACTIVO = Column("activo", Boolean, default=True)

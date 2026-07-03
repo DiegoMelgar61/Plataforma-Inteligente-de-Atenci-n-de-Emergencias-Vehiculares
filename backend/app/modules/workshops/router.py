@@ -2,7 +2,6 @@
 CRUD de talleres: listado para usuarios autenticados; alta/edición por dueño (rol TALLER) o ADMIN.
 """
 from decimal import Decimal
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -55,7 +54,7 @@ def listar_talleres(
 
 @router.get("/{id_taller}", response_model=WorkshopResponse)
 def obtener_taller(
-    id_taller: UUID,
+    id_taller: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):
@@ -116,7 +115,7 @@ def crear_taller(
 
 @router.put("/{id_taller}", response_model=WorkshopResponse)
 def actualizar_taller(
-    id_taller: UUID,
+    id_taller: int,
     datos: WorkshopUpdate,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
@@ -160,7 +159,7 @@ def actualizar_taller(
 
 @router.delete("/{id_taller}", status_code=status.HTTP_204_NO_CONTENT)
 def baja_logica_taller(
-    id_taller: UUID,
+    id_taller: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):

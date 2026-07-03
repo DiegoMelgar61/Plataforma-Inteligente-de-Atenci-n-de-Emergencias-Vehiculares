@@ -21,9 +21,9 @@ def test_settings_loads_from_env():
 
 
 def test_models_metadata_has_tables():
-    import app.models.models  # noqa: F401
+    import app.models  # noqa: F401
     from app.core.database import Base
 
     names = {t.name for t in Base.metadata.sorted_tables}
-    assert "USUARIOS" in names
-    assert "INCIDENTES" in names
+    assert "usuarios" in names
+    assert "incidentes" in names

@@ -14,7 +14,7 @@ ORDEN de rutas (importante: rutas estáticas antes que /{id_tecnico}):
 import asyncio
 import logging
 from datetime import datetime
-from uuid import UUID
+
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from geoalchemy2.shape import to_shape
@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import hashear_contrasena
-from app.models.models import (
+from app.modules.incidents.models import (
     HISTORIAL_INCIDENTES,
     INCIDENTES,
 )
@@ -44,7 +44,7 @@ from app.modules.technicians.schemas import (
 )
 from app.modules.users.models import USUARIOS
 from app.modules.workshops.models import TALLERES
-from app.presentation.api.v1.schemas.incident import IncidentListResponse
+from app.modules.incidents.schemas import IncidentListResponse
 
 router = APIRouter(prefix="/tecnicos", tags=["Técnicos"])
 
@@ -75,7 +75,7 @@ def _taller_del_token(db: Session, usuario: USUARIOS) -> TALLERES:
 def _taller_para_creacion_tecnico(
     db: Session,
     usuario: USUARIOS,
-    id_taller: UUID | None,
+    id_taller: int | None,
 ) -> TALLERES:
     rol = _rol_texto(usuario)
     if rol == "ADMIN":
@@ -103,7 +103,7 @@ def _taller_para_creacion_tecnico(
     raise HTTPException(status_code=403, detail="Solo talleres y admins pueden crear técnicos")
 
 
-def _tecnico_en_taller(db: Session, id_tecnico: UUID, id_taller: UUID) -> TECNICOS | None:
+def _tecnico_en_taller(db: Session, id_tecnico: int, id_taller: int) -> TECNICOS | None:
     return (
         db.query(TECNICOS)
         .filter(TECNICOS.ID_TECNICO == id_tecnico, TECNICOS.ID_TALLER == id_taller)
@@ -210,7 +210,7 @@ def obtener_mi_asignacion(
     ),
 )
 def actualizar_estado_incidente_tecnico(
-    id_incidente: UUID,
+    id_incidente: int,
     body: UpdateIncidentStateRequest,
     db: Session = Depends(get_db),
     tecnico: TECNICOS = Depends(get_current_tecnico),
@@ -418,7 +418,7 @@ def crear_tecnico_con_usuario(
 
 @router.get("/{id_tecnico}", response_model=TechnicianResponse)
 def obtener_tecnico(
-    id_tecnico: UUID,
+    id_tecnico: int,
     db: Session = Depends(get_db),
     dueno: USUARIOS = Depends(get_current_taller),
 ):
@@ -432,7 +432,7 @@ def obtener_tecnico(
 
 @router.put("/{id_tecnico}", response_model=TechnicianResponse)
 def actualizar_tecnico(
-    id_tecnico: UUID,
+    id_tecnico: int,
     datos: TechnicianUpdate,
     db: Session = Depends(get_db),
     dueno: USUARIOS = Depends(get_current_taller),
@@ -458,7 +458,7 @@ def actualizar_tecnico(
 
 @router.delete("/{id_tecnico}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_tecnico(
-    id_tecnico: UUID,
+    id_tecnico: int,
     db: Session = Depends(get_db),
     dueno: USUARIOS = Depends(get_current_taller),
 ):

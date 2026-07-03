@@ -9,12 +9,12 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from math import asin, cos, radians, sin, sqrt
-from uuid import UUID
+
 
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 
-from app.models.models import INCIDENTES, HISTORIAL_INCIDENTES
+from app.modules.incidents.models import INCIDENTES, HISTORIAL_INCIDENTES
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.technicians.models import TECNICOS
 from app.modules.workshops.models import TALLERES
@@ -131,7 +131,7 @@ def buscar_talleres_candidatos(db: Session, incidente: INCIDENTES) -> list[dict]
     return candidatos
 
 
-def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIONES | None:
+def asignar_taller_automaticamente(db: Session, incidente_id: int) -> ASIGNACIONES | None:
     """
     Busca el taller más cercano con técnico disponible y asigna automáticamente.
     Actualiza el estado del incidente a "ASIGNADO".
@@ -286,7 +286,7 @@ def generar_ofertas(
 
 
 def seleccionar_taller(
-    db: Session, incidente_id: UUID, id_taller: UUID
+    db: Session, incidente_id: int, id_taller: int
 ) -> ASIGNACIONES | None:
     """
     El cliente elige un taller de las ofertas. Asigna automáticamente un técnico
@@ -392,7 +392,7 @@ def seleccionar_taller(
 ESTADOS_CON_MULTA = {"EN_CAMINO", "EN_PROCESO"}
 
 
-def cancelar_por_cliente(db: Session, incidente_id: UUID) -> dict | None:
+def cancelar_por_cliente(db: Session, incidente_id: int) -> dict | None:
     """
     Cancela el servicio a pedido del cliente.
 

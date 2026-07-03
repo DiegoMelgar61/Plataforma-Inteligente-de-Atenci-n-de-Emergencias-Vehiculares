@@ -5,7 +5,7 @@ Tags = ["Asignación Inteligente"]
 import asyncio
 import logging
 from datetime import datetime
-from uuid import UUID
+
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 
 from app.core.database import get_db
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.assignments.schemas import (
     AssignmentResponse,
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 class AssignRequest(BaseModel):
-    id_tecnico: UUID | None = None
+    id_tecnico: int | None = None
 
 
 def _rol_texto(usuario: USUARIOS) -> str:
@@ -67,7 +67,7 @@ def _rol_texto(usuario: USUARIOS) -> str:
     response_description="Asignación creada satisfactoriamente",
 )
 def asignar_incidente(
-    id_incidente: UUID,
+    id_incidente: int,
     body: AssignRequest = None,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
@@ -177,7 +177,7 @@ def asignar_incidente(
     response_description="Listado de talleres candidatos",
 )
 def obtener_talleres_disponibles(
-    id_incidente: UUID,
+    id_incidente: int,
     db: Session = Depends(get_db),
     _: USUARIOS = Depends(get_current_active_user),
 ):
@@ -309,7 +309,7 @@ def listar_mis_asignaciones(
     summary="Rechazar asignación (Taller)",
 )
 def rechazar_asignacion(
-    id_incidente: UUID,
+    id_incidente: int,
     body: dict,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
@@ -338,7 +338,7 @@ def rechazar_asignacion(
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 
-def _notify_incidente(incidente_id: UUID, payload: dict) -> None:
+def _notify_incidente(incidente_id: int, payload: dict) -> None:
     """Encola un broadcast al canal WebSocket del incidente."""
     try:
         from app.modules.notifications.service import broadcast_incidente_async
@@ -358,7 +358,7 @@ def _notify_incidente(incidente_id: UUID, payload: dict) -> None:
     description="Devuelve el estado actual de la cotización: propuesta, aceptada o sin respuesta.",
 )
 def ver_cotizacion(
-    id_incidente: UUID,
+    id_incidente: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):
@@ -403,7 +403,7 @@ def ver_cotizacion(
     ),
 )
 def proponer_cotizacion(
-    id_incidente: UUID,
+    id_incidente: int,
     body: CotizacionCreate,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
@@ -488,12 +488,12 @@ def proponer_cotizacion(
     ),
 )
 def responder_cotizacion(
-    id_incidente: UUID,
+    id_incidente: int,
     body: CotizacionRespuesta,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):
-    from app.models.models import HISTORIAL_INCIDENTES
+    from app.modules.incidents.models import HISTORIAL_INCIDENTES
 
     if _rol_texto(usuario) != "CLIENTE":
         raise HTTPException(status_code=403, detail="Solo clientes pueden responder cotizaciones")
@@ -616,7 +616,7 @@ def responder_cotizacion(
     monto = float(asignacion.MONTO_COTIZADO) if asignacion else None
     tiempo = asignacion.TIEMPO_ESTIMADO_REPARACION if asignacion else None
     notas = asignacion.NOTAS_COTIZACION if asignacion else None
-    id_asig = asignacion.ID_ASIGNACION if asignacion else UUID("00000000-0000-0000-0000-000000000000")
+    id_asig = asignacion.ID_ASIGNACION if asignacion else 0
 
     return CotizacionDetalleResponse(
         id_asignacion=id_asig,

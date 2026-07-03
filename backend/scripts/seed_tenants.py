@@ -37,18 +37,14 @@ def _make_session(db_url: str | None) -> Session:
         from app.core.database import SessionLocal
         return SessionLocal()
     return sessionmaker(bind=engine)()
-from app.models.models import (
-    Tenant,
-    USUARIOS,
-    CLIENTES,
-    TALLERES,
-    TECNICOS,
-    VEHICULOS,
-    INCIDENTES,
-    ASIGNACIONES,
-    HISTORIAL_INCIDENTES,
-    PAGOS,
-)
+from app.modules.assignments.models import ASIGNACIONES
+from app.modules.incidents.models import HISTORIAL_INCIDENTES, INCIDENTES
+from app.modules.payments.models import PAGOS
+from app.modules.technicians.models import TECNICOS
+from app.modules.tenants.models import Tenant
+from app.modules.users.models import CLIENTES, USUARIOS
+from app.modules.vehicles.models import VEHICULOS
+from app.modules.workshops.models import TALLERES
 
 # ──────────────────────────────────────────────────────────────
 # Constants

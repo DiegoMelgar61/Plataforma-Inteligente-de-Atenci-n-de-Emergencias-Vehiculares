@@ -4,16 +4,17 @@ Tags = ["Notificaciones y Tiempo Real"]
 """
 import json
 import logging
-from uuid import UUID
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.models.models import INCIDENTES
+from app.core.database import SessionLocal, get_db
+from app.core.security import verificar_token
+from app.modules.incidents.models import INCIDENTES
 from app.modules.users.models import USUARIOS
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
 from app.modules.notifications.service import (
     registrar_conexion_websocket,
     desregistrar_conexion_websocket,
@@ -22,6 +23,7 @@ from app.modules.notifications.service import (
     registrar_conexion_global,
     desregistrar_conexion_global,
 )
+from app.modules.tenants.service import TENANT_DEFAULT_ID
 
 router = APIRouter(prefix="/notifications", tags=["Notificaciones y Tiempo Real"])
 
@@ -34,13 +36,49 @@ def _rol_texto(usuario: USUARIOS) -> str:
     return r.value if hasattr(r, "value") else str(r)
 
 
+async def _usuario_desde_websocket(websocket: WebSocket, db: Session) -> USUARIOS | None:
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token requerido")
+        return None
+
+    try:
+        payload = verificar_token(token)
+    except ValueError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token inválido")
+        return None
+
+    correo = payload.get("sub")
+    if not correo or not isinstance(correo, str):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token sin sujeto válido")
+        return None
+
+    usuario = db.query(USUARIOS).filter(USUARIOS.CORREO_ELECTRONICO == correo).first()
+    if usuario is None or not usuario.ACTIVO or usuario.FECHA_ELIMINACION is not None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Usuario no autorizado")
+        return None
+
+    usuario._id_tenant = usuario.ID_TENANT or TENANT_DEFAULT_ID
+    return usuario
+
+
 @router.websocket("/ws")
 async def websocket_global(websocket: WebSocket):
     """
     WebSocket global para Dashboard y Mapa.
-    Recibe broadcasts de cualquier cambio de estado de incidentes.
-    No requiere autenticación ni id de incidente.
+    Requiere token JWT de ADMIN, TALLER o TECNICO en `?token=`.
     """
+    db = SessionLocal()
+    try:
+        usuario = await _usuario_desde_websocket(websocket, db)
+        if usuario is None:
+            return
+        if _rol_texto(usuario) not in {"ADMIN", "TALLER", "TECNICO"}:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Rol no autorizado")
+            return
+    finally:
+        db.close()
+
     await websocket.accept()
     registrar_conexion_global(websocket)
     try:
@@ -64,7 +102,7 @@ async def websocket_global(websocket: WebSocket):
 @router.websocket("/ws/incidents/{id_incidente}")
 async def websocket_seguimiento_incidente(
     websocket: WebSocket,
-    id_incidente: UUID,
+    id_incidente: int,
 ):
     """
     WebSocket para seguimiento en tiempo real del estado de un incidente.
@@ -90,6 +128,23 @@ async def websocket_seguimiento_incidente(
     }
     ```
     """
+    db = SessionLocal()
+    try:
+        usuario = await _usuario_desde_websocket(websocket, db)
+        if usuario is None:
+            return
+        incidente = db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+        if incidente is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Incidente no encontrado")
+            return
+        try:
+            verificar_acceso_incidente(usuario, incidente)
+        except HTTPException:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="No autorizado")
+            return
+    finally:
+        db.close()
+
     await websocket.accept()
 
     try:
@@ -139,7 +194,7 @@ async def websocket_seguimiento_incidente(
     response_description="Notificación enviada exitosamente",
 )
 def enviar_notificacion_prueba(
-    id_incidente: UUID,
+    id_incidente: int,
     mensaje: str = "Mensaje de prueba",
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
@@ -207,7 +262,7 @@ def enviar_notificacion_prueba(
     response_description="Estado actualizado y notificaciones enviadas",
 )
 def actualizar_estado_incidente(
-    id_incidente: UUID,
+    id_incidente: int,
     nuevo_estado: str,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),

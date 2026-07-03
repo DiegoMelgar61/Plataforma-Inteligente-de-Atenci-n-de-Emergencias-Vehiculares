@@ -5,8 +5,8 @@ from sqlalchemy import create_engine, pool
 
 from app.core.database import Base, DATABASE_URL, PSYCOPG2_CONNECT_ARGS
 
-# Registra modelos en Base.metadata
-import app.models.models  # noqa: F401
+# Registra todos los modelos en Base.metadata.
+import app.models  # noqa: F401
 
 config = context.config
 

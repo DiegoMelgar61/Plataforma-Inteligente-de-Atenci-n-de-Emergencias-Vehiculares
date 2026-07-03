@@ -21,6 +21,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    inspector = sa.inspect(op.get_bind())
+    if "bitacora" in inspector.get_table_names():
+        return
+
     op.create_table(
         "bitacora",
         sa.Column("id_bitacora", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -48,7 +52,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_bitacora_id_usuario", table_name="bitacora")
-    op.drop_index("ix_bitacora_id_tenant", table_name="bitacora")
-    op.drop_index("ix_bitacora_fecha_creacion", table_name="bitacora")
+    inspector = sa.inspect(op.get_bind())
+    if "bitacora" not in inspector.get_table_names():
+        return
+
+    indexes = {index["name"] for index in inspector.get_indexes("bitacora")}
+    if "ix_bitacora_id_usuario" in indexes:
+        op.drop_index("ix_bitacora_id_usuario", table_name="bitacora")
+    if "ix_bitacora_id_tenant" in indexes:
+        op.drop_index("ix_bitacora_id_tenant", table_name="bitacora")
+    if "ix_bitacora_fecha_creacion" in indexes:
+        op.drop_index("ix_bitacora_fecha_creacion", table_name="bitacora")
     op.drop_table("bitacora")

@@ -9,14 +9,14 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
-from uuid import UUID
+
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.auth.dependencies import get_current_user
 from app.modules.payments import service as payment_service
@@ -62,7 +62,7 @@ def _taller_de_usuario(db: Session, usuario: USUARIOS) -> TALLERES | None:
     return db.query(TALLERES).filter(TALLERES.ID_USUARIO == usuario.ID_USUARIO).first()
 
 
-async def _guardar_comprobante(comprobante: UploadFile, id_pago: UUID) -> tuple[str, str]:
+async def _guardar_comprobante(comprobante: UploadFile, id_pago: int) -> tuple[str, str]:
     """
     Guarda el archivo en disco y retorna (url, clave).
     Lanza HTTPException si el tipo MIME no está permitido.
@@ -165,7 +165,7 @@ def listar_mis_pagos(
 )
 def listar_pagos(
     estado: str | None = None,
-    id_taller: UUID | None = None,
+    id_taller: int | None = None,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
@@ -201,7 +201,7 @@ def listar_pagos(
     summary="Detalle de pago",
 )
 def obtener_pago(
-    id_pago: UUID,
+    id_pago: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
@@ -227,7 +227,7 @@ def obtener_pago(
     summary="Subir comprobante de pago (Cliente)",
 )
 async def marcar_pago(
-    id_pago: UUID,
+    id_pago: int,
     comprobante: Annotated[UploadFile, File(description="Imagen o PDF del comprobante de transferencia")],
     notas_cliente: Annotated[str | None, Form(description="Notas opcionales del cliente")] = None,
     db: Session = Depends(get_db),
@@ -265,7 +265,7 @@ async def marcar_pago(
     summary="Confirmar pago (Taller/Admin)",
 )
 async def confirmar_pago(
-    id_pago: UUID,
+    id_pago: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
@@ -301,7 +301,7 @@ async def confirmar_pago(
     summary="Rechazar comprobante (Taller/Admin)",
 )
 async def rechazar_pago(
-    id_pago: UUID,
+    id_pago: int,
     body: PaymentReject,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),

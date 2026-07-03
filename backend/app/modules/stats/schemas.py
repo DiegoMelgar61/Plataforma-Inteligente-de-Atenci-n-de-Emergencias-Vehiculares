@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from pydantic import BaseModel
 
 
@@ -19,7 +17,7 @@ class IncidentesPorDia(BaseModel):
 
 
 class TallerTop(BaseModel):
-    id_taller: UUID
+    id_taller: int
     nombre_negocio: str
     total_atendidos: int
 

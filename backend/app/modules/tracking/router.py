@@ -12,14 +12,14 @@ Flujo:
 """
 import logging
 from datetime import datetime
-from uuid import UUID
+
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import func, select, update
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import verificar_token
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.technicians.models import TECNICOS
 from app.modules.users.models import USUARIOS
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 @router.websocket("/ws/incidents/{id_incidente}")
 async def tracking_websocket(
     websocket: WebSocket,
-    id_incidente: UUID,
+    id_incidente: int,
     token: str = Query(..., description="JWT Bearer token del técnico"),
 ):
     """
@@ -80,7 +80,7 @@ async def tracking_websocket(
         return
 
     # ── 2. Validar técnico y asignación ───────────────────────────────────────
-    tecnico_id: UUID | None = None
+    tecnico_id: int | None = None
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(

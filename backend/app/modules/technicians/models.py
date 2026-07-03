@@ -1,8 +1,5 @@
-import uuid
-
 from geoalchemy2 import Geography
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
 
 from app.core.database import Base
 
@@ -10,11 +7,9 @@ from app.core.database import Base
 class TECNICOS(Base):
     __tablename__ = "tecnicos"
 
-    ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller", ondelete="CASCADE"), nullable=False)
-    # Cuenta de login del técnico (usuario con rol TECNICO). Nullable para
-    # compatibilidad con técnicos creados antes de esta columna.
-    ID_USUARIO = Column("id_usuario", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario", ondelete="SET NULL"), unique=True, nullable=True)
+    ID_TECNICO = Column("id_tecnico", Integer, primary_key=True)
+    ID_TALLER = Column("id_taller", Integer, ForeignKey("talleres.id_taller", ondelete="CASCADE"), nullable=False)
+    ID_USUARIO = Column("id_usuario", Integer, ForeignKey("usuarios.id_usuario", ondelete="SET NULL"), unique=True, nullable=True)
     NOMBRE_COMPLETO = Column("nombre_completo", String(255), nullable=False)
     TELEFONO = Column("telefono", String(20))
     DISPONIBLE = Column("disponible", Boolean, default=True)

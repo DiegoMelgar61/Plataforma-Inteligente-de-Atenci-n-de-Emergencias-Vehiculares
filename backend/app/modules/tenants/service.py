@@ -1,12 +1,10 @@
-from uuid import UUID
-
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.tenants.models import Tenant
 from app.modules.tenants.schemas import TenantCreate, TenantUpdate
 
-TENANT_DEFAULT_ID = UUID("e76212eb-e845-411d-b37f-e0ec986564d8")
+TENANT_DEFAULT_ID = 1
 
 
 def crear_tenant(db: Session, datos: TenantCreate) -> Tenant:
@@ -30,14 +28,14 @@ def obtener_tenants(db: Session, solo_activos: bool = False) -> list[Tenant]:
     return q.order_by(Tenant.NOMBRE).all()
 
 
-def obtener_tenant_por_id(db: Session, id_tenant: UUID) -> Tenant:
+def obtener_tenant_por_id(db: Session, id_tenant: int) -> Tenant:
     tenant = db.query(Tenant).filter(Tenant.ID_TENANT == id_tenant).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
     return tenant
 
 
-def actualizar_tenant(db: Session, id_tenant: UUID, datos: TenantUpdate) -> Tenant:
+def actualizar_tenant(db: Session, id_tenant: int, datos: TenantUpdate) -> Tenant:
     tenant = db.query(Tenant).filter(Tenant.ID_TENANT == id_tenant).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")

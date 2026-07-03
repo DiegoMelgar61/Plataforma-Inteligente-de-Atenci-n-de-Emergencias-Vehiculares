@@ -4,13 +4,13 @@ Lógica de negocio para el sistema de pagos manuales con QR (CU13).
 import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from uuid import UUID
+
 
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.payments.models import PAGOS
@@ -248,8 +248,8 @@ def crear_pago_pendiente(db: Session, incidente: INCIDENTES, asignacion: ASIGNAC
 
 def marcar_como_pagado(
     db: Session,
-    id_pago: UUID,
-    id_usuario_cliente: UUID,
+    id_pago: int,
+    id_usuario_cliente: int,
     comprobante_url: str,
     comprobante_clave: str,
     notas: str | None,
@@ -281,7 +281,7 @@ def marcar_como_pagado(
     return pago
 
 
-def confirmar_pago(db: Session, id_pago: UUID, id_usuario_confirma: UUID) -> PAGOS:
+def confirmar_pago(db: Session, id_pago: int, id_usuario_confirma: int) -> PAGOS:
     """
     Taller o admin confirma el comprobante. Cambia estado PENDIENTE → PAGADO.
     """
@@ -317,7 +317,7 @@ def confirmar_pago(db: Session, id_pago: UUID, id_usuario_confirma: UUID) -> PAG
     return pago
 
 
-def rechazar_pago(db: Session, id_pago: UUID, id_usuario_confirma: UUID, motivo: str) -> PAGOS:
+def rechazar_pago(db: Session, id_pago: int, id_usuario_confirma: int, motivo: str) -> PAGOS:
     """
     Taller o admin rechaza el comprobante. Vuelve a NO_PAGO para permitir reintento.
     Limpia el comprobante anterior.
@@ -358,7 +358,7 @@ def rechazar_pago(db: Session, id_pago: UUID, id_usuario_confirma: UUID, motivo:
     return pago
 
 
-def obtener_estadisticas(db: Session, id_taller: UUID | None = None) -> dict:
+def obtener_estadisticas(db: Session, id_taller: int | None = None) -> dict:
     """
     Retorna estadísticas de pagos. Si id_taller es None, stats globales (admin).
     """

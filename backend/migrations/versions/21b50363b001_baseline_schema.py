@@ -8,7 +8,6 @@ Create Date: 2026-04-05 02:04:43.741707
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -20,9 +19,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    pass
+    op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+
+    from app.core.database import Base
+    import app.models  # noqa: F401
+
+    Base.metadata.create_all(bind=op.get_bind())
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    from app.core.database import Base
+    import app.models  # noqa: F401
+
+    Base.metadata.drop_all(bind=op.get_bind())

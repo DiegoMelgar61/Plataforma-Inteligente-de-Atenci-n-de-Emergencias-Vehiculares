@@ -1,6 +1,5 @@
 from datetime import datetime
 from decimal import Decimal
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,8 +32,8 @@ class WorkshopResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id_taller: UUID = Field(validation_alias="ID_TALLER")
-    id_usuario: UUID | None = Field(None, validation_alias="ID_USUARIO")
+    id_taller: int = Field(validation_alias="ID_TALLER")
+    id_usuario: int | None = Field(None, validation_alias="ID_USUARIO")
     nombre_negocio: str = Field(validation_alias="NOMBRE_NEGOCIO")
     nit: str | None = Field(validation_alias="NIT")
     direccion: str | None = Field(validation_alias="DIRECCION")
@@ -44,4 +43,4 @@ class WorkshopResponse(BaseModel):
     activo: bool = Field(validation_alias="ACTIVO")
     fecha_creacion: datetime | None = Field(validation_alias="FECHA_CREACION")
     fecha_actualizacion: datetime | None = Field(validation_alias="FECHA_ACTUALIZACION")
-    id_tenant: UUID | None = Field(None, validation_alias="ID_TENANT")
+    id_tenant: int | None = Field(None, validation_alias="ID_TENANT")

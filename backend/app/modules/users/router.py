@@ -1,8 +1,6 @@
 """
 Perfil del usuario autenticado + gestión de usuarios (ADMIN).
 """
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -65,7 +63,7 @@ def listar_usuarios(
 
 @router.patch("/{id_usuario}/rol")
 def cambiar_rol(
-    id_usuario: UUID,
+    id_usuario: int,
     body: dict,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
@@ -85,7 +83,7 @@ def cambiar_rol(
 
 @router.patch("/{id_usuario}/activo")
 def cambiar_activo(
-    id_usuario: UUID,
+    id_usuario: int,
     body: dict,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),

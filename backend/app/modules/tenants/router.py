@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -41,7 +39,7 @@ def crear_tenant(
 
 @router.get("/{id_tenant}", response_model=TenantResponse)
 def obtener_tenant(
-    id_tenant: UUID,
+    id_tenant: int,
     db: Session = Depends(get_db),
     _: USUARIOS = Depends(get_current_admin),
 ):
@@ -50,7 +48,7 @@ def obtener_tenant(
 
 @router.patch("/{id_tenant}", response_model=TenantResponse)
 def actualizar_tenant(
-    id_tenant: UUID,
+    id_tenant: int,
     datos: TenantUpdate,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_admin),
@@ -68,7 +66,7 @@ def actualizar_tenant(
 
 @router.patch("/{id_tenant}/toggle-activo", response_model=TenantResponse)
 def toggle_activo_tenant(
-    id_tenant: UUID,
+    id_tenant: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_admin),
 ):

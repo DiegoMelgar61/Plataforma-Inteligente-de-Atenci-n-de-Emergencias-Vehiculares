@@ -13,7 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 from app.modules.assignments.models import ASIGNACIONES
 from app.modules.payments.models import PAGOS
 from app.modules.technicians.models import TECNICOS

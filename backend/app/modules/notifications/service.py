@@ -8,26 +8,26 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from uuid import UUID
+
 from typing import Callable, Any
 
 from sqlalchemy.orm import Session
 from fastapi import WebSocket
 
-from app.models.models import INCIDENTES
+from app.modules.incidents.models import INCIDENTES
 from app.modules.users.models import USUARIOS
 
 logger = logging.getLogger(__name__)
 
 # Diccionario global de conexiones WebSocket activas
 # Estructura: {incidente_id: [WebSocket, ...]}
-CONEXIONES_ACTIVAS: dict[UUID, list[WebSocket]] = {}
+CONEXIONES_ACTIVAS: dict[int, list[WebSocket]] = {}
 
 # Lista global de conexiones WebSocket (Dashboard, Mapa, etc.)
 CONEXIONES_GLOBALES: list[WebSocket] = []
 
 # Un WebSocket por incidente — el técnico asignado transmite su ubicación GPS en tiempo real
-CONEXIONES_TECNICO: dict[UUID, WebSocket] = {}
+CONEXIONES_TECNICO: dict[int, WebSocket] = {}
 
 
 def registrar_conexion_global(websocket: WebSocket) -> None:
@@ -91,7 +91,7 @@ def registrar_callback_notificacion(tipo: str, callback: Callable) -> None:
         logger.debug("Callback registrado para notificaciones de %s", tipo)
 
 
-def enviar_notificacion_cliente(db: Session, incidente_id: UUID, mensaje: str) -> None:
+def enviar_notificacion_cliente(db: Session, incidente_id: int, mensaje: str) -> None:
     """
     Envía notificación al cliente propietario del incidente.
 
@@ -146,7 +146,7 @@ def enviar_notificacion_cliente(db: Session, incidente_id: UUID, mensaje: str) -
     )
 
 
-def enviar_notificacion_taller(db: Session, incidente_id: UUID, mensaje: str) -> None:
+def enviar_notificacion_taller(db: Session, incidente_id: int, mensaje: str) -> None:
     """
     Envía notificación al taller asignado del incidente.
 
@@ -208,7 +208,7 @@ def enviar_notificacion_taller(db: Session, incidente_id: UUID, mensaje: str) ->
 
 
 def broadcast_estado_actualizado(
-    db: Session, incidente_id: UUID, nuevo_estado: str
+    db: Session, incidente_id: int, nuevo_estado: str
 ) -> None:
     """
     Notifica a clientes y talleres sobre cambio de estado del incidente.
@@ -270,7 +270,7 @@ def broadcast_estado_actualizado(
     logger.info("Broadcast de estado enviado: incidente %s, estado %s", incidente_id, nuevo_estado)
 
 
-async def broadcast_incidente_async(incidente_id: UUID, datos: dict) -> None:
+async def broadcast_incidente_async(incidente_id: int, datos: dict) -> None:
     """Envía datos a todos los WebSocket suscritos a un incidente (versión async)."""
     conexiones = CONEXIONES_ACTIVAS.get(incidente_id, [])
     fallidas = []
@@ -289,7 +289,7 @@ async def broadcast_incidente_async(incidente_id: UUID, datos: dict) -> None:
         del CONEXIONES_ACTIVAS[incidente_id]
 
 
-def _broadcast_incidente(incidente_id: UUID, datos: dict) -> None:
+def _broadcast_incidente(incidente_id: int, datos: dict) -> None:
     """Wrapper síncrono — encola la coroutine en el event loop activo."""
     try:
         loop = asyncio.get_event_loop()
@@ -299,7 +299,7 @@ def _broadcast_incidente(incidente_id: UUID, datos: dict) -> None:
         logger.exception("Error al encolar broadcast para incidente %s", incidente_id)
 
 
-def registrar_conexion_websocket(incidente_id: UUID, websocket: WebSocket) -> None:
+def registrar_conexion_websocket(incidente_id: int, websocket: WebSocket) -> None:
     """
     Registra una nueva conexión WebSocket para un incidente.
 
@@ -312,7 +312,7 @@ def registrar_conexion_websocket(incidente_id: UUID, websocket: WebSocket) -> No
     logger.debug("WebSocket registrado para incidente %s", incidente_id)
 
 
-def desregistrar_conexion_websocket(incidente_id: UUID, websocket: WebSocket) -> None:
+def desregistrar_conexion_websocket(incidente_id: int, websocket: WebSocket) -> None:
     """
     Desregistra una conexión WebSocket.
 
@@ -331,12 +331,12 @@ def desregistrar_conexion_websocket(incidente_id: UUID, websocket: WebSocket) ->
     logger.debug("WebSocket desregistrado para incidente %s", incidente_id)
 
 
-def tiene_tracking_activo(incidente_id: UUID) -> bool:
+def tiene_tracking_activo(incidente_id: int) -> bool:
     """Indica si hay un técnico con sesión de tracking GPS activa para el incidente."""
     return incidente_id in CONEXIONES_TECNICO
 
 
-async def registrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket) -> None:
+async def registrar_tecnico_tracking(incidente_id: int, websocket: WebSocket) -> None:
     """
     Registra la conexión de tracking del técnico. Si ya había una sesión activa
     (p. ej. una reconexión tras un corte de red), cierra la anterior y la nueva
@@ -352,7 +352,7 @@ async def registrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket) -
     logger.info("Tracking GPS iniciado — incidente %s", incidente_id)
 
 
-def desregistrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket | None = None) -> None:
+def desregistrar_tecnico_tracking(incidente_id: int, websocket: WebSocket | None = None) -> None:
     """
     Elimina la conexión de tracking del técnico al desconectarse.
     Solo borra si coincide con el socket dado (o si no se pasa ninguno), para no
@@ -363,7 +363,7 @@ def desregistrar_tecnico_tracking(incidente_id: UUID, websocket: WebSocket | Non
         logger.info("Tracking GPS finalizado — incidente %s", incidente_id)
 
 
-async def cerrar_tracking_tecnico(incidente_id: UUID) -> None:
+async def cerrar_tracking_tecnico(incidente_id: int) -> None:
     """Cierra la sesión de tracking del técnico y notifica al canal del incidente."""
     ws = CONEXIONES_TECNICO.pop(incidente_id, None)
     if ws is None:
@@ -382,7 +382,7 @@ async def cerrar_tracking_tecnico(incidente_id: UUID) -> None:
     await broadcast_incidente_async(incidente_id, payload)
 
 
-async def notificar_cancelacion_tecnico(incidente_id: UUID) -> None:
+async def notificar_cancelacion_tecnico(incidente_id: int) -> None:
     """
     Avisa al técnico (canal de tracking + canal del incidente) que el cliente
     canceló el servicio, y cierra su sesión de tracking. La app del técnico

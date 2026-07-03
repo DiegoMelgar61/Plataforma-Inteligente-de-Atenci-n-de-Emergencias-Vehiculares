@@ -1,8 +1,6 @@
 """
 CRUD de vehículos del cliente autenticado.
 """
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -17,8 +15,8 @@ router = APIRouter(prefix="/vehiculos", tags=["Vehículos"])
 
 def _vehiculo_de_cliente(
     db: Session,
-    id_vehiculo: UUID,
-    id_cliente: UUID,
+    id_vehiculo: int,
+    id_cliente: int,
 ) -> VEHICULOS | None:
     return (
         db.query(VEHICULOS)
@@ -72,7 +70,7 @@ def crear_vehiculo(
 
 @router.get("/{id_vehiculo}", response_model=VehicleResponse)
 def obtener_vehiculo(
-    id_vehiculo: UUID,
+    id_vehiculo: int,
     db: Session = Depends(get_db),
     cliente: USUARIOS = Depends(get_current_cliente),
 ):
@@ -85,7 +83,7 @@ def obtener_vehiculo(
 
 @router.put("/{id_vehiculo}", response_model=VehicleResponse)
 def actualizar_vehiculo(
-    id_vehiculo: UUID,
+    id_vehiculo: int,
     datos: VehicleUpdate,
     db: Session = Depends(get_db),
     cliente: USUARIOS = Depends(get_current_cliente),
@@ -121,7 +119,7 @@ def actualizar_vehiculo(
 
 @router.delete("/{id_vehiculo}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_vehiculo(
-    id_vehiculo: UUID,
+    id_vehiculo: int,
     db: Session = Depends(get_db),
     cliente: USUARIOS = Depends(get_current_cliente),
 ):

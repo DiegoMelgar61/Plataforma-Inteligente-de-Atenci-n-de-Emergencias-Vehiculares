@@ -11,7 +11,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from geoalchemy2.elements import WKTElement
@@ -21,7 +20,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.infrastructure.external_services.ai_service import ejecutar_pipeline_procesamiento_incidente
 from app.modules.bitacora import service as bitacora_service
-from app.models.models import (
+from app.modules.incidents.models import (
     EVIDENCIAS,
     INCIDENTES,
 )
@@ -31,8 +30,8 @@ from app.modules.workshops.models import TALLERES
 from app.modules.auth.dependencies import get_current_user, verificar_acceso_incidente
 from app.modules.users.models import USUARIOS
 from app.modules.vehicles.models import VEHICULOS
-from app.presentation.api.v1.schemas.evidence import EvidenceUploadResponse
-from app.presentation.api.v1.schemas.incident import (
+from app.modules.incidents.evidence_schemas import EvidenceUploadResponse
+from app.modules.incidents.schemas import (
     CancelacionResponse,
     CotizacionOferta,
     EvidenceItemResponse,
@@ -76,6 +75,15 @@ def _solo_cliente(usuario: USUARIOS) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo los clientes pueden usar este módulo de incidentes",
+        )
+
+
+def _exigir_cliente_dueno(usuario: USUARIOS, incidente: INCIDENTES) -> None:
+    _solo_cliente(usuario)
+    if incidente.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado sobre este incidente",
         )
 
 
@@ -161,7 +169,7 @@ def _nombre_seguro(nombre: str | None) -> str:
     return re.sub(r"[^a-zA-Z0-9._-]", "_", base)[:120]
 
 
-def _url_temporal_evidencia(id_evidencia: UUID) -> str:
+def _url_temporal_evidencia(id_evidencia: int) -> str:
     """URL lógica provisional (reemplazar por bucket/CDN en producción)."""
     return f"temporal:/evidencias/{id_evidencia}"
 
@@ -182,7 +190,7 @@ def _a_lista(inc: INCIDENTES) -> IncidentListResponse:
     return base.model_copy(update={"latitud": lat, "longitud": lon})
 
 
-def _datos_asignacion(db: Session, id_incidente: UUID) -> dict:
+def _datos_asignacion(db: Session, id_incidente: int) -> dict:
     """Devuelve nombre de taller y técnico asignados (si existe asignación)."""
     asign = (
         db.query(ASIGNACIONES)
@@ -247,8 +255,8 @@ async def reportar_incidente_multimodal(
         ),
     ],
     id_vehiculo: Annotated[
-        UUID | None,
-        Form(description="UUID del vehículo registrado del cliente; omitir si no aplica"),
+        int | None,
+        Form(description="ID del vehículo registrado del cliente; omitir si no aplica"),
     ] = None,
     prioridad: Annotated[str | None, Form(description="BAJA | MEDIA | ALTA")] = "MEDIA",
     clasificacion: Annotated[
@@ -329,24 +337,25 @@ async def reportar_incidente_multimodal(
                     status_code=400,
                     detail=f"Tipo de imagen no permitido: {ct or 'desconocido'}",
                 )
-            eid = uuid.uuid4()
-            nombre_disco = f"{eid.hex}_{_nombre_seguro(img.filename)}"
+            filename_hex = uuid.uuid4().hex
+            nombre_disco = f"{filename_hex}_{_nombre_seguro(img.filename)}"
             ruta = destino_dir / nombre_disco
             contenido = await img.read()
             ruta.write_bytes(contenido)
-            url_tmp = _url_temporal_evidencia(eid)
             ev = EVIDENCIAS(
-                ID_EVIDENCIA=eid,
                 ID_INCIDENTE=incidente.ID_INCIDENTE,
                 TIPO="IMAGEN",
-                URL_ARCHIVO=url_tmp,
                 CLAVE_ARCHIVO=f"evidencias/{incidente.ID_INCIDENTE}/{nombre_disco}",
             )
             db.add(ev)
             db.flush()
+            url_tmp = _url_temporal_evidencia(ev.ID_EVIDENCIA)
+            ev.URL_ARCHIVO = url_tmp
+            db.add(ev)
+            db.flush()
             subidas.append(
                 EvidenceUploadResponse(
-                    id_evidencia=eid,
+                    id_evidencia=ev.ID_EVIDENCIA,
                     tipo="IMAGEN",
                     url_archivo=url_tmp,
                     nombre_original=img.filename,
@@ -360,24 +369,25 @@ async def reportar_incidente_multimodal(
                     status_code=400,
                     detail=f"Tipo de audio no permitido: {ct or 'desconocido'}",
                 )
-            eid = uuid.uuid4()
-            nombre_disco = f"{eid.hex}_{_nombre_seguro(audio.filename)}"
+            filename_hex = uuid.uuid4().hex
+            nombre_disco = f"{filename_hex}_{_nombre_seguro(audio.filename)}"
             ruta = destino_dir / nombre_disco
             contenido = await audio.read()
             ruta.write_bytes(contenido)
-            url_tmp = _url_temporal_evidencia(eid)
             ev = EVIDENCIAS(
-                ID_EVIDENCIA=eid,
                 ID_INCIDENTE=incidente.ID_INCIDENTE,
                 TIPO="AUDIO",
-                URL_ARCHIVO=url_tmp,
                 CLAVE_ARCHIVO=f"evidencias/{incidente.ID_INCIDENTE}/{nombre_disco}",
             )
             db.add(ev)
             db.flush()
+            url_tmp = _url_temporal_evidencia(ev.ID_EVIDENCIA)
+            ev.URL_ARCHIVO = url_tmp
+            db.add(ev)
+            db.flush()
             subidas.append(
                 EvidenceUploadResponse(
-                    id_evidencia=eid,
+                    id_evidencia=ev.ID_EVIDENCIA,
                     tipo="AUDIO",
                     url_archivo=url_tmp,
                     nombre_original=audio.filename,
@@ -385,21 +395,21 @@ async def reportar_incidente_multimodal(
             )
 
         if tiene_texto:
-            eid = uuid.uuid4()
-            url_tmp = _url_temporal_evidencia(eid)
             ev_txt = EVIDENCIAS(
-                ID_EVIDENCIA=eid,
                 ID_INCIDENTE=incidente.ID_INCIDENTE,
                 TIPO="TEXTO",
-                URL_ARCHIVO=url_tmp,
                 CLAVE_ARCHIVO=None,
                 TEXTO_TRANSCRITO=texto_descripcion.strip(),
             )
             db.add(ev_txt)
             db.flush()
+            url_tmp = _url_temporal_evidencia(ev_txt.ID_EVIDENCIA)
+            ev_txt.URL_ARCHIVO = url_tmp
+            db.add(ev_txt)
+            db.flush()
             subidas.append(
                 EvidenceUploadResponse(
-                    id_evidencia=eid,
+                    id_evidencia=ev_txt.ID_EVIDENCIA,
                     tipo="TEXTO",
                     url_archivo=url_tmp,
                     nombre_original=None,
@@ -514,15 +524,16 @@ def sincronizar_incidentes(
             db.flush()
 
             if item.texto_descripcion and item.texto_descripcion.strip():
-                eid = uuid.uuid4()
                 ev_txt = EVIDENCIAS(
-                    ID_EVIDENCIA=eid,
                     ID_INCIDENTE=incidente.ID_INCIDENTE,
                     TIPO="TEXTO",
-                    URL_ARCHIVO=_url_temporal_evidencia(eid),
                     CLAVE_ARCHIVO=None,
                     TEXTO_TRANSCRITO=item.texto_descripcion.strip(),
                 )
+                db.add(ev_txt)
+            db.flush()
+            if item.texto_descripcion and item.texto_descripcion.strip():
+                ev_txt.URL_ARCHIVO = _url_temporal_evidencia(ev_txt.ID_EVIDENCIA)
                 db.add(ev_txt)
 
             db.commit()
@@ -585,7 +596,7 @@ def listar_todos_incidentes(
     summary="Actualizar estado de incidente (Taller)",
 )
 def actualizar_estado_incidente(
-    id_incidente: UUID,
+    id_incidente: int,
     body: dict,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
@@ -670,7 +681,7 @@ def listar_mis_incidentes(
     description="Incluye evidencias. El cliente dueño o un TALLER/ADMIN puede consultarlo.",
 )
 def obtener_incidente(
-    id_incidente: UUID,
+    id_incidente: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
@@ -699,7 +710,7 @@ def obtener_incidente(
     ),
 )
 def listar_cotizaciones(
-    id_incidente: UUID,
+    id_incidente: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
@@ -709,9 +720,7 @@ def listar_cotizaciones(
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
-    rol = _rol_texto(usuario)
-    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
-        raise HTTPException(status_code=403, detail="No autorizado a ver este incidente")
+    _exigir_cliente_dueno(usuario, inc)
 
     return generar_ofertas(db, inc)
 
@@ -726,7 +735,7 @@ def listar_cotizaciones(
     ),
 )
 def seleccionar_taller_endpoint(
-    id_incidente: UUID,
+    id_incidente: int,
     body: SeleccionarTallerRequest,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
@@ -737,9 +746,7 @@ def seleccionar_taller_endpoint(
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
-    rol = _rol_texto(usuario)
-    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
-        raise HTTPException(status_code=403, detail="No autorizado sobre este incidente")
+    _exigir_cliente_dueno(usuario, inc)
 
     estado_actual = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
     if estado_actual not in ("CLASIFICADO", "INCIERTO"):
@@ -784,7 +791,7 @@ def seleccionar_taller_endpoint(
     ),
 )
 def cancelar_incidente(
-    id_incidente: UUID,
+    id_incidente: int,
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_user),
 ):
@@ -794,9 +801,7 @@ def cancelar_incidente(
     if not inc:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
-    rol = _rol_texto(usuario)
-    if rol == "CLIENTE" and inc.ID_USUARIO_CLIENTE != usuario.ID_USUARIO:
-        raise HTTPException(status_code=403, detail="No autorizado a cancelar este incidente")
+    _exigir_cliente_dueno(usuario, inc)
 
     estado_actual = inc.ESTADO.value if hasattr(inc.ESTADO, "value") else str(inc.ESTADO)
     if estado_actual in ("ATENDIDO", "CANCELADO"):

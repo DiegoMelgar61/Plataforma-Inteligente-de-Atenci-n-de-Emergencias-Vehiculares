@@ -1,7 +1,4 @@
-import uuid
-
 from sqlalchemy import DECIMAL, Boolean, Column, DateTime, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
@@ -9,10 +6,10 @@ from app.core.database import Base
 class ASIGNACIONES(Base):
     __tablename__ = "asignaciones"
 
-    ID_ASIGNACION = Column("id_asignacion", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente"), unique=True)
-    ID_TALLER = Column("id_taller", UUID(as_uuid=True), ForeignKey("talleres.id_taller"))
-    ID_TECNICO = Column("id_tecnico", UUID(as_uuid=True), ForeignKey("tecnicos.id_tecnico"))
+    ID_ASIGNACION = Column("id_asignacion", Integer, primary_key=True)
+    ID_INCIDENTE = Column("id_incidente", Integer, ForeignKey("incidentes.id_incidente"), unique=True)
+    ID_TALLER = Column("id_taller", Integer, ForeignKey("talleres.id_taller"))
+    ID_TECNICO = Column("id_tecnico", Integer, ForeignKey("tecnicos.id_tecnico"))
     FECHA_ASIGNACION = Column("fecha_asignacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACEPTACION = Column("fecha_aceptacion", DateTime(timezone=True))
     FECHA_RECHAZO = Column("fecha_rechazo", DateTime(timezone=True))

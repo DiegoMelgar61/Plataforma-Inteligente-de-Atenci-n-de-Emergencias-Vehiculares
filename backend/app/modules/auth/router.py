@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.workshops.models import TALLERES
 from app.modules.users.models import USUARIOS
 from app.modules.auth.schemas import UserCreate, UserLogin, Token
 from app.core.security import hashear_contrasena, verificar_contrasena, crear_access_token
-from app.core.config import settings
 from app.modules.bitacora import service as bitacora_service
 from app.modules.tenants.service import TENANT_DEFAULT_ID
 
@@ -22,27 +20,19 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
     hashed_password = hashear_contrasena(user.contrasena)
-    id_tenant_asignado = user.id_tenant or TENANT_DEFAULT_ID
+    id_tenant_asignado = TENANT_DEFAULT_ID
 
     nuevo_usuario = USUARIOS(
         CORREO_ELECTRONICO=user.correo_electronico,
         HASH_CONTRASENA=hashed_password,
         NOMBRE_COMPLETO=user.nombre_completo,
         TELEFONO=user.telefono,
-        ROL=user.rol,
+        ROL="CLIENTE",
         ID_TENANT=id_tenant_asignado,
     )
     db.add(nuevo_usuario)
     db.commit()
     db.refresh(nuevo_usuario)
-
-    # Para rol TALLER: si ya existe un taller vinculado a este usuario, propagar id_tenant
-    if user.rol == "TALLER":
-        taller = db.query(TALLERES).filter(TALLERES.ID_USUARIO == nuevo_usuario.ID_USUARIO).first()
-        if taller and taller.ID_TENANT is None:
-            taller.ID_TENANT = id_tenant_asignado
-            db.add(taller)
-            db.commit()
 
     access_token = crear_access_token(
         data={
@@ -72,6 +62,8 @@ def login(user: UserLogin, request: Request = None, db: Session = Depends(get_db
             detail="Credenciales incorrectas",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not usuario.ACTIVO or usuario.FECHA_ELIMINACION is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
 
     id_tenant = usuario.ID_TENANT or TENANT_DEFAULT_ID
 

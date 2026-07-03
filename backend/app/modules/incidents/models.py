@@ -1,9 +1,7 @@
 from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, ForeignKey, Enum, DECIMAL, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geography
 from app.core.database import Base
-import uuid
 
 # ==================== ENUMS ====================
 EstadoIncidenteEnum = Enum('PENDIENTE', 'EN_PROCESO_IA', 'CLASIFICADO', 'ASIGNADO',
@@ -19,9 +17,9 @@ TipoEvidenciaEnum = Enum('IMAGEN', 'AUDIO', 'TEXTO', name='tipo_evidencia_enum')
 class INCIDENTES(Base):
     __tablename__ = "incidentes"
 
-    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"), nullable=False)
-    ID_VEHICULO = Column("id_vehiculo", UUID(as_uuid=True), ForeignKey("vehiculos.id_vehiculo"))
+    ID_INCIDENTE = Column("id_incidente", Integer, primary_key=True)
+    ID_USUARIO_CLIENTE = Column("id_usuario_cliente", Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
+    ID_VEHICULO = Column("id_vehiculo", Integer, ForeignKey("vehiculos.id_vehiculo"))
     UBICACION = Column("ubicacion", Geography(geometry_type='POINT', srid=4326), nullable=False)
     ESTADO = Column("estado", EstadoIncidenteEnum, default="PENDIENTE")
     PRIORIDAD = Column("prioridad", PrioridadEnum, default="MEDIA")
@@ -31,15 +29,15 @@ class INCIDENTES(Base):
     ID_LOCAL = Column("id_local", String(36), nullable=True)
     FECHA_CREACION = Column("fecha_creacion", DateTime(timezone=True), server_default=func.now())
     FECHA_ACTUALIZACION = Column("fecha_actualizacion", DateTime(timezone=True), onupdate=func.now())
-    ID_TENANT = Column("id_tenant", UUID(as_uuid=True), ForeignKey("tenants.id_tenant"), nullable=True)
+    ID_TENANT = Column("id_tenant", Integer, ForeignKey("tenants.id_tenant"), nullable=True)
     tenant = relationship("Tenant", foreign_keys=[ID_TENANT])
 
 
 class EVIDENCIAS(Base):
     __tablename__ = "evidencias"
 
-    ID_EVIDENCIA = Column("id_evidencia", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente", ondelete="CASCADE"), nullable=False)
+    ID_EVIDENCIA = Column("id_evidencia", Integer, primary_key=True)
+    ID_INCIDENTE = Column("id_incidente", Integer, ForeignKey("incidentes.id_incidente", ondelete="CASCADE"), nullable=False)
     TIPO = Column("tipo", TipoEvidenciaEnum, nullable=False)
     URL_ARCHIVO = Column("url_archivo", Text, nullable=False)
     CLAVE_ARCHIVO = Column("clave_archivo", Text)
@@ -51,11 +49,11 @@ class EVIDENCIAS(Base):
 class HISTORIAL_INCIDENTES(Base):
     __tablename__ = "historial_incidentes"
 
-    ID_HISTORIAL = Column("id_historial", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ID_INCIDENTE = Column("id_incidente", UUID(as_uuid=True), ForeignKey("incidentes.id_incidente", ondelete="CASCADE"), nullable=False)
+    ID_HISTORIAL = Column("id_historial", Integer, primary_key=True)
+    ID_INCIDENTE = Column("id_incidente", Integer, ForeignKey("incidentes.id_incidente", ondelete="CASCADE"), nullable=False)
     ESTADO = Column("estado", EstadoIncidenteEnum, nullable=False)
     NOTAS = Column("notas", Text)
-    ID_USUARIO_CAMBIO = Column("id_usuario_cambio", UUID(as_uuid=True), ForeignKey("usuarios.id_usuario"))
+    ID_USUARIO_CAMBIO = Column("id_usuario_cambio", Integer, ForeignKey("usuarios.id_usuario"))
     FECHA_CAMBIO = Column("fecha_cambio", DateTime(timezone=True), server_default=func.now())
 
 

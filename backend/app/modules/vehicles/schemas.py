@@ -1,5 +1,4 @@
 from datetime import datetime
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,8 +26,8 @@ class VehicleResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id_vehiculo: UUID = Field(validation_alias="ID_VEHICULO")
-    id_usuario_cliente: UUID = Field(validation_alias="ID_USUARIO_CLIENTE")
+    id_vehiculo: int = Field(validation_alias="ID_VEHICULO")
+    id_usuario_cliente: int = Field(validation_alias="ID_USUARIO_CLIENTE")
     marca: str | None = Field(validation_alias="MARCA")
     modelo: str | None = Field(validation_alias="MODELO")
     anio: int | None = Field(validation_alias="ANIO")

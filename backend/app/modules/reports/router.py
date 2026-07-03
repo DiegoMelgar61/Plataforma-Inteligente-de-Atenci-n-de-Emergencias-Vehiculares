@@ -3,8 +3,6 @@ Reportes personalizados (xlsx / pdf) por búsqueda. Solo TALLER (su tenant) y AD
 """
 import logging
 from datetime import datetime
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -40,7 +38,7 @@ def reporte_incidentes(
     clasificacion: str | None = None,
     desde: datetime | None = None,
     hasta: datetime | None = None,
-    id_tenant: UUID | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
+    id_tenant: int | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
     db: Session = Depends(get_db),
     usuario: USUARIOS = Depends(get_current_active_user),
 ):

@@ -3,8 +3,6 @@ Bitácora de auditoría (consulta). Solo TALLER (su tenant) y ADMIN (todo o por 
 """
 import logging
 from datetime import datetime
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -36,8 +34,8 @@ def _rol(usuario: USUARIOS) -> str:
 def listar_bitacora(
     accion: str | None = Query(None, description="Filtrar por acción"),
     entidad: str | None = Query(None, description="Filtrar por entidad"),
-    id_usuario: UUID | None = Query(None, description="Filtrar por usuario"),
-    id_tenant: UUID | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
+    id_usuario: int | None = Query(None, description="Filtrar por usuario"),
+    id_tenant: int | None = Query(None, description="Filtrar por tenant (solo ADMIN)"),
     desde: datetime | None = Query(None, description="Fecha desde (ISO)"),
     hasta: datetime | None = Query(None, description="Fecha hasta (ISO)"),
     limit: int = Query(100, ge=1, le=500),
