@@ -2,7 +2,7 @@ import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { IncidentsService } from '../../core/services/incidents.service';
+import { IncidentsService } from '../requests/incidents.service';
 import { ReportsService } from './reports.service';
 import { Incident } from '../../models';
 

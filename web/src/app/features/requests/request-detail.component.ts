@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { IncidentsService } from '../../core/services/incidents.service';
+import { IncidentsService } from './incidents.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { WebSocketService, WsMessage } from '../../core/services/websocket.service';
 import { AuthService } from '../../core/services/auth.service';
