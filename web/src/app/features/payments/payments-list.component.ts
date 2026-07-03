@@ -2,10 +2,10 @@ import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { PaymentsService } from '../../core/services/payments.service';
+import { PaymentsService } from './payments.service';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Payment, PaymentStats } from '../../models/payment.model';
+import { Payment, PaymentStats } from './payment.model';
 import { PaymentConfirmDialogComponent } from './payment-confirm-dialog.component';
 
 @Component({

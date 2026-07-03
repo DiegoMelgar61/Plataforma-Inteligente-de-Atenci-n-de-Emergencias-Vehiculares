@@ -1,8 +1,8 @@
 import { Component, Input, Output, EventEmitter, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PaymentsService } from '../../core/services/payments.service';
-import { Payment } from '../../models/payment.model';
+import { PaymentsService } from './payments.service';
+import { Payment } from './payment.model';
 
 @Component({
   selector: 'app-payment-confirm-dialog',
