@@ -81,7 +81,7 @@ def _solo_cliente(usuario: USUARIOS) -> None:
 
 def _bloquear_si_multa_pendiente(db: Session, usuario: USUARIOS) -> None:
     """Impide solicitar servicios si el cliente tiene una multa sin pagar."""
-    from app.application.use_cases.payment_service import cliente_tiene_multa_pendiente
+    from app.modules.payments.service import cliente_tiene_multa_pendiente
 
     if cliente_tiene_multa_pendiente(db, usuario.ID_USUARIO):
         raise HTTPException(
@@ -606,7 +606,7 @@ def actualizar_estado_incidente(
     if nuevo_estado == "ATENDIDO":
         try:
             from app.models.models import ASIGNACIONES
-            from app.application.use_cases import payment_service
+            from app.modules.payments import service as payment_service
             asignacion = db.query(ASIGNACIONES).filter(ASIGNACIONES.ID_INCIDENTE == id_incidente).first()
             if asignacion:
                 pago = payment_service.crear_pago_pendiente(db, inc, asignacion)

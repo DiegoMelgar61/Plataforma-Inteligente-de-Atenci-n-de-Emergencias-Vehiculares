@@ -177,7 +177,7 @@ def asignar_taller_automaticamente(db: Session, incidente_id: UUID) -> ASIGNACIO
         )
 
         # Cotización automática (precio generado por reglas, no por el taller).
-        from app.application.use_cases import payment_service
+        from app.modules.payments import service as payment_service
         clasificacion_txt = (
             incidente.CLASIFICACION.value if hasattr(incidente.CLASIFICACION, "value")
             else str(incidente.CLASIFICACION)
@@ -240,7 +240,7 @@ def generar_ofertas(
     :return: lista de dicts {id_taller, nombre_taller, distancia_km, monto,
              descripcion, id_tecnico_sugerido}, ordenada por distancia.
     """
-    from app.application.use_cases import payment_service
+    from app.modules.payments import service as payment_service
 
     nueva_prioridad = calcular_prioridad(incidente)
     clasif = (
@@ -334,7 +334,7 @@ def seleccionar_taller(
     except Exception:
         logger.exception("No se pudo calcular distancia al seleccionar taller %s", id_taller)
 
-    from app.application.use_cases import payment_service
+    from app.modules.payments import service as payment_service
     nueva_prioridad = calcular_prioridad(incidente)
     clasif = (
         incidente.CLASIFICACION.value if hasattr(incidente.CLASIFICACION, "value")
@@ -427,7 +427,7 @@ def cancelar_por_cliente(db: Session, incidente_id: UUID) -> dict | None:
 
         # Multa si el servicio ya estaba en camino/proceso.
         if con_penalidad:
-            from app.application.use_cases import payment_service
+            from app.modules.payments import service as payment_service
             multa = payment_service.crear_multa_cancelacion(db, incidente, asignacion)
             monto_multa = float(multa.MONTO)
 

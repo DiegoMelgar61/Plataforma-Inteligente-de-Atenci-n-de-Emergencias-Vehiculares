@@ -295,7 +295,7 @@ class TestMaquinaEstados:
         u_tec, tec, inc, _ = self._setup(db, "t3", "EN_PROCESO")
         url = f"/tecnicos/incidente/{inc.ID_INCIDENTE}/estado"
 
-        with patch("app.application.use_cases.payment_service.crear_pago_pendiente") as mock_pay:
+        with patch("app.modules.payments.service.crear_pago_pendiente") as mock_pay:
             mock_pay.return_value = MagicMock(ID_PAGO=uuid.uuid4(), MONTO=100)
             resp = client.patch(
                 url, json={"nuevo_estado": "ATENDIDO"}, headers=_auth_headers(u_tec)

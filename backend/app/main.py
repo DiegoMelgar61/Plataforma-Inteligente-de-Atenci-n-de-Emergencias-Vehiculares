@@ -19,7 +19,7 @@ from app.presentation.api.v1.routers.ai_processing import router as ai_processin
 from app.presentation.api.v1.routers.incidents import router as incidents_router
 from app.presentation.api.v1.routers.assignments import router as assignments_router
 from app.modules.notifications.router import router as notifications_router
-from app.presentation.api.v1.routers.payments import router as payments_router
+from app.modules.payments.router import router as payments_router
 from app.modules.tracking.router import router as tracking_router
 from app.modules.stats.router import router as stats_router
 from app.modules.bitacora.router import router as bitacora_router

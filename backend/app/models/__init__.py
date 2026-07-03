@@ -7,3 +7,4 @@ import app.modules.users.models  # noqa: F401
 import app.modules.vehicles.models  # noqa: F401
 import app.modules.workshops.models  # noqa: F401
 import app.modules.technicians.models  # noqa: F401
+import app.modules.payments.models  # noqa: F401

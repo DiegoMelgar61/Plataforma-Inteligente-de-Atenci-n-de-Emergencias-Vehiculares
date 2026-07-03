@@ -271,7 +271,7 @@ def actualizar_estado_incidente_tecnico(
 
         # Crear pago y notificar (reutiliza lógica existente)
         try:
-            from app.application.use_cases import payment_service
+            from app.modules.payments import service as payment_service
             pago = payment_service.crear_pago_pendiente(db, incidente, asignacion)
             _broadcast({
                 "tipo": "pago_creado",
