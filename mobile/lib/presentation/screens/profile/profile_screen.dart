@@ -142,7 +142,8 @@ class ProfileScreen extends ConsumerWidget {
                       color: colorScheme.primary),
                   title: const Text('Mis vehículos'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
+                  onTap: () => Navigator.pushNamed(
+                      context, AppConstants.routeVehicles),
                 ),
               ],
             ),

@@ -35,7 +35,7 @@ class Evidence {
   });
 
   factory Evidence.fromJson(Map<String, dynamic> json) => Evidence(
-        idEvidencia: json['id_evidencia'] as String? ?? '',
+        idEvidencia: _parseInt(json['id_evidencia']).toString(),
         idIncidente: _parseInt(json['id_incidente']),
         tipo: json['tipo'] as String? ?? '',
         urlArchivo: json['url_archivo'] as String? ?? '',
@@ -87,7 +87,7 @@ class Incident {
   factory Incident.fromJson(Map<String, dynamic> json) => Incident(
         idIncidente: _parseInt(json['id_incidente']),
         idUsuarioCliente: _parseInt(json['id_usuario_cliente']),
-        idVehiculo: json['id_vehiculo'] as String?,
+        idVehiculo: (json['id_vehiculo'] as num?)?.toString(),
         latitud: (json['latitud'] as num?)?.toDouble(),
         longitud: (json['longitud'] as num?)?.toDouble(),
         estado: json['estado'] as String? ?? 'PENDIENTE',
