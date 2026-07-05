@@ -57,17 +57,28 @@ def _enum_a_texto(valor) -> str:
 def _ubicacion_texto(db: Session, incidente: INCIDENTES) -> str:
     """Extrae 'lat, lon' de la columna Geography de forma defensiva."""
     try:
-        from geoalchemy2.functions import ST_X, ST_Y
+        from sqlalchemy import text
 
-        fila = (
-            db.query(ST_Y(INCIDENTES.UBICACION), ST_X(INCIDENTES.UBICACION))
-            .filter(INCIDENTES.ID_INCIDENTE == incidente.ID_INCIDENTE)
-            .first()
-        )
+        # ST_X/ST_Y solo aceptan geometry; la columna es geography y REQUIERE
+        # el cast explícito (sin él, PostGIS falla y envenena la transacción).
+        fila = db.execute(
+            text(
+                "SELECT ST_Y(ubicacion::geometry) AS lat, "
+                "ST_X(ubicacion::geometry) AS lon "
+                "FROM incidentes WHERE id_incidente = :id"
+            ),
+            {"id": incidente.ID_INCIDENTE},
+        ).first()
         if fila and fila[0] is not None and fila[1] is not None:
             return f"{float(fila[0]):.5f}, {float(fila[1]):.5f}"
     except Exception:  # pragma: no cover - PostGIS no disponible (p.ej. SQLite)
-        pass
+        # En psycopg2, atrapar la excepción NO limpia la transacción fallida:
+        # sin este rollback, toda consulta posterior de la sesión muere con
+        # InFailedSqlTransaction (visto en producción).
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return "—"
 
 
@@ -199,6 +210,12 @@ Contexto del incidente:
             "Falla al generar contenido IA del informe para incidente %s",
             incidente.ID_INCIDENTE,
         )
+        # Si el fallo fue de una consulta SQL, la transacción queda envenenada
+        # en psycopg2; limpiar acá para que la persistencia posterior funcione.
+        try:
+            db.rollback()
+        except Exception:
+            pass
         error_ia = f"IA: {type(exc).__name__}: {exc}"
         return {clave: _TEXTO_RESPALDO for clave in claves}, False, error_ia
 
@@ -354,8 +371,10 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
     Genera el informe de servicio del incidente UNA sola vez y lo persiste con
     su ciclo de vida en la tabla `informes_servicio` (fuente de verdad):
 
-    - Si ya existe un registro para el incidente, lo devuelve sin regenerar
-      nada (idempotente ante re-transiciones a ATENDIDO o reingresos).
+    - Si ya existe un registro LISTO para el incidente, lo devuelve sin
+      regenerar nada (idempotente ante re-transiciones a ATENDIDO o reingresos).
+    - Si existe pero quedó GENERANDO (intento interrumpido) o FALLIDO, retoma
+      la generación sobre la MISMA fila — nunca se duplica el registro.
     - Si no existe, crea la fila en estado GENERANDO y al terminar la pasa a
       LISTO (con el JSON de la IA y la referencia al PDF) o a FALLIDO (con el
       detalle del error registrado — el fallo deja de ser silencioso).
@@ -364,20 +383,6 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
     si ni siquiera pudo crearse el registro), sin romper la transición.
     """
     try:
-        # Idempotencia: un informe por incidente, nunca se regenera.
-        informe = (
-            db.query(INFORMES_SERVICIO)
-            .filter(INFORMES_SERVICIO.ID_INCIDENTE == id_incidente)
-            .first()
-        )
-        if informe is not None:
-            logger.info(
-                "Informe ya existente para incidente %s (estado=%s); no se regenera",
-                id_incidente,
-                informe.ESTADO,
-            )
-            return informe
-
         incidente = (
             db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
         )
@@ -385,14 +390,38 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
             logger.warning("Informe: incidente %s no encontrado", id_incidente)
             return None
 
-        informe = INFORMES_SERVICIO(
-            ID_INCIDENTE=id_incidente,
-            ID_TENANT=incidente.ID_TENANT,
-            ESTADO="GENERANDO",
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == id_incidente)
+            .first()
         )
-        db.add(informe)
-        db.commit()
-        db.refresh(informe)
+        if informe is not None:
+            # Idempotencia: un informe LISTO nunca se regenera.
+            if _enum_a_texto(informe.ESTADO) == "LISTO":
+                logger.info(
+                    "Informe ya LISTO para incidente %s; no se regenera", id_incidente
+                )
+                return informe
+            # GENERANDO (intento interrumpido) o FALLIDO: retomar sobre la
+            # misma fila para que el informe no quede atascado para siempre.
+            logger.info(
+                "Retomando informe del incidente %s (estado previo=%s)",
+                id_incidente,
+                informe.ESTADO,
+            )
+            informe.ESTADO = "GENERANDO"
+            informe.ERROR_DETALLE = None
+            db.commit()
+            db.refresh(informe)
+        else:
+            informe = INFORMES_SERVICIO(
+                ID_INCIDENTE=id_incidente,
+                ID_TENANT=incidente.ID_TENANT,
+                ESTADO="GENERANDO",
+            )
+            db.add(informe)
+            db.commit()
+            db.refresh(informe)
     except Exception:
         logger.exception(
             "Error al registrar el informe de servicio para incidente %s",

@@ -267,6 +267,62 @@ class TestGeneracionInforme:
         )
         assert total == 1
 
+    def test_retoma_informe_fallido_sin_duplicar_fila(self, db):
+        u_cli = _make_user(db, "cli_inf9@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        db.add(
+            INFORMES_SERVICIO(
+                ID_INCIDENTE=inc.ID_INCIDENTE,
+                ID_TENANT=1,
+                ESTADO="FALLIDO",
+                ERROR_DETALLE="RuntimeError: fallo previo",
+            )
+        )
+        db.commit()
+
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ):
+            informe = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+
+        assert informe is not None
+        assert str(informe.ESTADO) == "LISTO"
+        assert informe.ERROR_DETALLE is None
+        assert informe.URL_ARCHIVO is not None
+        total = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == inc.ID_INCIDENTE)
+            .count()
+        )
+        assert total == 1
+
+    def test_retoma_informe_generando_interrumpido(self, db):
+        u_cli = _make_user(db, "cli_inf10@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        # Fila zombi: un intento anterior quedó en GENERANDO (p.ej. transacción
+        # envenenada o proceso caído) sin llegar nunca a LISTO/FALLIDO.
+        db.add(
+            INFORMES_SERVICIO(
+                ID_INCIDENTE=inc.ID_INCIDENTE,
+                ID_TENANT=1,
+                ESTADO="GENERANDO",
+            )
+        )
+        db.commit()
+
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ):
+            informe = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+
+        assert informe is not None
+        assert str(informe.ESTADO) == "LISTO"
+        assert informe.URL_ARCHIVO is not None
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # TEST 2 — Endpoint de consulta + aislamiento por propiedad/tenant
