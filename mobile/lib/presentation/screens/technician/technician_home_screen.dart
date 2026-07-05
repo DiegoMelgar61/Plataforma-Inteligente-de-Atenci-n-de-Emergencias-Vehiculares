@@ -360,6 +360,10 @@ class _OrdenActivaView extends ConsumerWidget {
 
         // ── Ubicación del incidente ──────────────────────────────────────────
         _UbicacionCard(asignacion: asignacion),
+        const SizedBox(height: 12),
+
+        // ── Copiloto IA ───────────────────────────────────────────────────────
+        _CopilotEntry(incidentId: asignacion.idIncidente),
         const SizedBox(height: 24),
 
         // ── Tracking GPS ─────────────────────────────────────────────────────
@@ -629,6 +633,41 @@ class _UbicacionCard extends StatelessWidget {
         SnackBar(content: Text('No se pudo abrir el mapa. Coordenadas: $lat, $lng')),
       );
     }
+  }
+}
+
+class _CopilotEntry extends StatelessWidget {
+  final int incidentId;
+  const _CopilotEntry({required this.incidentId});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.secondaryContainer,
+      child: ListTile(
+        leading:
+            Icon(Icons.build_circle, color: colorScheme.onSecondaryContainer),
+        title: Text(
+          'Copiloto IA',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSecondaryContainer,
+          ),
+        ),
+        subtitle: Text(
+          'Sugerencias de herramientas y repuestos para este trabajo',
+          style: TextStyle(color: colorScheme.onSecondaryContainer),
+        ),
+        trailing: Icon(Icons.arrow_forward_ios,
+            size: 16, color: colorScheme.onSecondaryContainer),
+        onTap: () => Navigator.pushNamed(
+          context,
+          AppConstants.routeTechnicianCopilot,
+          arguments: incidentId,
+        ),
+      ),
+    );
   }
 }
 
