@@ -14,6 +14,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from geoalchemy2.elements import WKTElement
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -172,6 +173,19 @@ def _nombre_seguro(nombre: str | None) -> str:
 def _url_temporal_evidencia(id_evidencia: int) -> str:
     """URL lógica provisional (reemplazar por bucket/CDN en producción)."""
     return f"temporal:/evidencias/{id_evidencia}"
+
+
+def _reservar_id_evidencia(db: Session) -> int:
+    """Reserve an evidence ID before INSERT so url_archivo can remain NOT NULL."""
+    return int(
+        db.execute(
+            text(
+                "SELECT nextval("
+                "pg_get_serial_sequence('evidencias', 'id_evidencia')::regclass"
+                ")"
+            )
+        ).scalar_one()
+    )
 
 
 def _construir_url_evidencia(ev: EVIDENCIAS) -> str:
@@ -342,15 +356,15 @@ async def reportar_incidente_multimodal(
             ruta = destino_dir / nombre_disco
             contenido = await img.read()
             ruta.write_bytes(contenido)
+            id_evidencia = _reservar_id_evidencia(db)
+            url_tmp = _url_temporal_evidencia(id_evidencia)
             ev = EVIDENCIAS(
+                ID_EVIDENCIA=id_evidencia,
                 ID_INCIDENTE=incidente.ID_INCIDENTE,
                 TIPO="IMAGEN",
+                URL_ARCHIVO=url_tmp,
                 CLAVE_ARCHIVO=f"evidencias/{incidente.ID_INCIDENTE}/{nombre_disco}",
             )
-            db.add(ev)
-            db.flush()
-            url_tmp = _url_temporal_evidencia(ev.ID_EVIDENCIA)
-            ev.URL_ARCHIVO = url_tmp
             db.add(ev)
             db.flush()
             subidas.append(
@@ -374,15 +388,15 @@ async def reportar_incidente_multimodal(
             ruta = destino_dir / nombre_disco
             contenido = await audio.read()
             ruta.write_bytes(contenido)
+            id_evidencia = _reservar_id_evidencia(db)
+            url_tmp = _url_temporal_evidencia(id_evidencia)
             ev = EVIDENCIAS(
+                ID_EVIDENCIA=id_evidencia,
                 ID_INCIDENTE=incidente.ID_INCIDENTE,
                 TIPO="AUDIO",
+                URL_ARCHIVO=url_tmp,
                 CLAVE_ARCHIVO=f"evidencias/{incidente.ID_INCIDENTE}/{nombre_disco}",
             )
-            db.add(ev)
-            db.flush()
-            url_tmp = _url_temporal_evidencia(ev.ID_EVIDENCIA)
-            ev.URL_ARCHIVO = url_tmp
             db.add(ev)
             db.flush()
             subidas.append(
@@ -395,16 +409,16 @@ async def reportar_incidente_multimodal(
             )
 
         if tiene_texto:
+            id_evidencia = _reservar_id_evidencia(db)
+            url_tmp = _url_temporal_evidencia(id_evidencia)
             ev_txt = EVIDENCIAS(
+                ID_EVIDENCIA=id_evidencia,
                 ID_INCIDENTE=incidente.ID_INCIDENTE,
                 TIPO="TEXTO",
+                URL_ARCHIVO=url_tmp,
                 CLAVE_ARCHIVO=None,
                 TEXTO_TRANSCRITO=texto_descripcion.strip(),
             )
-            db.add(ev_txt)
-            db.flush()
-            url_tmp = _url_temporal_evidencia(ev_txt.ID_EVIDENCIA)
-            ev_txt.URL_ARCHIVO = url_tmp
             db.add(ev_txt)
             db.flush()
             subidas.append(
@@ -524,17 +538,17 @@ def sincronizar_incidentes(
             db.flush()
 
             if item.texto_descripcion and item.texto_descripcion.strip():
+                id_evidencia = _reservar_id_evidencia(db)
                 ev_txt = EVIDENCIAS(
+                    ID_EVIDENCIA=id_evidencia,
                     ID_INCIDENTE=incidente.ID_INCIDENTE,
                     TIPO="TEXTO",
+                    URL_ARCHIVO=_url_temporal_evidencia(id_evidencia),
                     CLAVE_ARCHIVO=None,
                     TEXTO_TRANSCRITO=item.texto_descripcion.strip(),
                 )
                 db.add(ev_txt)
             db.flush()
-            if item.texto_descripcion and item.texto_descripcion.strip():
-                ev_txt.URL_ARCHIVO = _url_temporal_evidencia(ev_txt.ID_EVIDENCIA)
-                db.add(ev_txt)
 
             db.commit()
 
