@@ -25,6 +25,7 @@ from app.modules.bitacora.router import router as bitacora_router
 from app.modules.reports.router import router as reports_router
 from app.modules.backups.router import router as backups_router
 from app.modules.dashboards_ia.router import router as dashboards_ia_router
+from app.modules.chat.router import router as chat_router
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,7 @@ app.include_router(bitacora_router)
 app.include_router(reports_router)
 app.include_router(backups_router)
 app.include_router(dashboards_ia_router)
+app.include_router(chat_router)
 
 
 @app.exception_handler(Exception)

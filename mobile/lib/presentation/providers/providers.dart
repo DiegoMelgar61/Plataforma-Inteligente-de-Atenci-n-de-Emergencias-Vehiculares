@@ -10,3 +10,4 @@ export 'notification_providers.dart';
 export 'report_providers.dart';
 export 'technician_providers.dart';
 export 'sync_providers.dart';
+export 'chat_providers.dart';

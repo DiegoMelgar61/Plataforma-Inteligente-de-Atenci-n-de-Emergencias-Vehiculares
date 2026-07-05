@@ -146,6 +146,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      ref.read(authProvider.notifier).clearError();
+                      Navigator.pushReplacementNamed(
+                          context, AppConstants.routeRegister);
+                    },
+                    child: const Text('¿No tenés cuenta? Registrate'),
+                  ),
+                ),
               ],
             ),
           ),

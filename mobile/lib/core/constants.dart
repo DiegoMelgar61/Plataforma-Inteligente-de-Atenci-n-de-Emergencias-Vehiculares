@@ -19,6 +19,7 @@ class AppConstants {
   // Named routes
   static const String routeSplash = '/';
   static const String routeLogin = '/login';
+  static const String routeRegister = '/register';
   static const String routeHome = '/home';
   static const String routeTechnicianHome = '/technician-home';
   static const String routeReport = '/report';
@@ -28,6 +29,10 @@ class AppConstants {
   static const String routeIncidentDetail = '/incident-detail';
   static const String routeMap = '/map';
   static const String routeProfile = '/profile';
+  static const String routeVehicles = '/vehicles';
+  static const String routeAddVehicle = '/add-vehicle';
   static const String routeMyPayments = '/my-payments';
   static const String routeMakePayment = '/make-payment';
+  static const String routeEmergencyChat = '/emergency-chat';
+  static const String routeTechnicianCopilot = '/technician-copilot';
 }

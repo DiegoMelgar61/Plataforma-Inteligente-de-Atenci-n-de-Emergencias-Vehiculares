@@ -7,3 +7,4 @@ export 'vehicle_repository.dart';
 export 'technician_repository.dart';
 export 'payments_repository.dart';
 export 'sync_repository.dart';
+export 'chat_repository.dart';

@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api_client.dart';
 import '../../../core/config.dart';
+import '../../../core/constants.dart';
 import '../../../core/extensions.dart';
 import '../../../data/models/models.dart';
 import '../../providers/providers.dart';
@@ -145,6 +146,10 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         _StatusCard(incident: incident),
+        if (_chatDisponible(incident.estado)) ...[
+          const SizedBox(height: 16),
+          _EmergencyChatEntry(incidentId: widget.incidentId),
+        ],
         if (incident.estado == 'CLASIFICADO') ...[
           _OffersSection(incidentId: widget.incidentId),
           const SizedBox(height: 16),
@@ -194,6 +199,11 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
 
   bool _puedeCancelar(String estado) =>
       _estadosCancelables.contains(estado.toUpperCase());
+
+  static const _estadosChatHabilitado = {'ASIGNADO', 'EN_CAMINO', 'EN_PROCESO'};
+
+  bool _chatDisponible(String estado) =>
+      _estadosChatHabilitado.contains(estado.toUpperCase());
 
   Widget _buildCancelButton(Incident incident) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -305,6 +315,40 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
             : 'Cotización rechazada. Buscaremos otra asignación.';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _EmergencyChatEntry extends StatelessWidget {
+  final int incidentId;
+  const _EmergencyChatEntry({required this.incidentId});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.primaryContainer,
+      child: ListTile(
+        leading: Icon(Icons.support_agent, color: colorScheme.onPrimaryContainer),
+        title: Text(
+          'Chat de emergencia',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onPrimaryContainer,
+          ),
+        ),
+        subtitle: Text(
+          'Hablá con el asistente de IA mientras el técnico llega',
+          style: TextStyle(color: colorScheme.onPrimaryContainer),
+        ),
+        trailing: Icon(Icons.arrow_forward_ios,
+            size: 16, color: colorScheme.onPrimaryContainer),
+        onTap: () => Navigator.pushNamed(
+          context,
+          AppConstants.routeEmergencyChat,
+          arguments: incidentId,
+        ),
+      ),
+    );
   }
 }
 

@@ -25,21 +25,23 @@ class AuthRepository {
     }
   }
 
-  Future<void> register({
+  Future<AuthResponse> register({
     required String email,
     required String password,
     required String fullName,
     String? phone,
-    String rol = 'CLIENTE',
   }) async {
     try {
-      await _client.dio.post('/auth/register', data: {
+      final response = await _client.dio.post('/auth/register', data: {
         'correo_electronico': email,
         'contrasena': password,
         'nombre_completo': fullName,
         if (phone != null && phone.isNotEmpty) 'telefono': phone,
-        'rol': rol,
       });
+      final authResponse =
+          AuthResponse.fromJson(response.data as Map<String, dynamic>);
+      await _client.saveToken(authResponse.accessToken);
+      return authResponse;
     } on DioException catch (e) {
       final detail =
           (e.response?.data as Map?)?['detail'] ?? 'Error al registrar';

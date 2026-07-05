@@ -3,6 +3,7 @@ import '../core/constants.dart';
 import '../data/models/models.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/report/report_screen.dart';
 import 'screens/report/offline_report_screen.dart';
@@ -14,6 +15,10 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/payments/my_payments_screen.dart';
 import 'screens/payments/make_payment_screen.dart';
 import 'screens/technician/technician_home_screen.dart';
+import 'screens/technician/copilot_screen.dart';
+import 'screens/vehicles/vehicles_screen.dart';
+import 'screens/vehicles/add_vehicle_screen.dart';
+import 'screens/chat/emergency_chat_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -21,6 +26,7 @@ class AppRoutes {
   static Map<String, WidgetBuilder> get routes => {
         AppConstants.routeSplash: (_) => const SplashScreen(),
         AppConstants.routeLogin: (_) => const LoginScreen(),
+        AppConstants.routeRegister: (_) => const RegisterScreen(),
         AppConstants.routeHome: (_) => const HomeScreen(),
         AppConstants.routeTechnicianHome: (_) => const TechnicianHomeScreen(),
         AppConstants.routeReport: (_) => const ReportScreen(),
@@ -30,6 +36,7 @@ class AppRoutes {
         AppConstants.routeMap: (_) => const MapScreen(),
         AppConstants.routeProfile: (_) => const ProfileScreen(),
         AppConstants.routeMyPayments: (_) => const MyPaymentsScreen(),
+        AppConstants.routeVehicles: (_) => const VehiclesScreen(),
       };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
@@ -40,10 +47,31 @@ class AppRoutes {
         settings: settings,
       );
     }
+    if (settings.name == AppConstants.routeAddVehicle) {
+      final vehicle = settings.arguments as Vehicle?;
+      return MaterialPageRoute(
+        builder: (_) => AddVehicleScreen(existingVehicle: vehicle),
+        settings: settings,
+      );
+    }
     if (settings.name == AppConstants.routeMakePayment) {
       final payment = settings.arguments as Payment;
       return MaterialPageRoute(
         builder: (_) => MakePaymentScreen(payment: payment),
+        settings: settings,
+      );
+    }
+    if (settings.name == AppConstants.routeEmergencyChat) {
+      final incidentId = settings.arguments as int;
+      return MaterialPageRoute(
+        builder: (_) => EmergencyChatScreen(incidentId: incidentId),
+        settings: settings,
+      );
+    }
+    if (settings.name == AppConstants.routeTechnicianCopilot) {
+      final incidentId = settings.arguments as int;
+      return MaterialPageRoute(
+        builder: (_) => CopilotScreen(incidentId: incidentId),
         settings: settings,
       );
     }
