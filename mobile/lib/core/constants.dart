@@ -30,4 +30,5 @@ class AppConstants {
   static const String routeProfile = '/profile';
   static const String routeMyPayments = '/my-payments';
   static const String routeMakePayment = '/make-payment';
+  static const String routeEmergencyChat = '/emergency-chat';
 }
