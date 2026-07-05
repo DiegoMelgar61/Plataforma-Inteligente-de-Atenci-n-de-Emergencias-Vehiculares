@@ -9,3 +9,4 @@ export 'payment_models.dart';
 export 'notification_models.dart';
 export 'sync_models.dart';
 export 'chat_models.dart';
+export 'informe_models.dart';

@@ -655,6 +655,24 @@ def actualizar_estado_incidente(
         except Exception:
             logger.exception("Error al crear pago automático para incidente %s", id_incidente)
 
+        # Generar y guardar el informe de servicio en PDF con IA (background,
+        # mismo patrón tolerante a fallos que el pago: nunca rompe la transición).
+        try:
+            from app.modules.informes import service as informes_service
+            informes_service.generar_y_persistir_informe(db, id_incidente)
+        except Exception:
+            logger.exception("Error al generar informe para incidente %s", id_incidente)
+
+        # Enviar el informe ya generado por correo al cliente (reutiliza el PDF
+        # persistido, no lo regenera). Fallo de correo nunca rompe la transición.
+        try:
+            from app.modules.informes import service as informes_service
+            informes_service.enviar_correo_informe(db, id_incidente)
+        except Exception:
+            logger.exception(
+                "Error al enviar informe por correo para incidente %s", id_incidente
+            )
+
     return _a_lista(inc)
 
 

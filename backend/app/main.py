@@ -26,6 +26,7 @@ from app.modules.reports.router import router as reports_router
 from app.modules.backups.router import router as backups_router
 from app.modules.dashboards_ia.router import router as dashboards_ia_router
 from app.modules.chat.router import router as chat_router
+from app.modules.informes.router import router as informes_router
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     uploads.mkdir(parents=True, exist_ok=True)
     (uploads / "evidencias").mkdir(parents=True, exist_ok=True)
     (uploads / "comprobantes").mkdir(parents=True, exist_ok=True)
+    (uploads / "informes").mkdir(parents=True, exist_ok=True)
     yield
     logger.info("Aplicación detenida")
 
@@ -93,6 +95,7 @@ app.include_router(reports_router)
 app.include_router(backups_router)
 app.include_router(dashboards_ia_router)
 app.include_router(chat_router)
+app.include_router(informes_router)
 
 
 @app.exception_handler(Exception)
@@ -130,6 +133,14 @@ app.mount(
     settings.COMPROBANTES_URL_PREFIX,
     StaticFiles(directory=str(_comprobantes_dir)),
     name="comprobantes_estaticos",
+)
+
+_informes_dir = Path(settings.UPLOADS_DIR) / "informes"
+_informes_dir.mkdir(parents=True, exist_ok=True)
+app.mount(
+    settings.INFORMES_URL_PREFIX,
+    StaticFiles(directory=str(_informes_dir)),
+    name="informes_estaticos",
 )
 
 

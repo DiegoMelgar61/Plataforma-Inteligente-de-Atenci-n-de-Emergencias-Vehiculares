@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api_client.dart';
 import '../../../core/config.dart';
@@ -149,6 +150,10 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
         if (_chatDisponible(incident.estado)) ...[
           const SizedBox(height: 16),
           _EmergencyChatEntry(incidentId: widget.incidentId),
+        ],
+        if (incident.estado.toUpperCase() == 'ATENDIDO') ...[
+          const SizedBox(height: 16),
+          _ServiceReportSection(incidentId: widget.incidentId),
         ],
         if (incident.estado == 'CLASIFICADO') ...[
           _OffersSection(incidentId: widget.incidentId),
@@ -346,6 +351,88 @@ class _EmergencyChatEntry extends StatelessWidget {
           context,
           AppConstants.routeEmergencyChat,
           arguments: incidentId,
+        ),
+      ),
+    );
+  }
+}
+
+class _ServiceReportSection extends ConsumerWidget {
+  final int incidentId;
+  const _ServiceReportSection({required this.incidentId});
+
+  Future<void> _abrirInforme(BuildContext context, String urlArchivo) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}$urlArchivo');
+    final messenger = ScaffoldMessenger.of(context);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el informe de servicio')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final informeAsync = ref.watch(informeServicioProvider(incidentId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.description_outlined, color: colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Informe de servicio',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  informeAsync.when(
+                    loading: () => Text(
+                      'Preparando el informe de tu servicio…',
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                    error: (_, __) => Text(
+                      'El informe aún no está disponible',
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                    data: (informe) => Text(
+                      informe == null
+                          ? 'El informe se está generando, volvé a intentar en unos minutos'
+                          : 'Disponible para ver y descargar',
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            informeAsync.maybeWhen(
+              data: (informe) => informe == null
+                  ? IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Actualizar',
+                      onPressed: () =>
+                          ref.invalidate(informeServicioProvider(incidentId)),
+                    )
+                  : FilledButton.icon(
+                      onPressed: () =>
+                          _abrirInforme(context, informe.urlArchivo),
+                      icon: const Icon(Icons.download_outlined, size: 18),
+                      label: const Text('Ver / Descargar'),
+                    ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
