@@ -171,6 +171,16 @@ def _run_gemini(
     return _clean_json(raw)
 
 
+def run_gemini(
+    *,
+    prompt: str,
+    audio_part: dict | None = None,
+    image_part: dict | None = None,
+) -> dict:
+    """Wrapper público de `_run_gemini` para reutilizar desde otros módulos."""
+    return _run_gemini(prompt=prompt, audio_part=audio_part, image_part=image_part)
+
+
 def _extract_media_parts(
     *,
     evidencias: list[EVIDENCIAS],
