@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     """Prefijo URL público para servir archivos vía StaticFiles en main."""
     COMPROBANTES_URL_PREFIX: str = "/static/comprobantes"
     """Prefijo URL público para servir comprobantes de pago vía StaticFiles en main."""
+    INFORMES_URL_PREFIX: str = "/static/informes"
+    """Prefijo URL público para servir informes de servicio en PDF vía StaticFiles."""
 
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = 'gemini-2.5-flash'

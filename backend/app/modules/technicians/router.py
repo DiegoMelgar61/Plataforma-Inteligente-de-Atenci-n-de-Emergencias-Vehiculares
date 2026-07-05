@@ -284,6 +284,14 @@ def actualizar_estado_incidente_tecnico(
         except Exception:
             logger.exception("Error al crear pago para incidente %s", id_incidente)
 
+        # Generar y guardar el informe de servicio en PDF con IA (background,
+        # mismo patrón tolerante a fallos que el pago: nunca rompe la transición).
+        try:
+            from app.modules.informes import service as informes_service
+            informes_service.generar_y_persistir_informe(db, id_incidente)
+        except Exception:
+            logger.exception("Error al generar informe para incidente %s", id_incidente)
+
         # Cerrar la sesión de tracking GPS del técnico si está activa
         try:
             from app.modules.notifications.service import cerrar_tracking_tecnico
