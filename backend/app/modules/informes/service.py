@@ -614,7 +614,12 @@ def enviar_correo_informe(db: Session, id_incidente: int) -> bool:
             json=payload,
             timeout=20.0,
         )
-        respuesta.raise_for_status()
+        if respuesta.status_code >= 400:
+            # Incluir el cuerpo: Resend explica ahí el motivo exacto (dominio
+            # sin verificar, destinatario no permitido en sandbox, etc.).
+            raise RuntimeError(
+                f"Resend {respuesta.status_code}: {respuesta.text[:300]}"
+            )
 
         informe.CORREO_ENVIADO = True
         db.commit()
