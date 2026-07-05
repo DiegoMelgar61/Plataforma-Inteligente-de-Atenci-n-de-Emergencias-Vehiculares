@@ -144,11 +144,14 @@ def _recolectar_datos_fijos(db: Session, incidente: INCIDENTES) -> dict[str, str
     }
 
 
-def generar_contenido_ia(db: Session, incidente: INCIDENTES) -> tuple[dict[str, str], bool]:
+def generar_contenido_ia(
+    db: Session, incidente: INCIDENTES
+) -> tuple[dict[str, str], bool, str | None]:
     """
     Pide a la IA el texto de cada sección de contenido del informe y devuelve
-    (contenido, generado_por_ia). Nunca lanza: ante cualquier falla devuelve
-    textos de respaldo con generado_por_ia=False.
+    (contenido, generado_por_ia, error_ia). Nunca lanza: ante cualquier falla
+    devuelve textos de respaldo con generado_por_ia=False y el detalle del
+    error en error_ia para que quede registrado (no silencioso).
     """
     claves = [clave for clave, _ in _SECCIONES_IA]
     try:
@@ -190,13 +193,14 @@ Contexto del incidente:
             valor = resultado.get(clave)
             texto = valor.strip() if isinstance(valor, str) else ""
             contenido[clave] = texto or _TEXTO_RESPALDO
-        return contenido, True
-    except Exception:
+        return contenido, True, None
+    except Exception as exc:
         logger.exception(
             "Falla al generar contenido IA del informe para incidente %s",
             incidente.ID_INCIDENTE,
         )
-        return {clave: _TEXTO_RESPALDO for clave in claves}, False
+        error_ia = f"IA: {type(exc).__name__}: {exc}"
+        return {clave: _TEXTO_RESPALDO for clave in claves}, False, error_ia
 
 
 # ─────────────────────────── Construcción del PDF ────────────────────────────
@@ -347,11 +351,33 @@ def construir_pdf_informe(
 
 def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERVICIO | None:
     """
-    Genera el informe de servicio del incidente y lo persiste (archivo en disco
-    + fila de metadatos). Nunca lanza: ante cualquier falla registra y devuelve
-    None para no romper la transición a ATENDIDO.
+    Genera el informe de servicio del incidente UNA sola vez y lo persiste con
+    su ciclo de vida en la tabla `informes_servicio` (fuente de verdad):
+
+    - Si ya existe un registro para el incidente, lo devuelve sin regenerar
+      nada (idempotente ante re-transiciones a ATENDIDO o reingresos).
+    - Si no existe, crea la fila en estado GENERANDO y al terminar la pasa a
+      LISTO (con el JSON de la IA y la referencia al PDF) o a FALLIDO (con el
+      detalle del error registrado — el fallo deja de ser silencioso).
+
+    Nunca lanza: cualquier falla queda en la tabla y devuelve la fila (o None
+    si ni siquiera pudo crearse el registro), sin romper la transición.
     """
     try:
+        # Idempotencia: un informe por incidente, nunca se regenera.
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == id_incidente)
+            .first()
+        )
+        if informe is not None:
+            logger.info(
+                "Informe ya existente para incidente %s (estado=%s); no se regenera",
+                id_incidente,
+                informe.ESTADO,
+            )
+            return informe
+
         incidente = (
             db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
         )
@@ -359,8 +385,28 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
             logger.warning("Informe: incidente %s no encontrado", id_incidente)
             return None
 
+        informe = INFORMES_SERVICIO(
+            ID_INCIDENTE=id_incidente,
+            ID_TENANT=incidente.ID_TENANT,
+            ESTADO="GENERANDO",
+        )
+        db.add(informe)
+        db.commit()
+        db.refresh(informe)
+    except Exception:
+        logger.exception(
+            "Error al registrar el informe de servicio para incidente %s",
+            id_incidente,
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
+
+    try:
         datos_fijos = _recolectar_datos_fijos(db, incidente)
-        contenido_ia, generado_por_ia = generar_contenido_ia(db, incidente)
+        contenido_ia, generado_por_ia, error_ia = generar_contenido_ia(db, incidente)
         pdf_bytes = construir_pdf_informe(
             incidente=incidente,
             datos_fijos=datos_fijos,
@@ -372,22 +418,17 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
         nombre_disco = f"informe_{uuid.uuid4().hex}.pdf"
         (destino_dir / nombre_disco).write_bytes(pdf_bytes)
 
-        clave = f"informes/{id_incidente}/{nombre_disco}"
-        url = f"{settings.INFORMES_URL_PREFIX}/{id_incidente}/{nombre_disco}"
-
-        informe = (
-            db.query(INFORMES_SERVICIO)
-            .filter(INFORMES_SERVICIO.ID_INCIDENTE == id_incidente)
-            .first()
+        informe.ESTADO = "LISTO"
+        informe.CONTENIDO_IA = contenido_ia
+        informe.CLAVE_ARCHIVO = f"informes/{id_incidente}/{nombre_disco}"
+        informe.URL_ARCHIVO = (
+            f"{settings.INFORMES_URL_PREFIX}/{id_incidente}/{nombre_disco}"
         )
-        if informe is None:
-            informe = INFORMES_SERVICIO(ID_INCIDENTE=id_incidente)
-            db.add(informe)
-        informe.URL_ARCHIVO = url
-        informe.CLAVE_ARCHIVO = clave
         informe.GENERADO_POR_IA = generado_por_ia
-        informe.ID_TENANT = incidente.ID_TENANT
-
+        # Si la IA falló pero el PDF salió con textos de respaldo, el informe
+        # queda LISTO pero el error de IA queda registrado igual.
+        informe.ERROR_DETALLE = error_ia
+        informe.FECHA_GENERACION = datetime.now(timezone.utc)
         db.commit()
         db.refresh(informe)
         logger.info(
@@ -396,16 +437,29 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
             generado_por_ia,
         )
         return informe
-    except Exception:
+    except Exception as exc:
         logger.exception(
             "Error al generar/persistir informe de servicio para incidente %s",
             id_incidente,
         )
         try:
             db.rollback()
+            informe.ESTADO = "FALLIDO"
+            informe.ERROR_DETALLE = f"{type(exc).__name__}: {exc}"
+            informe.FECHA_GENERACION = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(informe)
+            return informe
         except Exception:
-            pass
-        return None
+            logger.exception(
+                "No se pudo registrar el fallo del informe para incidente %s",
+                id_incidente,
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            return None
 
 
 # ─────────────────────────── Envío del informe por correo ────────────────────
@@ -425,24 +479,34 @@ def _construir_html_correo(incidente: INCIDENTES, nombre_cliente: str) -> str:
     """.strip()
 
 
+def _registrar_error_correo(db: Session, informe: INFORMES_SERVICIO, detalle: str) -> None:
+    """Deja el fallo del correo registrado en la tabla sin tocar el estado del
+    informe (el PDF sigue LISTO y disponible en la orden)."""
+    try:
+        previo = f"{informe.ERROR_DETALLE} | " if informe.ERROR_DETALLE else ""
+        informe.ERROR_DETALLE = f"{previo}Correo: {detalle}"
+        db.commit()
+    except Exception:
+        logger.exception("No se pudo registrar el error de correo en la tabla")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+
 def enviar_correo_informe(db: Session, id_incidente: int) -> bool:
     """
     Envía por correo el PDF del informe de servicio YA generado y persistido
     (no lo vuelve a generar) al cliente del incidente, vía la API HTTP de Resend.
 
-    Nunca lanza: ante cualquier falla (config faltante, cliente sin correo,
-    Resend caído, etc.) registra el error y devuelve False, de modo que jamás
-    afecta la transición del incidente ni la disponibilidad del PDF en la orden.
+    Solo envía cuando el informe está LISTO y aún no fue enviado
+    (CORREO_ENVIADO marca el envío y lo hace idempotente). Nunca lanza: ante
+    cualquier falla registra el detalle en ERROR_DETALLE de la tabla —el fallo
+    no es silencioso— y devuelve False, sin afectar la transición del incidente
+    ni la disponibilidad del PDF en la orden.
     """
+    informe = None
     try:
-        if not settings.RESEND_API_KEY or not settings.RESEND_FROM_EMAIL:
-            logger.warning(
-                "Envío de informe omitido para incidente %s: RESEND_API_KEY/"
-                "RESEND_FROM_EMAIL no configurados",
-                id_incidente,
-            )
-            return False
-
         informe = (
             db.query(INFORMES_SERVICIO)
             .filter(INFORMES_SERVICIO.ID_INCIDENTE == id_incidente)
@@ -452,6 +516,27 @@ def enviar_correo_informe(db: Session, id_incidente: int) -> bool:
             logger.warning(
                 "No hay informe persistido para incidente %s; no se envía correo",
                 id_incidente,
+            )
+            return False
+
+        if _enum_a_texto(informe.ESTADO) != "LISTO" or not informe.CLAVE_ARCHIVO:
+            logger.warning(
+                "Informe del incidente %s no está LISTO (estado=%s); no se envía correo",
+                id_incidente,
+                informe.ESTADO,
+            )
+            return False
+
+        if informe.CORREO_ENVIADO:
+            logger.info(
+                "Correo del informe ya enviado para incidente %s; no se reenvía",
+                id_incidente,
+            )
+            return True
+
+        if not settings.RESEND_API_KEY or not settings.RESEND_FROM_EMAIL:
+            _registrar_error_correo(
+                db, informe, "RESEND_API_KEY/RESEND_FROM_EMAIL no configurados"
             )
             return False
 
@@ -467,18 +552,14 @@ def enviar_correo_informe(db: Session, id_incidente: int) -> bool:
             .first()
         )
         if cliente is None or not cliente.CORREO_ELECTRONICO:
-            logger.warning(
-                "Cliente sin correo para incidente %s; no se envía informe", id_incidente
-            )
+            _registrar_error_correo(db, informe, "cliente sin correo electrónico")
             return False
 
         # Reutiliza el PDF ya persistido en disco; no se vuelve a generar.
         ruta_pdf = Path(settings.UPLOADS_DIR) / informe.CLAVE_ARCHIVO
         if not ruta_pdf.is_file():
-            logger.warning(
-                "Archivo del informe no encontrado en disco para incidente %s: %s",
-                id_incidente,
-                ruta_pdf,
+            _registrar_error_correo(
+                db, informe, f"archivo no encontrado en disco: {informe.CLAVE_ARCHIVO}"
             )
             return False
 
@@ -505,15 +586,24 @@ def enviar_correo_informe(db: Session, id_incidente: int) -> bool:
             timeout=20.0,
         )
         respuesta.raise_for_status()
+
+        informe.CORREO_ENVIADO = True
+        db.commit()
         logger.info(
             "Informe de servicio enviado por correo para incidente %s a %s",
             id_incidente,
             cliente.CORREO_ELECTRONICO,
         )
         return True
-    except Exception:
+    except Exception as exc:
         logger.exception(
             "Error al enviar por correo el informe de servicio del incidente %s",
             id_incidente,
         )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if informe is not None:
+            _registrar_error_correo(db, informe, f"{type(exc).__name__}: {exc}")
         return False

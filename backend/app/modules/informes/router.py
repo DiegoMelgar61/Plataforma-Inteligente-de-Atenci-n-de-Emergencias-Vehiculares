@@ -26,7 +26,13 @@ logger = logging.getLogger(__name__)
 @router.get(
     "/incidents/{id_incidente}",
     response_model=InformeServicioResponse,
-    summary="Obtener el informe de servicio de un incidente",
+    summary="Obtener el estado y el informe de servicio de un incidente",
+    description=(
+        "Lee el informe desde la tabla `informes_servicio` (fuente de verdad, "
+        "nunca regenera). Devuelve siempre el estado (GENERANDO / LISTO / "
+        "FALLIDO); `url_archivo` está disponible solo cuando el estado es LISTO. "
+        "404 únicamente si la generación todavía no fue disparada."
+    ),
 )
 def obtener_informe_incidente(
     id_incidente: int,

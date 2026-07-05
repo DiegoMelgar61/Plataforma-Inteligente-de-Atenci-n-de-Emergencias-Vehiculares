@@ -186,14 +186,18 @@ class TestGeneracionInforme:
             informe = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
 
         assert informe is not None
+        assert str(informe.ESTADO) == "LISTO"
         assert informe.GENERADO_POR_IA is True
+        assert informe.CONTENIDO_IA == _CONTENIDO_IA_OK
+        assert informe.ERROR_DETALLE is None
+        assert informe.FECHA_GENERACION is not None
         assert informe.URL_ARCHIVO.startswith(settings.INFORMES_URL_PREFIX)
 
         ruta = Path(settings.UPLOADS_DIR) / informe.CLAVE_ARCHIVO
         assert ruta.is_file()
         assert ruta.read_bytes().startswith(b"%PDF")
 
-    def test_fallback_si_ia_falla_no_rompe(self, db):
+    def test_fallback_si_ia_falla_queda_registrado(self, db):
         u_cli = _make_user(db, "cli_inf2@test.com", "CLIENTE")
         inc = _make_incidente(db, u_cli)
         _make_asignacion(db, inc, u_cli)
@@ -206,12 +210,38 @@ class TestGeneracionInforme:
             informe = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
 
         assert informe is not None
+        # El PDF sale igual con textos de respaldo, pero el fallo de la IA ya
+        # no es silencioso: queda registrado en la tabla.
+        assert str(informe.ESTADO) == "LISTO"
         assert informe.GENERADO_POR_IA is False
+        assert informe.ERROR_DETALLE is not None
+        assert "IA:" in informe.ERROR_DETALLE
         ruta = Path(settings.UPLOADS_DIR) / informe.CLAVE_ARCHIVO
         assert ruta.is_file()
         assert ruta.read_bytes().startswith(b"%PDF")
 
-    def test_regenerar_no_duplica_fila(self, db):
+    def test_fallo_del_pdf_marca_fallido_con_detalle(self, db):
+        u_cli = _make_user(db, "cli_inf7@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        db.commit()
+
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ), patch(
+            "app.modules.informes.service.construir_pdf_informe",
+            side_effect=RuntimeError("reportlab explotó"),
+        ):
+            informe = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+
+        assert informe is not None
+        assert str(informe.ESTADO) == "FALLIDO"
+        assert "reportlab explotó" in (informe.ERROR_DETALLE or "")
+        assert informe.URL_ARCHIVO is None
+        assert informe.FECHA_GENERACION is not None
+
+    def test_se_genera_una_sola_vez_no_regenera(self, db):
         u_cli = _make_user(db, "cli_inf3@test.com", "CLIENTE")
         inc = _make_incidente(db, u_cli)
         _make_asignacion(db, inc, u_cli)
@@ -220,10 +250,16 @@ class TestGeneracionInforme:
         with patch(
             "app.infrastructure.external_services.ai_service.run_gemini",
             return_value=dict(_CONTENIDO_IA_OK),
-        ):
-            informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
-            informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+        ) as mock_ia:
+            primero = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+            clave_original = primero.CLAVE_ARCHIVO
+            segundo = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
 
+        # Un solo registro, una sola llamada a la IA, el mismo PDF: al
+        # reingresar se devuelve el existente sin regenerar nada.
+        assert mock_ia.call_count == 1
+        assert segundo.ID_INFORME == primero.ID_INFORME
+        assert segundo.CLAVE_ARCHIVO == clave_original
         total = (
             db.query(INFORMES_SERVICIO)
             .filter(INFORMES_SERVICIO.ID_INCIDENTE == inc.ID_INCIDENTE)
@@ -257,8 +293,31 @@ class TestConsultaInforme:
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["id_incidente"] == inc.ID_INCIDENTE
+        assert data["estado"] == "LISTO"
         assert data["generado_por_ia"] is True
+        assert data["correo_enviado"] is False
         assert data["url_archivo"].startswith(settings.INFORMES_URL_PREFIX)
+
+    def test_endpoint_devuelve_estado_generando_sin_pdf(self, client, db):
+        u_cli = _make_user(db, "cli_inf8@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        db.add(
+            INFORMES_SERVICIO(
+                ID_INCIDENTE=inc.ID_INCIDENTE,
+                ID_TENANT=1,
+                ESTADO="GENERANDO",
+            )
+        )
+        db.commit()
+
+        resp = client.get(
+            f"/informes/incidents/{inc.ID_INCIDENTE}",
+            headers=_auth_headers(u_cli),
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["estado"] == "GENERANDO"
+        assert data["url_archivo"] is None
 
     def test_otro_cliente_no_accede(self, client, db):
         u_cli = _make_user(db, "cli_inf5@test.com", "CLIENTE")
@@ -317,8 +376,11 @@ class TestEnvioCorreoInforme:
         with patch("app.modules.informes.service.httpx.post") as mock_post:
             mock_post.return_value.raise_for_status.return_value = None
             enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+            # Reintento: ya enviado, no debe llamar a Resend otra vez.
+            reenvio = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
 
         assert enviado is True
+        assert reenvio is True
         assert mock_post.call_count == 1
         _, kwargs = mock_post.call_args
         assert kwargs["json"]["to"] == ["cli_correo1@test.com"]
@@ -326,6 +388,13 @@ class TestEnvioCorreoInforme:
         assert kwargs["json"]["attachments"][0]["filename"].endswith(".pdf")
         # El adjunto debe ser el PDF ya persistido, no uno regenerado en el momento.
         assert kwargs["json"]["attachments"][0]["content"]
+
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == inc.ID_INCIDENTE)
+            .first()
+        )
+        assert informe.CORREO_ENVIADO is True
 
     def test_sin_config_resend_no_envia(self, db, monkeypatch):
         monkeypatch.setattr(settings, "RESEND_API_KEY", None)
@@ -347,6 +416,13 @@ class TestEnvioCorreoInforme:
 
         assert enviado is False
         mock_post.assert_not_called()
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == inc.ID_INCIDENTE)
+            .first()
+        )
+        # El motivo queda registrado en la tabla, no en silencio.
+        assert "Correo:" in (informe.ERROR_DETALLE or "")
 
     def test_fallo_resend_no_propaga_excepcion(self, db, monkeypatch):
         monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
@@ -370,6 +446,36 @@ class TestEnvioCorreoInforme:
             enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
 
         assert enviado is False
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == inc.ID_INCIDENTE)
+            .first()
+        )
+        # El informe sigue LISTO y disponible; el fallo del correo queda registrado.
+        assert str(informe.ESTADO) == "LISTO"
+        assert informe.CORREO_ENVIADO is False
+        assert "Resend caído" in (informe.ERROR_DETALLE or "")
+
+    def test_no_envia_si_informe_no_esta_listo(self, db, monkeypatch):
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "RESEND_FROM_EMAIL", "no-reply@test.com")
+
+        u_cli = _make_user(db, "cli_correo5@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        db.add(
+            INFORMES_SERVICIO(
+                ID_INCIDENTE=inc.ID_INCIDENTE,
+                ID_TENANT=1,
+                ESTADO="GENERANDO",
+            )
+        )
+        db.commit()
+
+        with patch("app.modules.informes.service.httpx.post") as mock_post:
+            enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+
+        assert enviado is False
+        mock_post.assert_not_called()
 
     def test_sin_informe_persistido_no_envia(self, db, monkeypatch):
         monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")

@@ -9,13 +9,16 @@ class InformeRepository {
   InformeRepository(this._client);
 
   /// Devuelve el informe de servicio del incidente, o null si todavía no está
-  /// disponible (backend responde 404 mientras el incidente no está ATENDIDO
-  /// o la generación en background aún no terminó).
+  /// disponible: 404 (generación no disparada) o registro presente pero sin
+  /// PDF listo (estados GENERANDO / FALLIDO del backend).
   Future<InformeServicio?> getInforme(int idIncidente) async {
     try {
       final response =
           await _client.dio.get('/informes/incidents/$idIncidente');
-      return InformeServicio.fromJson(response.data as Map<String, dynamic>);
+      final informe =
+          InformeServicio.fromJson(response.data as Map<String, dynamic>);
+      if (informe.urlArchivo.isEmpty) return null;
+      return informe;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
       final detail = (e.response?.data as Map?)?['detail'] ??
