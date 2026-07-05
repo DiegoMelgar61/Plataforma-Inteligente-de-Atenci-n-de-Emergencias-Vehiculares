@@ -5,39 +5,44 @@ import '../../../core/extensions.dart';
 import '../../providers/providers.dart';
 import '../../../shared/widgets.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends ConsumerStatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    final success = await ref.read(authProvider.notifier).login(
-          _emailController.text.trim(),
-          _passwordController.text,
+    final success = await ref.read(authProvider.notifier).register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          fullName: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
         );
     if (!mounted) return;
     if (success) {
-      final user = ref.read(authProvider).currentUser;
-      final route = (user?.esTecnico ?? false)
-          ? AppConstants.routeTechnicianHome
-          : AppConstants.routeHome;
-      Navigator.pushReplacementNamed(context, route);
+      Navigator.pushReplacementNamed(context, AppConstants.routeHome);
     }
   }
 
@@ -71,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'Iniciar sesión',
+                  'Crear cuenta',
                   style:
                       Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
@@ -79,7 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Bienvenido de vuelta',
+                  'Registrate para comenzar',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -94,6 +99,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Column(
                     children: [
                       AppTextField(
+                        controller: _nameController,
+                        label: 'Nombre completo',
+                        prefixIcon: Icons.person_outlined,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Ingresa tu nombre';
+                          }
+                          if (value.trim().length < 3) {
+                            return 'Mínimo 3 caracteres';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      AppTextField(
                         controller: _emailController,
                         label: 'Correo electrónico',
                         keyboardType: TextInputType.emailAddress,
@@ -107,6 +127,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      AppTextField(
+                        controller: _phoneController,
+                        label: 'Teléfono (opcional)',
+                        keyboardType: TextInputType.phone,
+                        prefixIcon: Icons.phone_outlined,
                       ),
                       const SizedBox(height: 16),
                       AppTextField(
@@ -133,12 +160,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 16),
+                      AppTextField(
+                        controller: _confirmController,
+                        label: 'Confirmar contraseña',
+                        obscureText: _obscureConfirm,
+                        prefixIcon: Icons.lock_outlined,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirm
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () => setState(
+                              () => _obscureConfirm = !_obscureConfirm),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Confirmá tu contraseña';
+                          }
+                          if (value != _passwordController.text) {
+                            return 'Las contraseñas no coinciden';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 28),
                       AppButton(
-                        onPressed: authState.isLoading ? null : _login,
+                        onPressed: authState.isLoading ? null : _register,
                         isLoading: authState.isLoading,
                         child: const Text(
-                          'Iniciar sesión',
+                          'Crear cuenta',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600),
                         ),
@@ -152,9 +204,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () {
                       ref.read(authProvider.notifier).clearError();
                       Navigator.pushReplacementNamed(
-                          context, AppConstants.routeRegister);
+                          context, AppConstants.routeLogin);
                     },
-                    child: const Text('¿No tenés cuenta? Registrate'),
+                    child: const Text('¿Ya tenés cuenta? Iniciá sesión'),
                   ),
                 ),
               ],

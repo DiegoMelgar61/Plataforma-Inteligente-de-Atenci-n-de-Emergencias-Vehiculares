@@ -47,6 +47,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repo;
   final Ref _ref;
 
+  Future<bool> register({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _repo.register(
+          email: email, password: password, fullName: fullName, phone: phone);
+      final user = await _repo.getCurrentUser();
+      state = state.copyWith(
+        isAuthenticated: true,
+        isLoading: false,
+        currentUser: user,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('Exception: ', ''),
+      );
+      return false;
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
