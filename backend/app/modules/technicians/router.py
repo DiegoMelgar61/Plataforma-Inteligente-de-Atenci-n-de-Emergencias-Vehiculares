@@ -292,6 +292,16 @@ def actualizar_estado_incidente_tecnico(
         except Exception:
             logger.exception("Error al generar informe para incidente %s", id_incidente)
 
+        # Enviar el informe ya generado por correo al cliente (reutiliza el PDF
+        # persistido, no lo regenera). Fallo de correo nunca rompe la transición.
+        try:
+            from app.modules.informes import service as informes_service
+            informes_service.enviar_correo_informe(db, id_incidente)
+        except Exception:
+            logger.exception(
+                "Error al enviar informe por correo para incidente %s", id_incidente
+            )
+
         # Cerrar la sesión de tracking GPS del técnico si está activa
         try:
             from app.modules.notifications.service import cerrar_tracking_tecnico

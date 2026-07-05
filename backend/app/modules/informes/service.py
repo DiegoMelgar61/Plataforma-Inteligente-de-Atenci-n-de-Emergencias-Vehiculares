@@ -14,12 +14,14 @@ Diseño (reglas del feature):
 """
 from __future__ import annotations
 
+import base64
 import logging
 import uuid
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -404,3 +406,114 @@ def generar_y_persistir_informe(db: Session, id_incidente: int) -> INFORMES_SERV
         except Exception:
             pass
         return None
+
+
+# ─────────────────────────── Envío del informe por correo ────────────────────
+
+_RESEND_API_URL = "https://api.resend.com/emails"
+
+
+def _construir_html_correo(incidente: INCIDENTES, nombre_cliente: str) -> str:
+    """Cuerpo simple del correo; el contenido real del servicio va en el PDF adjunto."""
+    return f"""
+    <div style="font-family: Arial, sans-serif; color: #111827;">
+      <p>Hola {nombre_cliente or "cliente"},</p>
+      <p>Adjuntamos el <b>informe de servicio</b> de tu orden
+      #{incidente.ID_INCIDENTE:04d}, generado automáticamente al finalizar la atención.</p>
+      <p>Gracias por confiar en {settings.APP_NAME}.</p>
+    </div>
+    """.strip()
+
+
+def enviar_correo_informe(db: Session, id_incidente: int) -> bool:
+    """
+    Envía por correo el PDF del informe de servicio YA generado y persistido
+    (no lo vuelve a generar) al cliente del incidente, vía la API HTTP de Resend.
+
+    Nunca lanza: ante cualquier falla (config faltante, cliente sin correo,
+    Resend caído, etc.) registra el error y devuelve False, de modo que jamás
+    afecta la transición del incidente ni la disponibilidad del PDF en la orden.
+    """
+    try:
+        if not settings.RESEND_API_KEY or not settings.RESEND_FROM_EMAIL:
+            logger.warning(
+                "Envío de informe omitido para incidente %s: RESEND_API_KEY/"
+                "RESEND_FROM_EMAIL no configurados",
+                id_incidente,
+            )
+            return False
+
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == id_incidente)
+            .first()
+        )
+        if informe is None:
+            logger.warning(
+                "No hay informe persistido para incidente %s; no se envía correo",
+                id_incidente,
+            )
+            return False
+
+        incidente = (
+            db.query(INCIDENTES).filter(INCIDENTES.ID_INCIDENTE == id_incidente).first()
+        )
+        if incidente is None:
+            return False
+
+        cliente = (
+            db.query(USUARIOS)
+            .filter(USUARIOS.ID_USUARIO == incidente.ID_USUARIO_CLIENTE)
+            .first()
+        )
+        if cliente is None or not cliente.CORREO_ELECTRONICO:
+            logger.warning(
+                "Cliente sin correo para incidente %s; no se envía informe", id_incidente
+            )
+            return False
+
+        # Reutiliza el PDF ya persistido en disco; no se vuelve a generar.
+        ruta_pdf = Path(settings.UPLOADS_DIR) / informe.CLAVE_ARCHIVO
+        if not ruta_pdf.is_file():
+            logger.warning(
+                "Archivo del informe no encontrado en disco para incidente %s: %s",
+                id_incidente,
+                ruta_pdf,
+            )
+            return False
+
+        pdf_base64 = base64.b64encode(ruta_pdf.read_bytes()).decode("ascii")
+        nombre_archivo = f"informe_servicio_{id_incidente:04d}.pdf"
+
+        payload = {
+            "from": settings.RESEND_FROM_EMAIL,
+            "to": [cliente.CORREO_ELECTRONICO],
+            "subject": f"Informe de servicio - Orden #{incidente.ID_INCIDENTE:04d}",
+            "html": _construir_html_correo(incidente, cliente.NOMBRE_COMPLETO),
+            "attachments": [
+                {"filename": nombre_archivo, "content": pdf_base64}
+            ],
+        }
+
+        respuesta = httpx.post(
+            _RESEND_API_URL,
+            headers={
+                "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=20.0,
+        )
+        respuesta.raise_for_status()
+        logger.info(
+            "Informe de servicio enviado por correo para incidente %s a %s",
+            id_incidente,
+            cliente.CORREO_ELECTRONICO,
+        )
+        return True
+    except Exception:
+        logger.exception(
+            "Error al enviar por correo el informe de servicio del incidente %s",
+            id_incidente,
+        )
+        return False

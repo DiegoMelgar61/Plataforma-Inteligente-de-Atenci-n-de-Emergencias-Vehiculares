@@ -290,3 +290,97 @@ class TestConsultaInforme:
             headers=_auth_headers(u_cli),
         )
         assert resp.status_code == 404, resp.text
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# TEST 3 — Envío del informe ya generado por correo (Resend), sin regenerarlo
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestEnvioCorreoInforme:
+
+    def test_envia_correo_reutilizando_pdf_ya_persistido(self, db, monkeypatch):
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "RESEND_FROM_EMAIL", "no-reply@test.com")
+
+        u_cli = _make_user(db, "cli_correo1@test.com", "CLIENTE", "Beto Cliente")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        db.commit()
+
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ):
+            informe = informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+        assert informe is not None
+
+        with patch("app.modules.informes.service.httpx.post") as mock_post:
+            mock_post.return_value.raise_for_status.return_value = None
+            enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+
+        assert enviado is True
+        assert mock_post.call_count == 1
+        _, kwargs = mock_post.call_args
+        assert kwargs["json"]["to"] == ["cli_correo1@test.com"]
+        assert kwargs["json"]["from"] == "no-reply@test.com"
+        assert kwargs["json"]["attachments"][0]["filename"].endswith(".pdf")
+        # El adjunto debe ser el PDF ya persistido, no uno regenerado en el momento.
+        assert kwargs["json"]["attachments"][0]["content"]
+
+    def test_sin_config_resend_no_envia(self, db, monkeypatch):
+        monkeypatch.setattr(settings, "RESEND_API_KEY", None)
+        monkeypatch.setattr(settings, "RESEND_FROM_EMAIL", None)
+
+        u_cli = _make_user(db, "cli_correo2@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        db.commit()
+
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ):
+            informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+
+        with patch("app.modules.informes.service.httpx.post") as mock_post:
+            enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+
+        assert enviado is False
+        mock_post.assert_not_called()
+
+    def test_fallo_resend_no_propaga_excepcion(self, db, monkeypatch):
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "RESEND_FROM_EMAIL", "no-reply@test.com")
+
+        u_cli = _make_user(db, "cli_correo3@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        db.commit()
+
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ):
+            informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+
+        with patch(
+            "app.modules.informes.service.httpx.post",
+            side_effect=RuntimeError("Resend caído"),
+        ):
+            enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+
+        assert enviado is False
+
+    def test_sin_informe_persistido_no_envia(self, db, monkeypatch):
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "RESEND_FROM_EMAIL", "no-reply@test.com")
+
+        u_cli = _make_user(db, "cli_correo4@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli, estado="EN_PROCESO")
+        db.commit()
+
+        with patch("app.modules.informes.service.httpx.post") as mock_post:
+            enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+
+        assert enviado is False
+        mock_post.assert_not_called()
