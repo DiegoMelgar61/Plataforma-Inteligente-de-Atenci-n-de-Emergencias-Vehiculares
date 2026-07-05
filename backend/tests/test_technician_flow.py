@@ -16,6 +16,7 @@ Para ejecutar:
     cd backend
     pytest tests/test_technician_flow.py -v
 """
+import itertools
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -82,6 +83,10 @@ app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_database():
+    # Re-afirma el override del módulo: otros archivos de test también pisan
+    # app.dependency_overrides[get_db] sobre el mismo singleton `app`, y sin
+    # esto el orden de recolección de pytest decide qué engine SQLite responde.
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
@@ -105,8 +110,13 @@ def client():
 
 # ─────────────────────── helpers de fixtures ─────────────────────────────────
 
-def _uid() -> uuid.UUID:
-    return uuid.uuid4()
+# PKs are Integer autoincrement since the UUID->int migration; fixtures assign
+# explicit unique ints from a process-wide counter.
+_id_counter = itertools.count(1)
+
+
+def _uid() -> int:
+    return next(_id_counter)
 
 
 def _make_user(db, correo: str, rol: str, nombre: str = "Test User") -> USUARIOS:
@@ -250,7 +260,7 @@ class TestMiAsignacion:
         data = resp.json()
         assert data is not None
         assert data["estado_incidente"] == "ASIGNADO"
-        assert data["id_tecnico"] == str(tec.ID_TECNICO)
+        assert data["id_tecnico"] == tec.ID_TECNICO
 
     def test_cliente_no_puede_acceder_a_mi_asignacion(self, client, db):
         u_cli = _make_user(db, "cli_noma@test.com", "CLIENTE")
@@ -296,7 +306,7 @@ class TestMaquinaEstados:
         url = f"/tecnicos/incidente/{inc.ID_INCIDENTE}/estado"
 
         with patch("app.modules.payments.service.crear_pago_pendiente") as mock_pay:
-            mock_pay.return_value = MagicMock(ID_PAGO=uuid.uuid4(), MONTO=100)
+            mock_pay.return_value = MagicMock(ID_PAGO=_uid(), MONTO=100)
             resp = client.patch(
                 url, json={"nuevo_estado": "ATENDIDO"}, headers=_auth_headers(u_tec)
             )
