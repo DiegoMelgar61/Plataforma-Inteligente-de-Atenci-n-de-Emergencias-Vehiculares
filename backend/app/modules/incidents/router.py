@@ -629,6 +629,22 @@ def actualizar_estado_incidente(
     db.refresh(inc)
 
     if nuevo_estado == "ATENDIDO":
+        # Liberar al técnico asignado (queda DISPONIBLE) al cerrar la orden por
+        # la vía taller/admin, igual que ya hace la ruta del propio técnico. Sin
+        # esto, atendiendo desde el panel el técnico quedaba ocupado para siempre.
+        try:
+            from app.modules.assignments.models import ASIGNACIONES as _ASIG
+            from app.modules.technicians.models import TECNICOS as _TEC
+            _asig_tec = db.query(_ASIG).filter(_ASIG.ID_INCIDENTE == id_incidente).first()
+            if _asig_tec:
+                _tecnico = db.query(_TEC).filter(_TEC.ID_TECNICO == _asig_tec.ID_TECNICO).first()
+                if _tecnico and not _tecnico.DISPONIBLE:
+                    _tecnico.DISPONIBLE = True
+                    db.commit()
+        except Exception:
+            logger.exception("Error al liberar técnico del incidente %s", id_incidente)
+            db.rollback()
+
         try:
             from app.modules.assignments.models import ASIGNACIONES
             from app.modules.payments import service as payment_service
