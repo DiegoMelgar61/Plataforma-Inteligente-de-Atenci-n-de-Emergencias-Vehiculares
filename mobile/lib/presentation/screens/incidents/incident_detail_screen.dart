@@ -364,9 +364,18 @@ class _ServiceReportSection extends ConsumerWidget {
   Future<void> _abrirInforme(BuildContext context, String urlArchivo) async {
     final uri = Uri.parse('${AppConfig.baseUrl}$urlArchivo');
     final messenger = ScaffoldMessenger.of(context);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    // Launch directly instead of gating on canLaunchUrl: on Android 11+ that
+    // check needs package-visibility queries and gives false negatives.
+    try {
+      final abierto =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!abierto) {
+        messenger.showSnackBar(
+          const SnackBar(
+              content: Text('No se pudo abrir el informe de servicio')),
+        );
+      }
+    } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text('No se pudo abrir el informe de servicio')),
       );

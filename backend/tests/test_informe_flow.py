@@ -430,7 +430,7 @@ class TestEnvioCorreoInforme:
         assert informe is not None
 
         with patch("app.modules.informes.service.httpx.post") as mock_post:
-            mock_post.return_value.raise_for_status.return_value = None
+            mock_post.return_value.status_code = 200
             enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
             # Reintento: ya enviado, no debe llamar a Resend otra vez.
             reenvio = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
@@ -511,6 +511,37 @@ class TestEnvioCorreoInforme:
         assert str(informe.ESTADO) == "LISTO"
         assert informe.CORREO_ENVIADO is False
         assert "Resend caído" in (informe.ERROR_DETALLE or "")
+
+    def test_error_http_de_resend_registra_cuerpo_de_respuesta(self, db, monkeypatch):
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "RESEND_FROM_EMAIL", "no-reply@test.com")
+
+        u_cli = _make_user(db, "cli_correo6@test.com", "CLIENTE")
+        inc = _make_incidente(db, u_cli)
+        _make_asignacion(db, inc, u_cli)
+        db.commit()
+        with patch(
+            "app.infrastructure.external_services.ai_service.run_gemini",
+            return_value=dict(_CONTENIDO_IA_OK),
+        ):
+            informes_service.generar_y_persistir_informe(db, inc.ID_INCIDENTE)
+
+        with patch("app.modules.informes.service.httpx.post") as mock_post:
+            mock_post.return_value.status_code = 403
+            mock_post.return_value.text = (
+                '{"message":"You can only send testing emails to your own email"}'
+            )
+            enviado = informes_service.enviar_correo_informe(db, inc.ID_INCIDENTE)
+
+        assert enviado is False
+        informe = (
+            db.query(INFORMES_SERVICIO)
+            .filter(INFORMES_SERVICIO.ID_INCIDENTE == inc.ID_INCIDENTE)
+            .first()
+        )
+        # El detalle incluye el cuerpo de Resend con el motivo exacto.
+        assert "Resend 403" in (informe.ERROR_DETALLE or "")
+        assert "your own email" in (informe.ERROR_DETALLE or "")
 
     def test_no_envia_si_informe_no_esta_listo(self, db, monkeypatch):
         monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")

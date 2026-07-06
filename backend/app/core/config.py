@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = 'gemini-2.5-flash'
 
     RESEND_API_KEY: str | None = None
-    RESEND_FROM_EMAIL: str | None = None
+    # Por defecto el remitente sandbox de Resend: sin dominio verificado, solo
+    # permite enviar al correo dueño de la cuenta Resend. Para producción, poner
+    # un correo de un dominio verificado (resend.com/domains).
+    RESEND_FROM_EMAIL: str | None = "onboarding@resend.dev"
 
 settings = Settings()
