@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api_client.dart';
 import '../../../core/config.dart';
@@ -160,6 +159,7 @@ class _IncidentDetailScreenState extends ConsumerState<IncidentDetailScreen> {
           const SizedBox(height: 16),
         ],
         _QuotationSection(
+          estado: incident.estado,
           quotationAsync: quotationAsync,
           responseState:
               ref.watch(quotationResponseProvider(widget.incidentId)),
@@ -361,38 +361,58 @@ class _ServiceReportSection extends ConsumerWidget {
   final int incidentId;
   const _ServiceReportSection({required this.incidentId});
 
-  Future<void> _abrirInforme(BuildContext context, String urlArchivo) async {
-    final uri = Uri.parse('${AppConfig.baseUrl}$urlArchivo');
-    final messenger = ScaffoldMessenger.of(context);
-    // Launch directly instead of gating on canLaunchUrl: on Android 11+ that
-    // check needs package-visibility queries and gives false negatives.
-    try {
-      final abierto =
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!abierto) {
-        messenger.showSnackBar(
-          const SnackBar(
-              content: Text('No se pudo abrir el informe de servicio')),
-        );
-      }
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir el informe de servicio')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final informeAsync = ref.watch(informeServicioProvider(incidentId));
+
+    // (icono, color, texto, mostrar botón de refrescar)
+    late final IconData icono;
+    late final Color color;
+    late final String texto;
+    var mostrarRefrescar = false;
+
+    informeAsync.when(
+      loading: () {
+        icono = Icons.hourglass_top;
+        color = colorScheme.onSurfaceVariant;
+        texto = 'Preparando el informe de tu servicio…';
+      },
+      error: (_, __) {
+        icono = Icons.hourglass_top;
+        color = colorScheme.onSurfaceVariant;
+        texto = 'El informe aún no está disponible';
+        mostrarRefrescar = true;
+      },
+      data: (informe) {
+        if (informe == null || informe.estado.toUpperCase() == 'GENERANDO') {
+          icono = Icons.hourglass_top;
+          color = colorScheme.onSurfaceVariant;
+          texto = 'El informe se está generando, volvé a revisar en unos minutos';
+          mostrarRefrescar = true;
+        } else if (informe.estado.toUpperCase() == 'FALLIDO') {
+          icono = Icons.error_outline;
+          color = colorScheme.error;
+          texto = 'No se pudo generar el informe automáticamente';
+          mostrarRefrescar = true;
+        } else if (informe.correoEnviado) {
+          icono = Icons.mark_email_read_outlined;
+          color = Colors.green;
+          texto = 'Informe de servicio enviado a tu correo electrónico';
+        } else {
+          icono = Icons.check_circle_outline;
+          color = Colors.green;
+          texto = 'Informe de servicio generado correctamente';
+        }
+      },
+    );
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.description_outlined, color: colorScheme.primary),
+            Icon(icono, color: color),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -406,41 +426,18 @@ class _ServiceReportSection extends ConsumerWidget {
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
-                  informeAsync.when(
-                    loading: () => Text(
-                      'Preparando el informe de tu servicio…',
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                    ),
-                    error: (_, __) => Text(
-                      'El informe aún no está disponible',
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                    ),
-                    data: (informe) => Text(
-                      informe == null
-                          ? 'El informe se está generando, volvé a intentar en unos minutos'
-                          : 'Disponible para ver y descargar',
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ),
+                  Text(texto,
+                      style: TextStyle(color: colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
-            informeAsync.maybeWhen(
-              data: (informe) => informe == null
-                  ? IconButton(
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Actualizar',
-                      onPressed: () =>
-                          ref.invalidate(informeServicioProvider(incidentId)),
-                    )
-                  : FilledButton.icon(
-                      onPressed: () =>
-                          _abrirInforme(context, informe.urlArchivo),
-                      icon: const Icon(Icons.download_outlined, size: 18),
-                      label: const Text('Ver / Descargar'),
-                    ),
-              orElse: () => const SizedBox.shrink(),
-            ),
+            if (mostrarRefrescar)
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Actualizar',
+                onPressed: () =>
+                    ref.invalidate(informeServicioProvider(incidentId)),
+              ),
           ],
         ),
       ),
@@ -614,15 +611,22 @@ class _OffersSection extends ConsumerWidget {
 }
 
 class _QuotationSection extends StatelessWidget {
+  final String estado;
   final AsyncValue<CotizacionDetalle?> quotationAsync;
   final AsyncValue<void> responseState;
   final Future<void> Function(bool accepted) onRespond;
 
   const _QuotationSection({
+    required this.estado,
     required this.quotationAsync,
     required this.responseState,
     required this.onRespond,
   });
+
+  // El cliente solo puede responder la cotización mientras la orden está
+  // ASIGNADA (oferta pendiente). En EN_CAMINO/EN_PROCESO/ATENDIDO/CANCELADO la
+  // cotización se muestra como información, sin botones.
+  bool get _puedeResponder => estado.toUpperCase() == 'ASIGNADO';
 
   @override
   Widget build(BuildContext context) {
@@ -696,7 +700,7 @@ class _QuotationSection extends StatelessWidget {
                         value: quotation.notasCotizacion!,
                       ),
                     ],
-                    if (quotation.pendienteRespuesta) ...[
+                    if (quotation.pendienteRespuesta && _puedeResponder) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -987,15 +991,6 @@ class _StatusCard extends StatelessWidget {
                 StatusChip(status: incident.estado),
               ],
             ),
-            if (incident.resumenIa != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                incident.resumenIa!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onPrimaryContainer.withOpacity(0.8),
-                    ),
-              ),
-            ],
             const SizedBox(height: 16),
             // Timeline
             Row(
@@ -1272,8 +1267,12 @@ class _EvidenceSection extends StatelessWidget {
   final List<Evidence> evidencias;
   const _EvidenceSection({required this.evidencias});
 
+  static String _urlAbsoluta(String url) =>
+      url.startsWith('http') ? url : '${AppConfig.baseUrl}$url';
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1288,28 +1287,72 @@ class _EvidenceSection extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(),
-            ...evidencias.map(
-              (e) => ListTile(
+            ...evidencias.map((e) {
+              // Imágenes: previsualización inline directa (sin abrir nada).
+              if (e.isImage) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      _urlAbsoluta(e.urlArchivo),
+                      width: double.infinity,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Container(
+                          height: 180,
+                          alignment: Alignment.center,
+                          color: colorScheme.surfaceContainerHighest,
+                          child: const CircularProgressIndicator(),
+                        );
+                      },
+                      errorBuilder: (context, _, __) => Container(
+                        height: 180,
+                        alignment: Alignment.center,
+                        color: colorScheme.surfaceContainerHighest,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.broken_image_outlined,
+                                color: colorScheme.onSurfaceVariant),
+                            const SizedBox(height: 4),
+                            Text(
+                              'No se pudo cargar la imagen',
+                              style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              // Audio / texto: sin previsualización, solo referencia.
+              return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   child: Icon(
-                    e.isImage
-                        ? Icons.image_outlined
-                        : e.tipo.toUpperCase() == 'AUDIO'
-                            ? Icons.audiotrack_outlined
-                            : Icons.text_snippet_outlined,
+                    e.tipo.toUpperCase() == 'AUDIO'
+                        ? Icons.audiotrack_outlined
+                        : Icons.text_snippet_outlined,
                   ),
                 ),
                 title: Text(
-                  e.urlArchivo.split('/').last,
+                  e.tipo.toUpperCase() == 'AUDIO'
+                      ? 'Audio del reporte'
+                      : (e.textoTranscrito?.trim().isNotEmpty == true
+                          ? e.textoTranscrito!
+                          : 'Nota de texto'),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
-                subtitle: Text(
-                  e.fechaCreacion?.formatted ?? e.tipo,
-                ),
-                trailing: const Icon(Icons.open_in_new),
-              ),
-            ),
+                subtitle: Text(e.fechaCreacion?.formatted ?? e.tipo),
+              );
+            }),
           ],
         ),
       ),
