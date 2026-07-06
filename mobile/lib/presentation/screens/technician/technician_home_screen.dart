@@ -1,5 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants.dart';
@@ -362,6 +366,9 @@ class _OrdenActivaView extends ConsumerWidget {
         _UbicacionCard(asignacion: asignacion),
         const SizedBox(height: 12),
 
+        // ── Evidencias del incidente ─────────────────────────────────────────
+        _EvidenciasTecnico(incidentId: asignacion.idIncidente),
+
         // ── Copiloto IA ───────────────────────────────────────────────────────
         _CopilotEntry(incidentId: asignacion.idIncidente),
         const SizedBox(height: 24),
@@ -574,39 +581,14 @@ class _UbicacionCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              // Imagen estática del mapa (no requiere SDK de mapas)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  height: 160,
-                  color: colorScheme.surfaceVariant,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Icon(Icons.map_outlined,
-                          size: 64, color: colorScheme.onSurfaceVariant.withOpacity(0.3)),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.location_pin,
-                              size: 40, color: colorScheme.error),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Mapa interactivo con la ruta por calles hasta el incidente.
+              _RutaIncidenteMapa(destinoLat: lat, destinoLng: lng),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Abrir en Google Maps'),
+                  label: const Text('Abrir navegación en Google Maps'),
                   onPressed: () => _abrirMapa(context, lat, lng),
                 ),
               ),
@@ -625,14 +607,199 @@ class _UbicacionCard extends StatelessWidget {
   }
 
   Future<void> _abrirMapa(BuildContext context, double lat, double lng) async {
-    final uri = Uri.parse('https://maps.google.com/?q=$lat,$lng');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo abrir el mapa. Coordenadas: $lat, $lng')),
-      );
+    // Modo navegación (direcciones por calles desde la ubicación actual).
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final abierto = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!abierto && context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el mapa. Coordenadas: $lat, $lng')),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el mapa. Coordenadas: $lat, $lng')),
+        );
+      }
     }
+  }
+}
+
+/// Mapa interactivo con la ruta por calles desde la ubicación del técnico hasta
+/// el incidente. La ruta se traza con OSRM (sigue las calles); si falla, cae a
+/// una línea recta. El marcador del técnico se actualiza en vivo con el tracking.
+class _RutaIncidenteMapa extends ConsumerStatefulWidget {
+  final double destinoLat;
+  final double destinoLng;
+  const _RutaIncidenteMapa({required this.destinoLat, required this.destinoLng});
+
+  @override
+  ConsumerState<_RutaIncidenteMapa> createState() => _RutaIncidenteMapaState();
+}
+
+class _RutaIncidenteMapaState extends ConsumerState<_RutaIncidenteMapa> {
+  final MapController _mapController = MapController();
+  List<LatLng> _ruta = [];
+  LatLng? _origen;
+  bool _cargando = true;
+
+  LatLng get _destino => LatLng(widget.destinoLat, widget.destinoLng);
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarRuta();
+  }
+
+  Future<void> _cargarRuta() async {
+    // Preferir la última ubicación del tracking activo; si no, GPS del dispositivo.
+    LatLng? origen;
+    final tracking = ref.read(technicianTrackingProvider);
+    if (tracking.lastLocation != null) {
+      origen = LatLng(
+          tracking.lastLocation!.latitud, tracking.lastLocation!.longitud);
+    } else {
+      origen = await _ubicacionDispositivo();
+    }
+
+    final ruta = origen != null
+        ? await _rutaPorCalles(origen, _destino)
+        : <LatLng>[];
+
+    if (!mounted) return;
+    setState(() {
+      _origen = origen;
+      _ruta = ruta;
+      _cargando = false;
+    });
+
+    final puntos = ruta.isNotEmpty
+        ? ruta
+        : [if (origen != null) origen, _destino];
+    if (puntos.length >= 2) {
+      try {
+        _mapController.fitCamera(
+          CameraFit.coordinates(
+            coordinates: puntos,
+            padding: const EdgeInsets.all(40),
+          ),
+        );
+      } catch (_) {}
+    }
+  }
+
+  Future<LatLng?> _ubicacionDispositivo() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      return LatLng(pos.latitude, pos.longitude);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<LatLng>> _rutaPorCalles(LatLng o, LatLng d) async {
+    try {
+      final url = 'https://router.project-osrm.org/route/v1/driving/'
+          '${o.longitude},${o.latitude};${d.longitude},${d.latitude}'
+          '?overview=full&geometries=geojson';
+      final resp = await Dio().get(
+        url,
+        options: Options(receiveTimeout: const Duration(seconds: 15)),
+      );
+      final coords =
+          (resp.data['routes'][0]['geometry']['coordinates'] as List);
+      final puntos = coords
+          .map((c) =>
+              LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+          .toList();
+      if (puntos.isNotEmpty) return puntos;
+    } catch (_) {}
+    return [o, d]; // Fallback: línea recta si OSRM no responde.
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tracking = ref.watch(technicianTrackingProvider);
+    final tecnicoLive = tracking.lastLocation != null
+        ? LatLng(tracking.lastLocation!.latitud, tracking.lastLocation!.longitud)
+        : _origen;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        height: 220,
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _destino,
+                initialZoom: 14,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.plataforma.emergencias',
+                ),
+                if (_ruta.length >= 2)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: _ruta,
+                        color: colorScheme.primary,
+                        strokeWidth: 5,
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _destino,
+                      width: 40,
+                      height: 40,
+                      child: Icon(Icons.location_pin,
+                          size: 40, color: colorScheme.error),
+                    ),
+                    if (tecnicoLive != null)
+                      Marker(
+                        point: tecnicoLive,
+                        width: 36,
+                        height: 36,
+                        child: Icon(Icons.navigation,
+                            size: 30, color: colorScheme.primary),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            if (_cargando)
+              const Positioned(
+                top: 8,
+                right: 8,
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -667,6 +834,31 @@ class _CopilotEntry extends StatelessWidget {
           arguments: incidentId,
         ),
       ),
+    );
+  }
+}
+
+/// Muestra las evidencias del incidente al técnico. Obtiene el incidente
+/// completo (con evidencias) vía el endpoint de detalle, permitido para el
+/// técnico asignado del mismo tenant.
+class _EvidenciasTecnico extends ConsumerWidget {
+  final int incidentId;
+  const _EvidenciasTecnico({required this.incidentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final incidenteAsync = ref.watch(selectedIncidentProvider(incidentId));
+    return incidenteAsync.maybeWhen(
+      data: (incidente) {
+        if (incidente.evidencias.isEmpty) return const SizedBox.shrink();
+        return Column(
+          children: [
+            EvidenciasCard(evidencias: incidente.evidencias),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
