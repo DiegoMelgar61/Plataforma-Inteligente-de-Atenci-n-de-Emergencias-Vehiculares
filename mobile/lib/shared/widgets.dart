@@ -1,6 +1,104 @@
 import 'package:flutter/material.dart';
+import '../core/config.dart';
 import '../core/extensions.dart';
 import '../data/models/models.dart';
+
+/// Galería de evidencias de un incidente: imágenes con previsualización inline;
+/// audio/texto como referencia. Reutilizable por cliente y técnico.
+class EvidenciasCard extends StatelessWidget {
+  final List<Evidence> evidencias;
+  const EvidenciasCard({super.key, required this.evidencias});
+
+  static String _urlAbsoluta(String url) =>
+      url.startsWith('http') ? url : '${AppConfig.baseUrl}$url';
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Evidencias (${evidencias.length})',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const Divider(),
+            ...evidencias.map((e) {
+              if (e.isImage) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      _urlAbsoluta(e.urlArchivo),
+                      width: double.infinity,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Container(
+                          height: 180,
+                          alignment: Alignment.center,
+                          color: colorScheme.surfaceContainerHighest,
+                          child: const CircularProgressIndicator(),
+                        );
+                      },
+                      errorBuilder: (context, _, __) => Container(
+                        height: 180,
+                        alignment: Alignment.center,
+                        color: colorScheme.surfaceContainerHighest,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.broken_image_outlined,
+                                color: colorScheme.onSurfaceVariant),
+                            const SizedBox(height: 4),
+                            Text(
+                              'No se pudo cargar la imagen',
+                              style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  child: Icon(
+                    e.tipo.toUpperCase() == 'AUDIO'
+                        ? Icons.audiotrack_outlined
+                        : Icons.text_snippet_outlined,
+                  ),
+                ),
+                title: Text(
+                  e.tipo.toUpperCase() == 'AUDIO'
+                      ? 'Audio del reporte'
+                      : (e.textoTranscrito?.trim().isNotEmpty == true
+                          ? e.textoTranscrito!
+                          : 'Nota de texto'),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+                subtitle: Text(e.fechaCreacion?.formatted ?? e.tipo),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ── Loading ───────────────────────────────────────────────────────────────────
 
